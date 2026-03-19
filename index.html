@@ -442,7 +442,8 @@ function parseCSV(line) {
 }
 
 function buildRAW(csvText) {
-  const lines = csvText.split(/?
+  const lines = csvText.split(/
+?
 /).filter(l => l.trim());
   const headers = parseCSV(lines[0]);
   const fv = (row, col) => { const i=headers.indexOf(col); if(i<0)return null; const v=parseFloat(row[i]); return isNaN(v)?null:Math.round(v*1e5)/1e5; };
