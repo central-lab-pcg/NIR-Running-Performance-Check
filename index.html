@@ -217,7 +217,7 @@ table.ltbl td.ucl3,table.ltbl td.lcl3{color:var(--red);font-weight:600}
   <div id="canvas-wrap"><canvas id="myChart"></canvas></div>
 </div>
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbwzDk2C3AiB--0rGY8PbBVObBqDzb2LFacQgxshjoJX2CRp_hjpBjOKEG866zHlPx45/exec';
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRj4jrQldUVb9x_Te19lwi0cDJcAXXkewDtd98uKYwzJTERI6gvfqt3BvFPSvNk7g/pub?gid=259663474&single=true&output=csv';
 const PARAM_DEFS = [["M", "Moisture (M)", "M-Diff , WC-NIR", "M2SEPeqa", "M-2SEPeqa2", "M3sep", "M-3sep2"], ["CP", "Crude Protein (CP)", "CP Diff , WC-NIR", "CP2SEPeqa", "CP-2SEPeqa2", "CP3SEPeqa", "CP-3SEPeqa3"], ["EE", "Ether Extract (EE)", "EE Diff", "EE2SEP", "EE-2SEP", "EE3SEP", "EE-3SEP"], ["AH", "Crude Fat (AH)", "AH Diff , WC-NIR2", "AH2SEPeqa", "AH-2SEPeqa2", "AH3SEPeqa", "ah-3SEPeqa3"], ["FIB", "Fiber (FIB)", "Fib Diff , WC-NIR3", "Fib 2SEPeqa", "Fib-2SEPeqa2", "Fib 3SEPeqa", "Fib-3SEPeqa3"], ["ASH", "Ash", "Ash Diff , WC-NIR4", "Ash 2SEPeqa", "Ash-2SEPeqa2", "Ash 3SEPeqa", "Ash-3SEPeqa3"], ["Ca", "Calcium (Ca)", "Ca Diff , WC-NIR6", "Ca2SEPeqa", "Ca-2SEPeqa2", "Ca3SEPeqa", "Ca-3SEPeqa3"], ["P", "Phosphorus (P)", "P Diff , WC-NIR6", "P2SEPeqa", "P-2SEPeqa2", "P3SEPeqa", "P-3SEPeqa3"], ["Aw", "Water Activity (Aw)", "Aw Diff , WC-NIR6", "Aw2SEPeqa", "Aw-2SEPeqa2", "Aw3SEPeqa", "Aw-3SEPeqa3"], ["PD", "Protein Digest. (PD)", "PD Diff , WC-NIR6", "PD2SEP", "PD-2SEPeqa2", "PD3SEPeqa", "PD-3SEPeqa3"], ["TVBN", "TVBN", "TVBN Diff , WC-NIR6", "TVBN2SEP", "TVBN-2SEPeqa2", "TVBN3SEPeqa", "TVBN-3SEPeqa3"], ["NaCl", "NaCl", "NaCl Diff , WC-NIR5", "NaCl2SEPeqa", "NaCl2SEPeqa2", "NaCl3SEPeqa3", "NaCl3SEPeqa2"], ["Sand", "Sand", "Sand Diff , WC-NIR37", "Sand2SEP", "Sand-2SEPeqa23", "Sand 3SEPeqa2", "Sand-3SEPeqa34"], ["Starch", "Starch", "Starch Diff , WC-NIR47", "Starch2SEP", "Starch-2SEPeqa23", "Starch3SEPeqa2", "Starch-3SEPeqa34"], ["BHT", "BHT", "BHT Diff , WC-NIR6", "BHT2SEP", "BHT-2SEPeqa2", "BHT3SEPeqa", "BHT-3SEPeqa3"], ["pH", "pH", "pH Diff , WC-NIR6", "pH2SEP", "pH-2SEPeqa2", "pH3SEPeqa", "pH-3SEPeqa3"], ["Fat-C", "Fat-C", "Fat-C Diff , WC-NIR5", "Fat-C2SEP", "Fat-C 2SEPeqa2", "Fat-C3SEPeqa3", "Fat-C3SEPeqa2"]];
 const I={SEP:0,PAR:1,MON:2,PLA:3,EQP:4,SRC:5,PRD:6,DIF:7,U2:8,L2:9,U3:10,L3:11,SMP:12,NO:13};
 const PARAM_DECIMALS={'ASH':1,'Ca':3,'P':3};
@@ -409,76 +409,99 @@ function renderChart(){
 FILTER_IDS.forEach(id=>{document.getElementById(id).addEventListener('change',()=>{refreshAllDD();renderChart();});});
 refreshAllDD();renderChart();
 
-// ===== Apps Script Loader =====
+// ===== CSV LOADER =====
 async function loadAndInit() {
-  let data = null;
-  try {
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 30000);
-    const resp = await fetch(API_URL, {signal: ctrl.signal});
-    clearTimeout(tid);
-    if (resp.ok) data = await resp.json();
-  } catch(e) { console.error('Fetch error:', e); }
-
-  if (!data) { console.error('ดึงข้อมูลไม่สำเร็จ'); return; }
-
+  const proxies = [
+    CSV_URL,
+    'https://corsproxy.io/?' + encodeURIComponent(CSV_URL),
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(CSV_URL),
+    'https://thingproxy.freeboard.io/fetch/' + CSV_URL,
+  ];
+  let text = null;
+  for (const url of proxies) {
+    try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 15000);
+      const resp = await fetch(url, {signal: ctrl.signal});
+      clearTimeout(tid);
+      if (resp.ok) { text = await resp.text(); if (text && text.length > 100) break; }
+    } catch(e) {}
+  }
+  if (!text) { console.error('ดึงข้อมูลไม่สำเร็จ'); return; }
   setTimeout(() => {
-    try { initApp(buildRAW(data)); } catch(e) { console.error('Build error:', e); }
+    try { initApp(buildRAW(text)); } catch(e) { console.error('Build error:', e); }
   }, 10);
 }
 
-function buildRAW(data) {
-  // data = [[header,...],[row,...],...]
-  const headers = data[0].map(h => String(h).trim());
-  const rows = data.slice(1);
+function parseCSV(line) {
+  if (line.indexOf('"') < 0) return line.split(',').map(s => s.trim());
+  const result = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQ) { if (c==='"') { if (line[i+1]==='"') { cur+='"'; i++; } else inQ=false; } else cur+=c; }
+    else { if (c==='"') inQ=true; else if (c===',') { result.push(cur.trim()); cur=''; } else cur+=c; }
+  }
+  result.push(cur.trim()); return result;
+}
+
+function buildRAW(csvText) {
+  const lines = csvText.split(/?
+/).filter(l => l.trim());
+  const headers = parseCSV(lines[0]);
+
+  // Support both 'Mouth' and 'Month' column names
+  const mouthCol = headers.includes('Mouth') ? 'Mouth' : headers.includes('Month') ? 'Month' : 'Mouth';
 
   const fv = (row, col) => {
-    const i = headers.indexOf(col);
-    if (i < 0) return null;
-    const v = parseFloat(row[i]);
-    return isNaN(v) ? null : Math.round(v * 1e5) / 1e5;
+    const i = headers.indexOf(col); if (i < 0) return null;
+    const v = parseFloat(row[i]); return isNaN(v) ? null : Math.round(v * 1e5) / 1e5;
   };
   const sv = (row, col) => {
-    const i = headers.indexOf(col);
-    return i >= 0 ? String(row[i] || '').trim() : '';
+    const i = headers.indexOf(col); return i >= 0 ? String(row[i] || '').trim() : '';
+  };
+  const parseMonth = (raw) => {
+    if (!raw) return null;
+    const s = String(raw).trim(); if (!s || s === 'null') return null;
+    let d = new Date(s);
+    if (isNaN(d.getTime())) {
+      const n = parseFloat(s);
+      if (!isNaN(n) && n > 40000) d = new Date((n - 25569) * 86400000);
+    }
+    if (isNaN(d.getTime())) return null;
+    const y = d.getFullYear(), mo = d.getMonth();
+    if (y < 2000 || y > 2100) return null;
+    return {
+      ms: y + '-' + (mo < 9 ? '0' : '') + (mo + 1),
+      ml: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo] + ' ' + y
+    };
   };
 
   const sepsS=new Set(), plantsS=new Set(), equipsS=new Set();
   const sourcesS=new Set(), productsS=new Set(), monthsS=new Set();
   const recs = [];
-  const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-  rows.forEach(row => {
-    const sep = sv(row,'SEP'); if (!sep || sep==='nan') return;
-    const mRaw = sv(row,'Mouth'); if (!mRaw) return;
-    let ms='', ml='';
-    try {
-      const d = new Date(mRaw); if (isNaN(d.getTime())) return;
-      const y=d.getFullYear(), mo=d.getMonth();
-      ms = y+'-'+(mo<9?'0':'')+(mo+1);
-      ml = mNames[mo]+' '+y;
-    } catch(e) { return; }
-
+  for (let r = 1; r < lines.length; r++) {
+    const row = parseCSV(lines[r]);
+    const sep = sv(row, 'SEP'); if (!sep || sep === 'nan') continue;
+    const pm = parseMonth(sv(row, mouthCol)); if (!pm) continue;
+    const {ms, ml} = pm;
     const plant=sv(row,'Plant'), equip=sv(row,'Equipment');
     const source=sv(row,'Source'), product=sv(row,'Product');
     const sample=sv(row,'Sample'), no=sv(row,'No.');
-
     if(plant) plantsS.add(plant); if(equip) equipsS.add(equip);
     if(source) sourcesS.add(source); if(product) productsS.add(product);
     monthsS.add(ms); sepsS.add(sep);
-
     PARAM_DEFS.forEach(([pk,,diffCol,ucl2c,lcl2c,ucl3c,lcl3c]) => {
-      const diff = fv(row,diffCol); if (diff===null) return;
+      const diff = fv(row, diffCol); if (diff === null) return;
       recs.push({sep,ms,ml,plant,equip,source,product,sample,no,param:pk,diff,
         ucl2:fv(row,ucl2c), lcl2:fv(row,lcl2c), ucl3:fv(row,ucl3c), lcl3:fv(row,lcl3c)});
     });
-  });
+  }
 
   const seps=[...sepsS].sort(), plants=[...plantsS].sort();
   const equips=[...equipsS].sort(), sources=[...sourcesS].sort();
   const products=[...productsS].sort(), months=[...monthsS].sort();
   const pkeys=PARAM_DEFS.map(p=>p[0]), plabels=PARAM_DEFS.map(p=>p[1]);
-
   const si=Object.fromEntries(seps.map((s,i)=>[s,i]));
   const pli=Object.fromEntries(plants.map((s,i)=>[s,i]));
   const eqi=Object.fromEntries(equips.map((s,i)=>[s,i]));
@@ -486,7 +509,6 @@ function buildRAW(data) {
   const pri=Object.fromEntries(products.map((s,i)=>[s,i]));
   const moi=Object.fromEntries(months.map((s,i)=>[s,i]));
   const pai=Object.fromEntries(pkeys.map((s,i)=>[s,i]));
-
   const compact = recs.map(r => [
     si[r.sep]??-1, pai[r.param]??-1, moi[r.ms]??-1,
     pli[r.plant]??-1, eqi[r.equip]??-1, sri[r.source]??-1, pri[r.product]??-1,
@@ -498,7 +520,7 @@ function buildRAW(data) {
     plants, equipments:equips, sources, products, months,
     month_labels: months.map(m => {
       const [y,mo] = m.split('-');
-      return mNames[+mo-1]+' '+y;
+      return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mo-1]+' '+y;
     }),
     records: compact
   };
