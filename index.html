@@ -134,23 +134,9 @@ table.ltbl td.ucl3,table.ltbl td.lcl3{color:var(--red);font-weight:600}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
-/* Loading overlay */
-#loadingOverlay{position:fixed;inset:0;background:rgba(245,246,250,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:14px}
-#loadingOverlay.hidden{display:none}
-.spinner{width:40px;height:40px;border:3px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin 0.8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.load-text{font-size:13px;color:var(--txt2);font-family:var(--font)}
-.load-sub{font-size:11px;color:var(--txt3);font-family:var(--mono)}
 </style>
 </head>
 <body>
-
-<div id="loadingOverlay">
-  <div class="spinner"></div>
-  <div class="load-text">กำลังโหลดข้อมูลจาก Google Sheets...</div>
-  <div class="load-sub">LOADING LIVE DATA</div>
-</div>
-
 <div class="page-header">
   <div>
     <div class="page-title">Running Performance Check <span class="chip">WC − NIR</span></div>
@@ -230,11 +216,9 @@ table.ltbl td.ucl3,table.ltbl td.lcl3{color:var(--red);font-weight:600}
   </div>
   <div id="canvas-wrap"><canvas id="myChart"></canvas></div>
 </div>
-
 <script>
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRbd6NG-1klFkStxCWKdiRzF5WokZCkzs7hX9W3ifOTMf3FxT2nZfzVPjoQCPTwEg/pub?gid=1312377440&single=true&output=csv';
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRIcO1X46p9iAhrbW6GOHnAfJA-W4r_a0rX-COrEEdnlZGFyMdt-IuKWJ0j6b595Li1uSJJk5OGby2h/pub?gid=1312377440&single=true&output=csv';
 const PARAM_DEFS = [["M", "Moisture (M)", "M-Diff , WC-NIR", "M2SEPeqa", "M-2SEPeqa2", "M3sep", "M-3sep2"], ["CP", "Crude Protein (CP)", "CP Diff , WC-NIR", "CP2SEPeqa", "CP-2SEPeqa2", "CP3SEPeqa", "CP-3SEPeqa3"], ["EE", "Ether Extract (EE)", "EE Diff", "EE2SEP", "EE-2SEP", "EE3SEP", "EE-3SEP"], ["AH", "Crude Fat (AH)", "AH Diff , WC-NIR2", "AH2SEPeqa", "AH-2SEPeqa2", "AH3SEPeqa", "ah-3SEPeqa3"], ["FIB", "Fiber (FIB)", "Fib Diff , WC-NIR3", "Fib 2SEPeqa", "Fib-2SEPeqa2", "Fib 3SEPeqa", "Fib-3SEPeqa3"], ["ASH", "Ash", "Ash Diff , WC-NIR4", "Ash 2SEPeqa", "Ash-2SEPeqa2", "Ash 3SEPeqa", "Ash-3SEPeqa3"], ["Ca", "Calcium (Ca)", "Ca Diff , WC-NIR6", "Ca2SEPeqa", "Ca-2SEPeqa2", "Ca3SEPeqa", "Ca-3SEPeqa3"], ["P", "Phosphorus (P)", "P Diff , WC-NIR6", "P2SEPeqa", "P-2SEPeqa2", "P3SEPeqa", "P-3SEPeqa3"], ["Aw", "Water Activity (Aw)", "Aw Diff , WC-NIR6", "Aw2SEPeqa", "Aw-2SEPeqa2", "Aw3SEPeqa", "Aw-3SEPeqa3"], ["PD", "Protein Digest. (PD)", "PD Diff , WC-NIR6", "PD2SEP", "PD-2SEPeqa2", "PD3SEPeqa", "PD-3SEPeqa3"], ["TVBN", "TVBN", "TVBN Diff , WC-NIR6", "TVBN2SEP", "TVBN-2SEPeqa2", "TVBN3SEPeqa", "TVBN-3SEPeqa3"], ["NaCl", "NaCl", "NaCl Diff , WC-NIR5", "NaCl2SEPeqa", "NaCl2SEPeqa2", "NaCl3SEPeqa3", "NaCl3SEPeqa2"], ["Sand", "Sand", "Sand Diff , WC-NIR37", "Sand2SEP", "Sand-2SEPeqa23", "Sand 3SEPeqa2", "Sand-3SEPeqa34"], ["Starch", "Starch", "Starch Diff , WC-NIR47", "Starch2SEP", "Starch-2SEPeqa23", "Starch3SEPeqa2", "Starch-3SEPeqa34"], ["BHT", "BHT", "BHT Diff , WC-NIR6", "BHT2SEP", "BHT-2SEPeqa2", "BHT3SEPeqa", "BHT-3SEPeqa3"], ["pH", "pH", "pH Diff , WC-NIR6", "pH2SEP", "pH-2SEPeqa2", "pH3SEPeqa", "pH-3SEPeqa3"], ["Fat-C", "Fat-C", "Fat-C Diff , WC-NIR5", "Fat-C2SEP", "Fat-C 2SEPeqa2", "Fat-C3SEPeqa3", "Fat-C3SEPeqa2"]];
-
 const I={SEP:0,PAR:1,MON:2,PLA:3,EQP:4,SRC:5,PRD:6,DIF:7,U2:8,L2:9,U3:10,L3:11,SMP:12,NO:13};
 const PARAM_DECIMALS={'ASH':1,'Ca':3,'P':3};
 function fmtDiff(pk,v){return v.toFixed(PARAM_DECIMALS[pk]??2);}
@@ -425,133 +409,102 @@ function renderChart(){
 FILTER_IDS.forEach(id=>{document.getElementById(id).addEventListener('change',()=>{refreshAllDD();renderChart();});});
 refreshAllDD();renderChart();
 
-// ===== REAL-TIME CSV LOADER =====
-async function loadCSVAndBuild() {
-  try {
-    const resp = await fetch(CSV_URL);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const text = await resp.text();
-    const rawData = buildRAWFromCSV(text);
-    initApp(rawData);
-  } catch(e) {
-    document.getElementById('loadingOverlay').innerHTML =
-      '<div style="text-align:center;padding:20px"><div style="font-size:14px;color:#e53535;font-weight:700;margin-bottom:8px">โหลดข้อมูลไม่สำเร็จ</div>' +
-      '<div style="font-size:12px;color:#9095b5">' + e.message + '</div>' +
-      '<div style="font-size:12px;color:#9095b5;margin-top:8px">กรุณาตรวจสอบ Google Sheets Publish URL</div></div>';
-  }
-}
-
-function parseCSVLine(line) {
-  const result = [], re = /("(?:[^"]|"")*"|[^,]*)/g;
-  let m;
-  while ((m = re.exec(line)) !== null) {
-    if (m.index === re.lastIndex) re.lastIndex++;
-    let v = m[1];
-    if (v.startsWith('"') && v.endsWith('"')) v = v.slice(1,-1).replace(/""/g,'"');
-    result.push(v.trim());
-  }
-  return result;
-}
-
-function buildRAWFromCSV(csvText) {
-  const lines = csvText.split(/\r?\n/).filter(l => l.trim());
-  const headers = parseCSVLine(lines[0]);
-  const rows = lines.slice(1).map(l => parseCSVLine(l));
-
-  const fv = (row, col) => {
-    const i = headers.indexOf(col);
-    if (i < 0) return null;
-    const v = parseFloat(row[i]);
-    return isNaN(v) ? null : Math.round(v * 100000) / 100000;
-  };
-  const sv = (row, col) => {
-    const i = headers.indexOf(col);
-    return i >= 0 ? (row[i] || '').trim() : '';
-  };
-
-  const sepsSet = new Set(), plantsSet = new Set(), equipsSet = new Set();
-  const sourcesSet = new Set(), productsSet = new Set(), monthsSet = new Set();
-
-  const records = [];
-  rows.forEach(row => {
-    const sep = sv(row, 'SEP'); if (!sep || sep === 'nan') return;
-    const mouthRaw = sv(row, 'Mouth'); if (!mouthRaw) return;
-    let monthSort = '', monthLabel = '';
+// ===== CSV LOADER =====
+async function loadAndInit() {
+  const proxies = [
+    CSV_URL,
+    'https://corsproxy.io/?' + encodeURIComponent(CSV_URL),
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(CSV_URL),
+  ];
+  let text = null;
+  for (const url of proxies) {
     try {
-      const d = new Date(mouthRaw);
-      if (isNaN(d.getTime())) return;
-      const y = d.getFullYear(), mo = d.getMonth();
-      monthSort = y + '-' + String(mo+1).padStart(2,'0');
-      monthLabel = d.toLocaleString('en-US', {month:'short'}) + ' ' + y;
-    } catch(e) { return; }
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 15000);
+      const resp = await fetch(url, {signal: ctrl.signal});
+      clearTimeout(tid);
+      if (resp.ok) { text = await resp.text(); break; }
+    } catch(e) {}
+  }
+  if (!text) { console.error('ดึงข้อมูลไม่สำเร็จ'); return; }
+  setTimeout(() => { try { initApp(buildRAW(text)); } catch(e) { console.error(e); } }, 10);
+}
 
-    const plant = (sv(row,'Plant')||'').trim();
-    const equip = (sv(row,'Equipment')||'').trim();
-    const source = (sv(row,'Source')||'').trim();
-    const product = (sv(row,'Product')||'').trim();
-    const sample = sv(row,'Sample');
-    const no = sv(row,'No.');
+function parseCSV(line) {
+  if (line.indexOf('"') < 0) return line.split(',').map(s => s.trim());
+  const result = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQ) { if (c==='"') { if (line[i+1]==='"') { cur+='"'; i++; } else inQ=false; } else cur+=c; }
+    else { if (c==='"') inQ=true; else if (c===',') { result.push(cur.trim()); cur=''; } else cur+=c; }
+  }
+  result.push(cur.trim()); return result;
+}
 
-    if (plant) plantsSet.add(plant);
-    if (equip) equipsSet.add(equip);
-    if (source) sourcesSet.add(source);
-    if (product) productsSet.add(product);
-    monthsSet.add(monthSort);
-    sepsSet.add(sep);
+function buildRAW(csvText) {
+  const lines = csvText.split(/?
+/).filter(l => l.trim());
+  const headers = parseCSV(lines[0]);
+  const fv = (row, col) => { const i=headers.indexOf(col); if(i<0)return null; const v=parseFloat(row[i]); return isNaN(v)?null:Math.round(v*1e5)/1e5; };
+  const sv = (row, col) => { const i=headers.indexOf(col); return i>=0?(row[i]||'').trim():''; };
 
+  const sepsS=new Set(), plantsS=new Set(), equipsS=new Set(), sourcesS=new Set(), productsS=new Set(), monthsS=new Set();
+  const recs = [];
+
+  for (let r=1; r<lines.length; r++) {
+    const row = parseCSV(lines[r]);
+    const sep = sv(row,'SEP'); if(!sep||sep==='nan') continue;
+    const mRaw = sv(row,'Mouth'); if(!mRaw) continue;
+    let ms='', ml='';
+    try {
+      const d=new Date(mRaw); if(isNaN(d.getTime())) continue;
+      const y=d.getFullYear(), mo=d.getMonth();
+      ms=y+'-'+(mo<9?'0':'')+(mo+1);
+      ml=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo]+' '+y;
+    } catch(e) { continue; }
+    const plant=sv(row,'Plant'), equip=sv(row,'Equipment'), source=sv(row,'Source');
+    const product=sv(row,'Product'), sample=sv(row,'Sample'), no=sv(row,'No.');
+    if(plant) plantsS.add(plant); if(equip) equipsS.add(equip);
+    if(source) sourcesS.add(source); if(product) productsS.add(product);
+    monthsS.add(ms); sepsS.add(sep);
     PARAM_DEFS.forEach(([pk,,diffCol,ucl2c,lcl2c,ucl3c,lcl3c]) => {
-      const diff = fv(row, diffCol);
-      if (diff === null) return;
-      records.push({ sep, monthSort, monthLabel, plant, equip, source, product, sample, no, param: pk, diff,
-        ucl2: fv(row,ucl2c), lcl2: fv(row,lcl2c), ucl3: fv(row,ucl3c), lcl3: fv(row,lcl3c) });
+      const diff=fv(row,diffCol); if(diff===null) return;
+      recs.push({sep,ms,ml,plant,equip,source,product,sample,no,param:pk,diff,
+        ucl2:fv(row,ucl2c),lcl2:fv(row,lcl2c),ucl3:fv(row,ucl3c),lcl3:fv(row,lcl3c)});
     });
-  });
+  }
 
-  const seps = [...sepsSet].sort();
-  const plants = [...plantsSet].sort();
-  const equips = [...equipsSet].sort();
-  const sources = [...sourcesSet].sort();
-  const products = [...productsSet].sort();
-  const months = [...monthsSet].sort();
-  const paramKeys = PARAM_DEFS.map(p => p[0]);
-  const paramLabels = PARAM_DEFS.map(p => p[1]);
+  const seps=[...sepsS].sort(), plants=[...plantsS].sort(), equips=[...equipsS].sort();
+  const sources=[...sourcesS].sort(), products=[...productsS].sort(), months=[...monthsS].sort();
+  const pkeys=PARAM_DEFS.map(p=>p[0]), plabels=PARAM_DEFS.map(p=>p[1]);
+  const si=Object.fromEntries(seps.map((s,i)=>[s,i]));
+  const pli=Object.fromEntries(plants.map((s,i)=>[s,i]));
+  const eqi=Object.fromEntries(equips.map((s,i)=>[s,i]));
+  const sri=Object.fromEntries(sources.map((s,i)=>[s,i]));
+  const pri=Object.fromEntries(products.map((s,i)=>[s,i]));
+  const moi=Object.fromEntries(months.map((s,i)=>[s,i]));
+  const pai=Object.fromEntries(pkeys.map((s,i)=>[s,i]));
 
-  const sepI = Object.fromEntries(seps.map((s,i) => [s,i]));
-  const plantI = Object.fromEntries(plants.map((s,i) => [s,i]));
-  const equipI = Object.fromEntries(equips.map((s,i) => [s,i]));
-  const srcI = Object.fromEntries(sources.map((s,i) => [s,i]));
-  const prodI = Object.fromEntries(products.map((s,i) => [s,i]));
-  const monI = Object.fromEntries(months.map((s,i) => [s,i]));
-  const paramI = Object.fromEntries(paramKeys.map((s,i) => [s,i]));
-
-  const compact = records.map(r => [
-    sepI[r.sep] ?? -1,
-    paramI[r.param] ?? -1,
-    monI[r.monthSort] ?? -1,
-    plantI[r.plant] ?? -1,
-    equipI[r.equip] ?? -1,
-    srcI[r.source] ?? -1,
-    prodI[r.product] ?? -1,
-    r.diff, r.ucl2, r.lcl2, r.ucl3, r.lcl3,
-    r.sample, r.no
-  ]).filter(r => r[0] >= 0 && r[1] >= 0 && r[2] >= 0);
+  const compact=recs.map(r=>[
+    si[r.sep]??-1, pai[r.param]??-1, moi[r.ms]??-1,
+    pli[r.plant]??-1, eqi[r.equip]??-1, sri[r.source]??-1, pri[r.product]??-1,
+    r.diff, r.ucl2, r.lcl2, r.ucl3, r.lcl3, r.sample, r.no
+  ]).filter(r=>r[0]>=0&&r[1]>=0&&r[2]>=0);
 
   return {
-    seps, params: paramKeys, param_labels: paramLabels,
-    plants, equipments: equips, sources, products,
-    months, month_labels: months.map(m => { const [y,mo] = m.split('-'); return new Date(+y,+mo-1,1).toLocaleString('en-US',{month:'short'})+' '+y; }),
-    records: compact
+    seps, params:pkeys, param_labels:plabels,
+    plants, equipments:equips, sources, products, months,
+    month_labels:months.map(m=>{ const [y,mo]=m.split('-'); return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mo-1]+' '+y; }),
+    records:compact
   };
 }
 
 function initApp(rawData) {
   Object.assign(RAW, rawData);
-  refreshAllDD();
-  renderChart();
-  document.getElementById('loadingOverlay').classList.add('hidden');
+  refreshAllDD(); renderChart();
 }
 
-loadCSVAndBuild();
+loadAndInit();
 </script>
 </body>
 </html>
