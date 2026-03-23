@@ -1,0 +1,25 @@
+name: Update data.json from OneDrive
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # ทุก 30 นาที
+  workflow_dispatch:  # กด run manual ได้ด้วย
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Download data.json from OneDrive
+        run: |
+          curl -L "${{ secrets.ONEDRIVE_URL }}" -o data.json
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          git diff --staged --quiet || git commit -m "Update data.json $(date '+%Y-%m-%d %H:%M')"
+          git push
