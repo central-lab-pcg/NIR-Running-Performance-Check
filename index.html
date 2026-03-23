@@ -323,16 +323,81 @@ let chart=null, currentParam=null, RAW=null;
 const selectedMap=new Map();
 
 // =====================================================
+// Wide → Long format converter
+// แปลง 1 row (Excel Wide) → หลาย records (Long)
+// =====================================================
+const WIDE_PARAM_MAP = [
+  { par:'M',      diff:'M-Diff , WC-NIR',           u2:'M2SEPeqa',        l2:'M-2SEPeqa2',       u3:'M3sepM',          l3:'M-3sep2'          },
+  { par:'CP',     diff:'CP Diff , WC-NIR',           u2:'CP2SEPeqa',       l2:'CP-2SEPeqa2',      u3:'CP3SEPeqa',       l3:'CP-3SEPeqa3'      },
+  { par:'EE',     diff:'EE Diff',                    u2:'EE2SEP',          l2:'EE-2SEP',          u3:'EE3SEP',          l3:'EE-3SEP'          },
+  { par:'AH',     diff:'AH Diff , WC-NIR2',          u2:'AH2SEPeqa',       l2:'AH-2SEPeqa2',      u3:'AH3SEPeqa',       l3:'ah-3SEPeqa3'      },
+  { par:'FIB',    diff:'Fib Diff , WC-NIR3',         u2:'Fib 2SEPeqa',     l2:'Fib-2SEPeqa2',     u3:'Fib 3SEPeqa',     l3:'Fib-3SEPeqa3'     },
+  { par:'ASH',    diff:'Ash Diff , WC-NIR4',         u2:'Ash 2SEPeqa',     l2:'Ash-2SEPeqa2',     u3:'Ash 3SEPeqa',     l3:'Ash-3SEPeqa3'     },
+  { par:'Ca',     diff:'Ca Diff , WC-NIR6',          u2:'Ca2SEPeqa',       l2:'Ca-2SEPeqa2',      u3:'Ca3SEPeqa',       l3:'Ca-3SEPeqa3'      },
+  { par:'P',      diff:'P Diff , WC-NIR6',           u2:'P2SEPeqa',        l2:'P-2SEPeqa2',       u3:'P3SEPeqa',        l3:'P-3SEPeqa3'       },
+  { par:'Aw',     diff:'Aw Diff , WC-NIR6',          u2:'Aw2SEPeqa',       l2:'Aw-2SEPeqa2',      u3:'Aw3SEPeqa',       l3:'Aw-3SEPeqa3'      },
+  { par:'NaCl',   diff:'NaCl Diff , WC-NIR5',        u2:'NaCl2SEPeqa',     l2:'NaCl-2SEPeqa2',    u3:'NaCl3SEPeqa3',    l3:'NaCl3SEPeqa2'     },
+  { par:'PD',     diff:'PD Diff , WC-NIR6',          u2:'PD2SEP',          l2:'PD-2SEPeqa2',      u3:'PD3SEPeqa',       l3:'PD-3SEPeqa3'      },
+  { par:'TVBN',   diff:'TVBN Diff , WC-NIR6',        u2:'TVBN2SEP',        l2:'TVBN-2SEPeqa2',    u3:'TVBN3SEPeqa',     l3:'TVBN-3SEPeqa3'    },
+  { par:'Sand',   diff:'Sand Diff , WC-NIR37',       u2:'Sand2SEP',        l2:'Sand-2SEPeqa23',   u3:'Sand 3SEPeqa2',   l3:'Sand-3SEPeqa34'   },
+  { par:'Starch', diff:'Starch Diff , WC-NIR47',     u2:'Starch2SEP',      l2:'Starch-2SEPeqa23', u3:'Starch3SEPeqa2',  l3:'Starch-3SEPeqa34' },
+  { par:'BHT',    diff:'BHT Diff , WC-NIR6',         u2:'BHT2SEP',         l2:'BHT-2SEPeqa2',     u3:'BHT3SEPeqa',      l3:'BHT-3SEPeqa3'     },
+  { par:'pH',     diff:'pH Diff , WC-NIR6',          u2:'pH2SEP',          l2:'pH-2SEPeqa2',      u3:'pH3SEPeqa',       l3:'pH-3SEPeqa3'      },
+  { par:'Fat-C',  diff:'Fat-C Diff , WC-NIR5',       u2:'Fat-C2SEPeqa',    l2:'Fat-C3SEPeqa2',    u3:'Fat-C3SEPeqa3',   l3:'Fat-C3SEPeqa2'    },
+];
+
+function wideToLong(wideRows) {
+  const long = [];
+  wideRows.forEach(row => {
+    const base = {
+      no:     row['No.']       || row['no']       || '',
+      mon:    row['Month']     || row['mon']       || '',
+      pla:    row['Plant']     || row['pla']       || '',
+      eqp:    row['Equipment'] || row['eqp']       || '',
+      src:    row['Source']    || row['src']       || '',
+      sep:    row['SEP']       || row['sep']       || '',
+      prd:    row['Product']   || row['prd']       || '',
+      sample: row['Sample']    || row['sample']    || '',
+    };
+    WIDE_PARAM_MAP.forEach(pm => {
+      const diff = row[pm.diff];
+      if (diff === undefined || diff === null || diff === '') return; // ไม่มีข้อมูล param นี้ใน row นี้
+      long.push({
+        ...base,
+        par:  pm.par,
+        diff: parseFloat(diff) || 0,
+        u2:   row[pm.u2] !== undefined ? row[pm.u2] : null,
+        l2:   row[pm.l2] !== undefined ? row[pm.l2] : null,
+        u3:   row[pm.u3] !== undefined ? row[pm.u3] : null,
+        l3:   row[pm.l3] !== undefined ? row[pm.l3] : null,
+      });
+    });
+  });
+  return long;
+}
+
+// =====================================================
 // Load data.json
+// รองรับทั้ง 2 format:
+//   1. Wide format:  { "rows": [...] }       ← Power Automate ส่ง raw Excel rows
+//   2. Long format:  { "records": [...] }    ← format เดิม (Long)
 // =====================================================
 async function loadData() {
   try {
-    const res = await fetch(DATA_URL, {cache:'no-cache'});
+    const res = await fetch(DATA_URL, {credentials:'include', cache:'no-cache'});
     if (!res.ok) throw new Error('HTTP '+res.status);
     const json = await res.json();
 
-    // Build lookup tables จาก raw records
-    RAW = buildLookups(json.records, PARAMS_DEF);
+    let longRecords;
+    if (json.rows) {
+      // Wide format จาก Power Automate → แปลงเป็น Long
+      longRecords = wideToLong(json.rows);
+    } else {
+      // Long format เดิม
+      longRecords = json.records || [];
+    }
+
+    RAW = buildLookups(longRecords, PARAMS_DEF);
     RAW.generated_at = json.generated_at || '';
 
     document.getElementById('loadingOverlay').style.display='none';
