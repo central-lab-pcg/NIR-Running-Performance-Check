@@ -104,6 +104,24 @@ table.ltbl td.ucl3,table.ltbl td.lcl3{color:var(--red);font-weight:600}
 .rule-pill.yellow .rp-count{color:#d97706}
 .rule-pill.blue .rp-count{color:#3b6ef5}
 #canvas-wrap{position:relative;width:100%;height:440px}
+#selectionPanel{display:none;margin-top:12px;border-top:1.5px solid var(--border);padding-top:12px}
+.sel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px}
+.sel-title{font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:0.6px}
+.sel-bias-box{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sel-bias{background:var(--blue-bg);border:1.5px solid var(--blue-light);border-radius:var(--r);padding:6px 14px;font-size:13px;font-weight:700;color:var(--blue);font-family:var(--mono)}
+.sel-count{font-size:11px;color:var(--txt3);font-family:var(--mono)}
+.btn-clear-sel{font-size:11px;padding:4px 10px;border-radius:var(--r);cursor:pointer;border:1.5px solid var(--red-border);background:transparent;color:var(--red);font-weight:600;font-family:var(--font)}
+.btn-clear-sel:hover{background:var(--red-bg)}
+.sel-table-wrap{overflow-x:auto;max-height:180px;overflow-y:auto}
+.sel-table-wrap::-webkit-scrollbar{width:4px;height:4px}.sel-table-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+table.stbl{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)}
+table.stbl th{background:var(--bg3);color:var(--txt3);font-weight:700;padding:5px 10px;text-align:center;border:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;position:sticky;top:0;z-index:1}
+table.stbl th:first-child{text-align:left}
+table.stbl td{padding:5px 10px;text-align:center;border:1px solid var(--border);color:var(--txt2)}
+table.stbl td:first-child{text-align:left;font-weight:600;color:var(--blue)}
+table.stbl tbody tr:hover td{background:var(--bg3)}
+table.stbl td.diff-pos{color:var(--green);font-weight:700}
+table.stbl td.diff-neg{color:var(--red);font-weight:700}
 .no-data{text-align:center;padding:80px 0;color:var(--txt3);font-size:13px}
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -148,6 +166,7 @@ table.ltbl td.ucl3,table.ltbl td.lcl3{color:var(--red);font-weight:600}
   </div>
   <div class="filters">
     <div class="f-group"><span class="f-label">Plant</span><select id="fPlant"><option value="">All</option></select></div>
+    <div class="f-group"><span class="f-label">Type</span><select id="fType"><option value="">All</option></select></div>
     <div class="f-group"><span class="f-label">Product</span><select id="fProduct"><option value="">All</option></select></div>
     <div class="f-group"><span class="f-label">Equipment</span><select id="fEquip"><option value="">All</option></select></div>
     <div class="f-group"><span class="f-label">Source</span><select id="fSource"><option value="">All</option></select></div>
@@ -201,7 +220,22 @@ table.ltbl td.ucl3,table.ltbl td.lcl3{color:var(--red);font-weight:600}
     </div>
   </div>
   <div id="canvas-wrap"><canvas id="myChart"></canvas></div>
-</div>
+  <div id="selectionPanel">
+    <div class="sel-header">
+      <span class="sel-title">จุดที่เลือก</span>
+      <div class="sel-bias-box">
+        <span class="sel-count" id="selCount">0 จุด</span>
+        <span class="sel-bias" id="selBias">Bias: —</span>
+        <button class="btn-clear-sel" onclick="clearSelection()">✕ ล้างการเลือก</button>
+      </div>
+    </div>
+    <div class="sel-table-wrap">
+      <table class="stbl">
+        <thead><tr><th>No.</th><th>Sample</th><th>Month</th><th>SEP</th><th>Diff</th></tr></thead>
+        <tbody id="selTableBody"></tbody>
+      </table>
+    </div>
+  </div>
 
 </div><!-- end appContent -->
 
@@ -234,7 +268,7 @@ function excelSerialToYYYYMM(serial) {
 // =====================================================
 function buildLookups(rawRecords, paramsDef) {
   const sepSet=new Map(), monSet=new Map(), plaSet=new Map();
-  const prdSet=new Map(), eqpSet=new Map(), srcSet=new Map();
+  const prdSet=new Map(), eqpSet=new Map(), srcSet=new Map(), typSet=new Map();
 
   rawRecords.forEach(r => {
     if(r.sep && !sepSet.has(r.sep)) sepSet.set(r.sep, sepSet.size);
@@ -243,6 +277,7 @@ function buildLookups(rawRecords, paramsDef) {
     if(r.prd && !prdSet.has(r.prd)) prdSet.set(r.prd, prdSet.size);
     if(r.eqp && !eqpSet.has(r.eqp)) eqpSet.set(r.eqp, eqpSet.size);
     if(r.src && !srcSet.has(r.src)) srcSet.set(r.src, srcSet.size);
+    if(r.typ && !typSet.has(r.typ)) typSet.set(r.typ, typSet.size);
   });
 
   // Sort months chronologically
@@ -256,6 +291,7 @@ function buildLookups(rawRecords, paramsDef) {
   const products    = [...prdSet.keys()];
   const equipments  = [...eqpSet.keys()];
   const sources     = [...srcSet.keys()];
+  const types       = [...typSet.keys()];
 
   // Build params from paramsDef (key → label)
   const params      = paramsDef.map(p => p.key);
@@ -263,11 +299,11 @@ function buildLookups(rawRecords, paramsDef) {
   const paramMap    = new Map(paramsDef.map(p => [p.key, paramsDef.indexOf(p)]));
 
   // Convert records to index-based array format
-  // [SEP, PAR, MON, PLA, EQP, SRC, PRD, DIF, U2, L2, U3, L3, SMP, NO]
+  // [SEP, PAR, MON, PLA, EQP, SRC, PRD, DIF, U2, L2, U3, L3, SMP, NO, TYP]
   const records = rawRecords.map(r => {
     const parKey = r.par || '';
     const parIdx = paramMap.has(parKey) ? paramMap.get(parKey) : -1;
-    if (parIdx < 0) return null; // skip unknown param
+    if (parIdx < 0) return null;
     return [
       seps.indexOf(r.sep),
       parIdx,
@@ -282,11 +318,12 @@ function buildLookups(rawRecords, paramsDef) {
       r.u3 != null && r.u3 !== '' ? parseFloat(r.u3) : null,
       r.l3 != null && r.l3 !== '' ? parseFloat(r.l3) : null,
       r.sample || '',
-      r.no || ''
+      r.no || '',
+      types.indexOf(r.typ ?? r.type ?? '')
     ];
   }).filter(r => r !== null && r[0] >= 0 && r[2] >= 0);
 
-  return { params, paramLabels, months, monthLabels, plants, products, equipments, sources, seps, records };
+  return { params, paramLabels, months, monthLabels, plants, products, equipments, sources, seps, types, records };
 }
 
 // =====================================================
@@ -316,11 +353,62 @@ const PARAMS_DEF = [
 const PARAM_DECIMALS = {'ASH':1,'Ca':3,'P':3};
 function fmtDiff(pk,v){return v.toFixed(PARAM_DECIMALS[pk]??2);}
 
-const FILTER_IDS=['fPlant','fProduct','fEquip','fSource','fSep','fDateFrom','fDateTo'];
-const I={SEP:0,PAR:1,MON:2,PLA:3,EQP:4,SRC:5,PRD:6,DIF:7,U2:8,L2:9,U3:10,L3:11,SMP:12,NO:13};
+const FILTER_IDS=['fPlant','fType','fProduct','fEquip','fSource','fSep','fDateFrom','fDateTo'];
+const I={SEP:0,PAR:1,MON:2,PLA:3,EQP:4,SRC:5,PRD:6,DIF:7,U2:8,L2:9,U3:10,L3:11,SMP:12,NO:13,TYP:14};
 
 let chart=null, currentParam=null, RAW=null;
 const selectedMap=new Map();
+let selectedPoints=new Set(); // เก็บ index ของจุดที่เลือก
+let currentPts=[]; // เก็บ pts ปัจจุบันสำหรับ selection
+
+function clearSelection(){
+  selectedPoints.clear();
+  updateSelectionPanel();
+  updateChartColors();
+}
+
+function togglePoint(idx){
+  if(selectedPoints.has(idx)) selectedPoints.delete(idx);
+  else selectedPoints.add(idx);
+  updateSelectionPanel();
+  updateChartColors();
+}
+
+function updateSelectionPanel(){
+  const panel=document.getElementById('selectionPanel');
+  const count=selectedPoints.size;
+  if(count===0){panel.style.display='none';return;}
+  panel.style.display='block';
+  document.getElementById('selCount').textContent=count+' จุด';
+  const vals=[...selectedPoints].map(i=>parseFloat(currentPts[i][I.DIF])||0);
+  const bias=vals.reduce((a,b)=>a+b,0)/vals.length;
+  document.getElementById('selBias').textContent='Bias: '+(bias>=0?'+':'')+bias.toFixed(3);
+  const tbody=document.getElementById('selTableBody');
+  const monthLbls=currentPts.map(r=>RAW.monthLabels[r[I.MON]]||'');
+  const sepNames=currentPts.map(r=>RAW.seps[r[I.SEP]]||'');
+  tbody.innerHTML=[...selectedPoints].sort((a,b)=>a-b).map(i=>{
+    const v=parseFloat(currentPts[i][I.DIF])||0;
+    const cls=v>0?'diff-pos':v<0?'diff-neg':'';
+    return `<tr><td>${currentPts[i][I.NO]}</td><td>${currentPts[i][I.SMP]}</td><td>${monthLbls[i]}</td><td>${sepNames[i]}</td><td class="${cls}">${v>=0?'+':''}${fmtDiff(currentParam,v)}</td></tr>`;
+  }).join('');
+}
+
+function updateChartColors(){
+  if(!chart||!currentPts.length)return;
+  const RED='#e53535',PURPLE='#7c3aed',YELLOW='#f59e0b',BLUE='#3b6ef5',SEL='#00c896';
+  const newColors=currentPts.map((_,i)=>{
+    if(selectedPoints.has(i))return SEL;
+    return chart._baseColors[i]||BLUE;
+  });
+  const newRadii=currentPts.map((_,i)=>selectedPoints.has(i)?9:(chart._baseRadii[i]||4));
+  const newBorderColors=currentPts.map((_,i)=>selectedPoints.has(i)?'#fff':newColors[i]);
+  const newBorderWidths=currentPts.map((_,i)=>selectedPoints.has(i)?2:0);
+  chart.data.datasets[0].pointBackgroundColor=newColors;
+  chart.data.datasets[0].pointBorderColor=newBorderColors;
+  chart.data.datasets[0].pointBorderWidth=newBorderWidths;
+  chart.data.datasets[0].pointRadius=newRadii;
+  chart.update('none');
+}
 
 // =====================================================
 // Wide → Long format converter
@@ -357,6 +445,7 @@ function wideToLong(wideRows) {
       no:     row['No.']       || row['no']       || '',
       mon:    row['Month']     || row['mon']       || '',
       pla:    row['Plant']     || row['pla']       || '',
+      typ:    row['Type']      || row['typ']       || '',
       eqp:    row['Equipment'] || row['eqp']       || '',
       src:    row['Source']    || row['src']       || '',
       sep:    row['SEP']       || row['sep']       || '',
@@ -428,6 +517,7 @@ function initApp() {
     arr.forEach((v,i) => s.appendChild(new Option(v,i)));
   }
   initDD('fPlant', RAW.plants);
+  initDD('fType', RAW.types);
   initDD('fProduct', RAW.products);
   initDD('fEquip', RAW.equipments);
   initDD('fSource', RAW.sources);
@@ -489,18 +579,19 @@ searchInput.addEventListener('keydown',e=>{if(e.key==='Escape'){searchDrop.class
 document.addEventListener('click',e=>{if(!e.target.closest('.search-wrap'))searchDrop.classList.remove('open');});
 function clearAllFilters(){
   selectedMap.clear();searchInput.value='';renderTags();searchDrop.classList.remove('open');
-  ['fPlant','fProduct','fEquip','fSource','fSep'].forEach(id=>document.getElementById(id).value='');
+  ['fPlant','fType','fProduct','fEquip','fSource','fSep'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fDateFrom').value='';
   document.getElementById('fDateTo').value=RAW.months.length-1;
   refreshAllDD();renderChart();
 }
-function getFilters(){const g=id=>{const v=document.getElementById(id).value;return v===''?null:parseInt(v,10);};return{fPlant:g('fPlant'),fProduct:g('fProduct'),fEquip:g('fEquip'),fSource:g('fSource'),fSep:g('fSep'),fDateFrom:g('fDateFrom'),fDateTo:g('fDateTo')};}
+function getFilters(){const g=id=>{const v=document.getElementById(id).value;return v===''?null:parseInt(v,10);};return{fPlant:g('fPlant'),fType:g('fType'),fProduct:g('fProduct'),fEquip:g('fEquip'),fSource:g('fSource'),fSep:g('fSep'),fDateFrom:g('fDateFrom'),fDateTo:g('fDateTo')};}
 function matchSearch(r){if(selectedMap.size===0)return true;for(const[,item]of selectedMap){if(item.type==='sep'&&r[I.SEP]===item.idx)return true;if(item.type==='product'&&r[I.PRD]===item.idx)return true;if(item.type==='sample'&&r[I.SMP]===item.idx)return true;}return false;}
 function filterExcluding(excludeId){
   const f=getFilters();
   return RAW.records.filter(r=>{
     if(!matchSearch(r))return false;
     if(excludeId!=='fPlant'&&f.fPlant!==null&&r[I.PLA]!==f.fPlant)return false;
+    if(excludeId!=='fType'&&f.fType!==null&&r[I.TYP]!==f.fType)return false;
     if(excludeId!=='fProduct'&&f.fProduct!==null&&r[I.PRD]!==f.fProduct)return false;
     if(excludeId!=='fEquip'&&f.fEquip!==null&&r[I.EQP]!==f.fEquip)return false;
     if(excludeId!=='fSource'&&f.fSource!==null&&r[I.SRC]!==f.fSource)return false;
@@ -510,7 +601,7 @@ function filterExcluding(excludeId){
     return true;
   });
 }
-const FILTER_META={fPlant:{arr:'plants',ri:I.PLA},fProduct:{arr:'products',ri:I.PRD},fEquip:{arr:'equipments',ri:I.EQP},fSource:{arr:'sources',ri:I.SRC},fSep:{arr:'seps',ri:I.SEP}};
+const FILTER_META={fPlant:{arr:'plants',ri:I.PLA},fType:{arr:'types',ri:I.TYP},fProduct:{arr:'products',ri:I.PRD},fEquip:{arr:'equipments',ri:I.EQP},fSource:{arr:'sources',ri:I.SRC},fSep:{arr:'seps',ri:I.SEP}};
 function refreshDD(id){
   const meta=FILTER_META[id];if(!meta)return;
   const sel=document.getElementById(id);const cur=sel.value;
@@ -519,12 +610,13 @@ function refreshDD(id){
   RAW[meta.arr].forEach((v,i)=>{if(avail.has(i))sel.appendChild(new Option(v,i));});
   sel.value=[...sel.options].some(o=>o.value===cur)?cur:'';
 }
-function refreshAllDD(){['fPlant','fProduct','fEquip','fSource','fSep'].forEach(refreshDD);}
+function refreshAllDD(){['fPlant','fType','fProduct','fEquip','fSource','fSep'].forEach(refreshDD);}
 function filterRecords(){
   const f=getFilters();
   return RAW.records.filter(r=>{
     if(!matchSearch(r))return false;
     if(f.fPlant!==null&&r[I.PLA]!==f.fPlant)return false;
+    if(f.fType!==null&&r[I.TYP]!==f.fType)return false;
     if(f.fProduct!==null&&r[I.PRD]!==f.fProduct)return false;
     if(f.fEquip!==null&&r[I.EQP]!==f.fEquip)return false;
     if(f.fSource!==null&&r[I.SRC]!==f.fSource)return false;
@@ -548,7 +640,7 @@ function buildParamTabs(availParams){
 }
 function hasActiveFilter(){
   const f=getFilters();const dTo=RAW.months.length-1;
-  return selectedMap.size>0||f.fPlant!==null||f.fProduct!==null||f.fEquip!==null||f.fSource!==null||f.fSep!==null||f.fDateFrom!==null||(f.fDateTo!==null&&f.fDateTo!==dTo);
+  return selectedMap.size>0||f.fPlant!==null||f.fType!==null||f.fProduct!==null||f.fEquip!==null||f.fSource!==null||f.fSep!==null||f.fDateFrom!==null||(f.fDateTo!==null&&f.fDateTo!==dTo);
 }
 function updateLimitsTable(sepLimits){
   const tbody=document.getElementById('limitsBody'),card=document.getElementById('statsCard'),keys=Object.keys(sepLimits);
@@ -597,6 +689,9 @@ function renderChart(){
   document.getElementById('s-n').textContent='—';document.getElementById('s-bias').textContent='—';
   if(!pts.length){if(chart){chart.destroy();chart=null;}document.getElementById('canvas-wrap').innerHTML='<div class="no-data">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</div>';updateLimitsTable({});document.getElementById('ruleSummaryBar').style.display='none';return;}
   const wrap=document.getElementById('canvas-wrap');if(!wrap.querySelector('canvas'))wrap.innerHTML='<canvas id="myChart"></canvas>';
+  selectedPoints.clear();
+  updateSelectionPanel();
+  currentPts=pts;
   const sepLimits={};pts.forEach(r=>{const sk=r[I.SEP];if(!sepLimits[sk])sepLimits[sk]={u2:r[I.U2],l2:r[I.L2],u3:r[I.U3],l3:r[I.L3]};});
   updateLimitsTable(sepLimits);
   const n=pts.length;
@@ -653,6 +748,10 @@ function renderChart(){
     options:{responsive:true,maintainAspectRatio:false,
       layout:{padding:{bottom:24,top:12,left:4,right:4}},
       animation:{duration:350,easing:'easeInOutQuart'},
+      onClick:(e,els)=>{
+        if(!els.length||els[0].datasetIndex!==0)return;
+        togglePoint(els[0].index);
+      },
       plugins:{legend:{display:false},
         tooltip:{callbacks:{
           title:ctx=>{const i=ctx[0].dataIndex;return[monthLbls[i]+' · No. '+nos[i],sepNames[i]+' — '+prodNames[i]];},
@@ -674,6 +773,8 @@ function renderChart(){
     }
   });
   chart._monthLbls=monthLbls;
+  chart._baseColors=colors;
+  chart._baseRadii=radii;
 }
 
 loadData();
