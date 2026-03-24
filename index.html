@@ -62,7 +62,7 @@ mark{background:#fef3c0;color:#92600a;border-radius:2px;padding:0 1px}
 .btn{font-size:12px;padding:7px 14px;border-radius:var(--r);cursor:pointer;border:1.5px solid;font-weight:600;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;font-family:var(--font)}
 .btn-clear{background:transparent;color:var(--red);border-color:var(--red-border)}.btn-clear:hover{background:var(--red-bg)}
 .param-tabs{display:flex;flex-wrap:wrap;gap:5px}
-.tab{font-size:11px;padding:5px 13px;border-radius:20px;border:1.5px solid var(--border2);background:var(--bg);cursor:pointer;color:var(--txt2);transition:all .15s;white-space:nowrap;font-weight:500;font-family:var(--font)}
+.tab{font-size:11px;padding:5px 13px;border-radius:20px;border:1.5px solid var(--border2);background:var(--bg);cursor:pointer;color:var(--txt2);transition:all .15s;white-space:nowrap;font-weight:500;font-family:var(--font);display:inline-flex;align-items:center;gap:5px}
 .tab:hover{background:var(--blue-bg);border-color:var(--blue-light);color:var(--blue)}
 .tab.active{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:700;box-shadow:0 2px 12px var(--blue-glow)}
 .stats-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
@@ -133,6 +133,45 @@ table.stbl td.diff-neg{color:var(--red);font-weight:700}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-txt{font-size:13px;color:var(--txt3);font-family:var(--mono)}
 #errorBox{display:none;background:var(--red-bg);border:1.5px solid var(--red-border);border-radius:var(--r-lg);padding:16px 20px;margin-bottom:16px;color:var(--red);font-size:13px}
+.view-toggle{display:flex;gap:4px;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--r);padding:3px}
+.vtab{font-size:12px;padding:5px 14px;border-radius:7px;border:none;background:transparent;color:var(--txt2);cursor:pointer;font-weight:600;transition:all .15s;font-family:var(--font)}
+.vtab:hover{background:var(--bg2)}
+.vtab.active{background:var(--bg2);color:var(--blue);box-shadow:0 1px 4px rgba(26,29,46,0.1)}
+.btn-export{background:var(--green-bg);color:var(--green);border:1.5px solid #86efbd;border-radius:var(--r);padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.btn-export:hover{background:#d1fae5}
+.raw-tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:72vh;border-radius:var(--r)}
+.raw-tbl-wrap::-webkit-scrollbar{width:5px;height:5px}.raw-tbl-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+table.rtbl{border-collapse:collapse;font-size:11px;font-family:var(--mono);min-width:100%}
+table.rtbl th{background:var(--bg3);color:var(--txt3);font-weight:700;padding:7px 9px;text-align:center;border:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;position:sticky;top:0;z-index:5;cursor:pointer;user-select:none}
+table.rtbl th:hover{background:var(--blue-bg);color:var(--blue)}
+table.rtbl th.sort-asc::after{content:' ▲';color:var(--blue)}
+table.rtbl th.sort-desc::after{content:' ▼';color:var(--blue)}
+table.rtbl th.col-fix{position:sticky;z-index:10;background:var(--bg3)}
+table.rtbl th.col-fix-0{left:0;min-width:38px}
+table.rtbl th.col-fix-1{left:38px;min-width:70px}
+table.rtbl th.col-fix-2{left:108px;min-width:58px}
+table.rtbl th.col-fix-3{left:166px;min-width:58px}
+table.rtbl th.col-fix-4{left:224px;min-width:160px}
+table.rtbl td{padding:6px 9px;text-align:center;border:1px solid var(--border);color:var(--txt2);white-space:nowrap}
+table.rtbl tbody tr:hover td{background:var(--blue-bg)!important}
+table.rtbl td.cell-fix{position:sticky;background:var(--bg2);z-index:4}
+table.rtbl td.cell-fix-0{left:0;font-weight:700;color:var(--blue);font-family:var(--font)}
+table.rtbl td.cell-fix-1{left:38px;font-weight:600;font-family:var(--font)}
+table.rtbl td.cell-fix-2{left:108px}
+table.rtbl td.cell-fix-3{left:166px}
+table.rtbl td.cell-fix-4{left:224px;text-align:left;font-family:var(--font)}
+table.rtbl tbody tr:hover td.cell-fix{background:var(--blue-bg)!important}
+table.rtbl th.grp-sep{border-left:2px solid var(--border2)}
+table.rtbl td.grp-sep{border-left:2px solid var(--border2)}
+table.rtbl th.grp-header{text-align:center;font-size:10px;font-weight:700;letter-spacing:0.5px;background:var(--bg3)}
+.cell-pos{color:#15a552;font-weight:700}
+.cell-neg{color:#e53535;font-weight:700}
+.cell-warn2{background:#fff8ec!important;color:#e8930a!important;font-weight:700}
+.cell-warn3{background:#fff1f1!important;color:#e53535!important;font-weight:700}
+table.rtbl tfoot td{padding:7px 9px;text-align:center;border:1px solid var(--border);font-weight:700;font-family:var(--mono);background:var(--bg3);color:var(--txt);position:sticky;bottom:0;z-index:4}
+table.rtbl tfoot td.cell-fix{z-index:6}
+table.rtbl tfoot td.cell-pos{color:#15a552}
+table.rtbl tfoot td.cell-neg{color:#e53535}
 </style>
 </head>
 <body>
@@ -151,7 +190,13 @@ table.stbl td.diff-neg{color:var(--red);font-weight:700}
     <div class="page-subtitle">NIR CALIBRATION MONITOR</div>
     <div class="last-updated" id="lastUpdated"></div>
   </div>
-  <a href="summary_5.html" class="nav-link">📋 Summary</a>
+  <div style="display:flex;gap:8px;align-items:flex-start;margin-top:8px;flex-wrap:wrap">
+    <div class="view-toggle">
+      <button class="vtab active" id="vtab-chart" onclick="switchView('chart')">📈 Chart</button>
+      <button class="vtab" id="vtab-raw" onclick="switchView('raw')">📋 Raw Data</button>
+    </div>
+    <a href="summary_5.html" class="nav-link">📋 Summary</a>
+  </div>
 </div>
 
 <div class="card">
@@ -179,7 +224,7 @@ table.stbl td.diff-neg{color:var(--red);font-weight:700}
   </div>
 </div>
 
-<div class="card">
+<div class="card" id="paramTabsCard">
   <div class="card-title"><span class="bar"></span>พารามิเตอร์</div>
   <div class="param-tabs" id="paramTabs"></div>
 </div>
@@ -198,20 +243,20 @@ table.stbl td.diff-neg{color:var(--red);font-weight:700}
     <div class="stat-pill green"><div class="lbl">จำนวนตัวอย่าง</div><div class="val" id="s-n">—</div></div>
     <div class="stat-pill blue"><div class="lbl">Bias</div><div class="val" id="s-bias">—</div></div>
   </div>
-  <div class="lbl-hdr"><span class="bar"></span>เกณฑ์ควบคุม ±2SEP / ±3SEP</div>
+  <div class="lbl-hdr"><span class="bar"></span>เกณฑ์ควบคุม +2SEP / −2SEP / +3SEP / −3SEP</div>
   <div class="tbl-wrap">
     <table class="ltbl">
       <thead><tr>
         <th style="text-align:left">SEP Code</th>
-        <th>UCL ±2SEP</th><th>LCL ±2SEP</th>
-        <th>UCL ±3SEP</th><th>LCL ±3SEP</th>
+        <th>+2SEP</th><th>−2SEP</th>
+        <th>+3SEP</th><th>−3SEP</th>
       </tr></thead>
       <tbody id="limitsBody"></tbody>
     </table>
   </div>
 </div>
 
-<div class="card">
+<div class="card" id="chartCard">
   <div class="chart-header">
     <div class="legend">
       <span class="leg"><span class="leg-line" style="border-color:#e8930a"></span>±2SEP</span>
@@ -239,6 +284,26 @@ table.stbl td.diff-neg{color:var(--red);font-weight:700}
       </table>
     </div>
   </div>
+
+
+<!-- ===== RAW DATA VIEW ===== -->
+<div id="rawDataView" style="display:none">
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>Raw Data
+      <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <span class="f-label" id="rawCountLabel"></span>
+        <button class="btn btn-export" onclick="exportCSV()">⬇ Export CSV</button>
+      </span>
+    </div>
+    <div class="raw-tbl-wrap" id="rawTableWrap">
+      <table class="rtbl" id="rawTable">
+        <thead id="rawThead"></thead>
+        <tbody id="rawTbody"></tbody>
+        <tfoot id="rawTfoot"></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
 
 </div><!-- end appContent -->
 
@@ -322,7 +387,9 @@ function buildLookups(rawRecords, paramsDef) {
       r.l3 != null && r.l3 !== '' ? parseFloat(r.l3) : null,
       r.sample || '',
       r.no || '',
-      types.indexOf(r.typ ?? r.type ?? '')
+      types.indexOf(r.typ ?? r.type ?? ''),
+      r.wc != null && r.wc !== '' ? parseFloat(r.wc) : null,
+      r.nir != null && r.nir !== '' ? parseFloat(r.nir) : null,
     ];
   }).filter(r => r !== null && r[0] >= 0 && r[2] >= 0);
 
@@ -357,7 +424,7 @@ const PARAM_DECIMALS = {'ASH':1,'Ca':3,'P':3};
 function fmtDiff(pk,v){return v.toFixed(PARAM_DECIMALS[pk]??2);}
 
 const FILTER_IDS=['fPlant','fType','fProduct','fEquip','fSource','fSep','fDateFrom','fDateTo'];
-const I={SEP:0,PAR:1,MON:2,PLA:3,EQP:4,SRC:5,PRD:6,DIF:7,U2:8,L2:9,U3:10,L3:11,SMP:12,NO:13,TYP:14};
+const I={SEP:0,PAR:1,MON:2,PLA:3,EQP:4,SRC:5,PRD:6,DIF:7,U2:8,L2:9,U3:10,L3:11,SMP:12,NO:13,TYP:14,WC:15,NIR:16};
 
 let chart=null, currentParam=null, RAW=null;
 const selectedMap=new Map();
@@ -418,23 +485,23 @@ function updateChartColors(){
 // แปลง 1 row (Excel Wide) → หลาย records (Long)
 // =====================================================
 const WIDE_PARAM_MAP = [
-  { par:'M',      diff:'M-Diff , WC-NIR',           u2:'M2SEPeqa',           l2:'M-2SEPeqa2',          u3:'M3sep',               l3:'M-3sep2'              },
-  { par:'CP',     diff:'CP Diff , WC-NIR',           u2:'CP2SEPeqa',          l2:'CP-2SEPeqa2',         u3:'CP3SEPeqa',           l3:'CP-3SEPeqa3'          },
-  { par:'EE',     diff:'EE Diff',                    u2:'EE2SEP',             l2:'EE-2SEP',             u3:'EE3SEP',              l3:'EE-3SEP'              },
-  { par:'AH',     diff:'AH Diff , WC-NIR2',          u2:'AH2SEPeqa',          l2:'AH-2SEPeqa2',         u3:'AH3SEPeqa',           l3:'ah-3SEPeqa3'          },
-  { par:'FIB',    diff:'Fib Diff , WC-NIR3',         u2:'Fib 2SEPeqa',        l2:'Fib-2SEPeqa2',        u3:'Fib 3SEPeqa',         l3:'Fib-3SEPeqa3'         },
-  { par:'ASH',    diff:'Ash Diff , WC-NIR4',         u2:'Ash 2SEPeqa',        l2:'Ash-2SEPeqa2',        u3:'Ash 3SEPeqa',         l3:'Ash-3SEPeqa3'         },
-  { par:'Ca',     diff:'Ca Diff , WC-NIR6',          u2:'Ca2SEPeqa',          l2:'Ca-2SEPeqa2',         u3:'Ca3SEPeqa',           l3:'Ca-3SEPeqa3'          },
-  { par:'P',      diff:'P Diff , WC-NIR6',           u2:'P2SEPeqa',           l2:'P-2SEPeqa2',          u3:'P3SEPeqa',            l3:'P-3SEPeqa3'           },
-  { par:'Aw',     diff:'Aw Diff , WC-NIR6',          u2:'Aw2SEPeqa',          l2:'Aw-2SEPeqa2',         u3:'Aw3SEPeqa',           l3:'Aw-3SEPeqa3'          },
-  { par:'NaCl',   diff:'NaCl Diff , WC-NIR5',        u2:'NaCl2SEPeqa2',       l2:'NaCl3SEPeqa2',        u3:'NaCl3SEPeqa3',        l3:'NaCl3SEPeqa2'         },
-  { par:'PD',     diff:'PD Diff , WC-NIR6',          u2:'PD2SEP',             l2:'PD-2SEPeqa2',         u3:'PD3SEPeqa',           l3:'PD-3SEPeqa3'          },
-  { par:'TVBN',   diff:'TVBN Diff , WC-NIR6',        u2:'TVBN2SEP',           l2:'TVBN-2SEPeqa2',       u3:'TVBN3SEPeqa',         l3:'TVBN-3SEPeqa3'        },
-  { par:'Sand',   diff:'Sand Diff , WC-NIR37',       u2:'Sand2SEP',           l2:'Sand-2SEPeqa23',      u3:'Sand 3SEPeqa2',       l3:'Sand-3SEPeqa34'       },
-  { par:'Starch', diff:'Starch Diff , WC-NIR47',     u2:'Starch2SEP',         l2:'Starch-2SEPeqa23',    u3:'Starch3SEPeqa2',      l3:'Starch-3SEPeqa34'     },
-  { par:'BHT',    diff:'BHT Diff , WC-NIR6',         u2:'BHT2SEP',            l2:'BHT-2SEPeqa2',        u3:'BHT3SEPeqa',          l3:'BHT-3SEPeqa3'         },
-  { par:'pH',     diff:'pH Diff , WC-NIR6',          u2:'pH2SEP',             l2:'pH-2SEPeqa2',         u3:'pH3SEPeqa',           l3:'pH-3SEPeqa3'          },
-  { par:'Fat-C',  diff:'Fat-C Diff , WC-NIR5',       u2:'Fat-C2SEPeqa',       l2:'Fat-C3SEPeqa2',       u3:'Fat-C3SEPeqa3',       l3:'Fat-C3SEPeqa2'        },
+  { par:'M',      wc:'M-WC',          nir:'M-NIR',          diff:'M-Diff , WC-NIR',           u2:'M2SEPeqa',           l2:'M-2SEPeqa2',          u3:'M3sep',               l3:'M-3sep2'              },
+  { par:'CP',     wc:'CP-WC',         nir:'CP-NIR',         diff:'CP Diff , WC-NIR',           u2:'CP2SEPeqa',          l2:'CP-2SEPeqa2',         u3:'CP3SEPeqa',           l3:'CP-3SEPeqa3'          },
+  { par:'EE',     wc:'EE-WC',         nir:'EE-NIR',         diff:'EE Diff',                    u2:'EE2SEP',             l2:'EE-2SEP',             u3:'EE3SEP',              l3:'EE-3SEP'              },
+  { par:'AH',     wc:'AH-WC',         nir:'AH-NIR',         diff:'AH Diff , WC-NIR2',          u2:'AH2SEPeqa',          l2:'AH-2SEPeqa2',         u3:'AH3SEPeqa',           l3:'ah-3SEPeqa3'          },
+  { par:'FIB',    wc:'FIB-WC',        nir:'FIB-NIR',        diff:'Fib Diff , WC-NIR3',         u2:'Fib 2SEPeqa',        l2:'Fib-2SEPeqa2',        u3:'Fib 3SEPeqa',         l3:'Fib-3SEPeqa3'         },
+  { par:'ASH',    wc:'ASH-WC',        nir:'ASH-NIR',        diff:'Ash Diff , WC-NIR4',         u2:'Ash 2SEPeqa',        l2:'Ash-2SEPeqa2',        u3:'Ash 3SEPeqa',         l3:'Ash-3SEPeqa3'         },
+  { par:'Ca',     wc:'Ca-WC',         nir:'Ca-NIR',         diff:'Ca Diff , WC-NIR6',          u2:'Ca2SEPeqa',          l2:'Ca-2SEPeqa2',         u3:'Ca3SEPeqa',           l3:'Ca-3SEPeqa3'          },
+  { par:'P',      wc:'P-WC',          nir:'P-NIR',          diff:'P Diff , WC-NIR6',           u2:'P2SEPeqa',           l2:'P-2SEPeqa2',          u3:'P3SEPeqa',            l3:'P-3SEPeqa3'           },
+  { par:'Aw',     wc:'Aw-WC',         nir:'Aw-NIR',         diff:'Aw Diff , WC-NIR6',          u2:'Aw2SEPeqa',          l2:'Aw-2SEPeqa2',         u3:'Aw3SEPeqa',           l3:'Aw-3SEPeqa3'          },
+  { par:'NaCl',   wc:'NaCl-WC',       nir:'NaCl-NIR',       diff:'NaCl Diff , WC-NIR5',        u2:'NaCl2SEPeqa2',       l2:'NaCl3SEPeqa2',        u3:'NaCl3SEPeqa3',        l3:'NaCl3SEPeqa2'         },
+  { par:'PD',     wc:'PD-WC',         nir:'PD-NIR',         diff:'PD Diff , WC-NIR6',          u2:'PD2SEP',             l2:'PD-2SEPeqa2',         u3:'PD3SEPeqa',           l3:'PD-3SEPeqa3'          },
+  { par:'TVBN',   wc:'TVBN-WC',       nir:'TVBN-NIR',       diff:'TVBN Diff , WC-NIR6',        u2:'TVBN2SEP',           l2:'TVBN-2SEPeqa2',       u3:'TVBN3SEPeqa',         l3:'TVBN-3SEPeqa3'        },
+  { par:'Sand',   wc:'Sand-WC',       nir:'Sand-NIR',       diff:'Sand Diff , WC-NIR37',       u2:'Sand2SEP',           l2:'Sand-2SEPeqa23',      u3:'Sand 3SEPeqa2',       l3:'Sand-3SEPeqa34'       },
+  { par:'Starch', wc:'Starch-WC',     nir:'Starch-NIR',     diff:'Starch Diff , WC-NIR47',     u2:'Starch2SEP',         l2:'Starch-2SEPeqa23',    u3:'Starch3SEPeqa2',      l3:'Starch-3SEPeqa34'     },
+  { par:'BHT',    wc:'BHT-WC',        nir:'BHT-NIR',        diff:'BHT Diff , WC-NIR6',         u2:'BHT2SEP',            l2:'BHT-2SEPeqa2',        u3:'BHT3SEPeqa',          l3:'BHT-3SEPeqa3'         },
+  { par:'pH',     wc:'pH-WC',         nir:'pH-NIR',         diff:'pH Diff , WC-NIR6',          u2:'pH2SEP',             l2:'pH-2SEPeqa2',         u3:'pH3SEPeqa',           l3:'pH-3SEPeqa3'          },
+  { par:'Fat-C',  wc:'Fat-C-WC',      nir:'Fat-C-NIR',      diff:'Fat-C Diff , WC-NIR5',       u2:'Fat-C2SEPeqa',       l2:'Fat-C3SEPeqa2',       u3:'Fat-C3SEPeqa3',       l3:'Fat-C3SEPeqa2'        },
 ];
 
 function wideToLong(wideRows) {
@@ -462,6 +529,8 @@ function wideToLong(wideRows) {
         ...base,
         par:  pm.par,
         diff: parseFloat(diff) || 0,
+        wc:   row[pm.wc]  != null && row[pm.wc]  !== '' ? parseFloat(row[pm.wc])  : null,
+        nir:  row[pm.nir] != null && row[pm.nir] !== '' ? parseFloat(row[pm.nir]) : null,
         u2:   row[pm.u2] != null && row[pm.u2] !== '' ? parseFloat(row[pm.u2]) : null,
         l2:   row[pm.l2] != null && row[pm.l2] !== '' ? parseFloat(row[pm.l2]) : null,
         u3:   row[pm.u3] != null && row[pm.u3] !== '' ? parseFloat(row[pm.u3]) : null,
@@ -512,6 +581,12 @@ async function loadData() {
 }
 
 function initApp() {
+  // Ensure chart view is default
+  document.getElementById('rawDataView').style.display = 'none';
+  ['paramTabsCard','ruleSummaryBar','statsCard','chartCard'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display='';
+  });
   currentParam = RAW.params[0];
 
   function initDD(id, arr) {
@@ -629,13 +704,33 @@ function filterRecords(){
     return true;
   });
 }
+const PARAM_ICONS={
+  'M':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><ellipse cx="8" cy="11" rx="4.5" ry="3.5" fill="#3b6ef5" opacity=".85"/><path d="M8 2 C8 2 4 6.5 4 9 a4 4 0 0 0 8 0 C12 6.5 8 2 8 2Z" fill="#3b6ef5" opacity=".7"/><circle cx="6" cy="8" r="1" fill="#fff" opacity=".6"/></svg>`,
+  'CP':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><ellipse cx="8" cy="9" rx="5" ry="3.5" fill="#e53535" opacity=".75"/><circle cx="8" cy="7" r="3" fill="#e8930a" opacity=".9"/><path d="M6 5.5 Q8 3 10 5.5" stroke="#fff" stroke-width="1" stroke-linecap="round" fill="none" opacity=".7"/><circle cx="10" cy="11" r="1.5" fill="#e8930a" opacity=".7"/></svg>`,
+  'EE':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="4" y="5" width="8" height="7" rx="2" fill="#e8930a" opacity=".85"/><rect x="6" y="3" width="4" height="3" rx="1" fill="#e8930a" opacity=".6"/><rect x="2" y="7" width="2" height="1.5" rx=".75" fill="#e8930a" opacity=".5"/><rect x="12" y="7" width="2" height="1.5" rx=".75" fill="#e8930a" opacity=".5"/><circle cx="8" cy="8.5" r="1.5" fill="#fff" opacity=".8"/></svg>`,
+  'AH':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M3 12 Q4 6 8 4 Q12 6 13 12 Z" fill="#e8930a" opacity=".75"/><path d="M5 12 Q6 8 8 7 Q10 8 11 12 Z" fill="#fff" opacity=".3"/><path d="M3 13 H13" stroke="#e8930a" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  'FIB':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="3" y="5" width="10" height="2" rx="1" fill="#15a552" opacity=".85"/><rect x="4" y="8.5" width="8" height="2" rx="1" fill="#15a552" opacity=".7"/><rect x="5" y="12" width="6" height="1.5" rx=".75" fill="#15a552" opacity=".55"/><circle cx="3" cy="4" r="1.5" fill="#15a552" opacity=".6"/><circle cx="13" cy="4" r="1" fill="#15a552" opacity=".4"/></svg>`,
+  'ASH':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 13 Q5 8 8 7 Q11 8 12 13 Z" fill="#9095b5" opacity=".7"/><path d="M6 7 Q7 4 8 3 Q9 4 10 7" stroke="#9095b5" stroke-width="1" stroke-linecap="round" fill="none" opacity=".6"/><path d="M2 13 H14" stroke="#9095b5" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="10" r="1.2" fill="#fff" opacity=".5"/></svg>`,
+  'Ca':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="3" y="4" width="10" height="9" rx="2.5" fill="#b5d4f4" opacity=".7"/><rect x="5" y="6" width="6" height="5" rx="1.5" fill="#378add" opacity=".5"/><path d="M6.5 8 L7.5 9.5 L9.5 7" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  'P':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="8" cy="8" r="5.5" fill="#7c5cfc" opacity=".8"/><circle cx="8" cy="8" r="3" fill="#fff" opacity=".25"/><text x="8" y="11" text-anchor="middle" font-size="7" font-weight="700" fill="#fff" font-family="sans-serif">P</text></svg>`,
+  'Aw':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="7" width="12" height="5" rx="2" fill="#3b6ef5" opacity=".6"/><path d="M2 9 Q5 7 8 9 Q11 11 14 9" stroke="#fff" stroke-width="1.2" stroke-linecap="round" fill="none" opacity=".8"/><path d="M4 7 Q5 4 6 7" stroke="#3b6ef5" stroke-width="1" stroke-linecap="round" fill="none" opacity=".6"/><path d="M10 7 Q11 4 12 7" stroke="#3b6ef5" stroke-width="1" stroke-linecap="round" fill="none" opacity=".6"/></svg>`,
+  'NaCl':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="3" y="3" width="4.5" height="4.5" rx="1" fill="#3b6ef5" opacity=".8"/><rect x="8.5" y="3" width="4.5" height="4.5" rx="1" fill="#e53535" opacity=".8"/><rect x="3" y="8.5" width="4.5" height="4.5" rx="1" fill="#e53535" opacity=".7"/><rect x="8.5" y="8.5" width="4.5" height="4.5" rx="1" fill="#3b6ef5" opacity=".7"/></svg>`,
+  'PD':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="3" y="5" width="10" height="7" rx="2" fill="#1a1d2e" opacity=".15"/><rect x="3" y="5" width="10" height="7" rx="2" stroke="#5a5f7e" stroke-width="1" fill="none"/><rect x="5" y="7" width="6" height="3" rx="1" fill="#5a5f7e" opacity=".6"/><circle cx="5.5" cy="14" r="1.5" fill="#5a5f7e" opacity=".7"/><circle cx="10.5" cy="14" r="1.5" fill="#5a5f7e" opacity=".7"/></svg>`,
+  'TVBN':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M8 3 Q10 5 13 4 Q12 8 10 9 Q9 12 8 13 Q7 12 6 9 Q4 8 3 4 Q6 5 8 3Z" fill="#15a552" opacity=".75"/><circle cx="8" cy="8" r="1.5" fill="#fff" opacity=".7"/></svg>`,
+  'Sand':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M2 13 Q8 8 14 13 Z" fill="#e8930a" opacity=".7"/><circle cx="5" cy="12" r="1" fill="#e8930a" opacity=".6"/><circle cx="8" cy="11" r="1.2" fill="#e8930a" opacity=".7"/><circle cx="11" cy="12" r="0.8" fill="#e8930a" opacity=".5"/><circle cx="6.5" cy="13.5" r="0.7" fill="#e8930a" opacity=".4"/><circle cx="10" cy="13.8" r="0.6" fill="#e8930a" opacity=".4"/><path d="M2 14 H14" stroke="#e8930a" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  'Starch':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="5" cy="8" r="3" fill="#e8930a" opacity=".6"/><circle cx="11" cy="6" r="2.5" fill="#e8930a" opacity=".7"/><circle cx="9" cy="11" r="2" fill="#e8930a" opacity=".55"/><circle cx="5" cy="8" r="1.2" fill="#fff" opacity=".4"/></svg>`,
+  'BHT':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M8 2 L13 5 L13 11 L8 14 L3 11 L3 5 Z" fill="#7c5cfc" opacity=".75"/><path d="M8 5 L10.5 6.5 L10.5 9.5 L8 11 L5.5 9.5 L5.5 6.5 Z" fill="#fff" opacity=".25"/><circle cx="8" cy="8" r="1.5" fill="#fff" opacity=".8"/></svg>`,
+  'pH':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><defs><linearGradient id="phg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#e53535"/><stop offset="50%" stop-color="#15a552"/><stop offset="100%" stop-color="#3b6ef5"/></linearGradient></defs><rect x="2" y="6" width="12" height="5" rx="2.5" fill="url(#phg)" opacity=".85"/><rect x="7" y="5" width="2" height="7" rx="1" fill="#1a1d2e" opacity=".5"/></svg>`,
+  'Fat-C':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="6" cy="9" r="4" fill="#e8930a" opacity=".7"/><circle cx="10.5" cy="7.5" r="3" fill="#e53535" opacity=".6"/><circle cx="9" cy="11" r="2" fill="#e8930a" opacity=".5"/><circle cx="6" cy="9" r="1.5" fill="#fff" opacity=".35"/></svg>`,
+};
 function buildParamTabs(availParams){
   const el=document.getElementById('paramTabs');el.innerHTML='';
   RAW.params.forEach((pk,pi)=>{
     if(!availParams.has(pk))return;
     const btn=document.createElement('button');
     btn.className='tab'+(pk===currentParam?' active':'');
-    btn.textContent=RAW.paramLabels[pi];
+    const icon=PARAM_ICONS[pk]||'';
+    btn.innerHTML=icon+'<span>'+RAW.paramLabels[pi]+'</span>';
     btn.dataset.pk=pk;
     btn.onclick=()=>{document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');currentParam=pk;renderChart();};
     el.appendChild(btn);
@@ -649,8 +744,9 @@ function updateLimitsTable(sepLimits){
   const tbody=document.getElementById('limitsBody'),card=document.getElementById('statsCard'),keys=Object.keys(sepLimits);
   if(!keys.length||!hasActiveFilter()){card.style.display='none';return;}
   card.style.display='block';
-  const fmt=v=>v!==null&&!isNaN(v)?parseFloat(v).toFixed(4):'—';
-  tbody.innerHTML=keys.map(k=>{const lim=sepLimits[k],name=RAW.seps[k];return`<tr><td class="sep-name">${name}</td><td class="ucl2">+${fmt(lim.u2)}</td><td class="lcl2">${fmt(lim.l2)}</td><td class="ucl3">+${fmt(lim.u3)}</td><td class="lcl3">${fmt(lim.l3)}</td></tr>`;}).join('');
+  const fmtPos=v=>v!==null&&!isNaN(v)?'+'+parseFloat(v).toFixed(4):'—';
+  const fmtNeg=v=>v!==null&&!isNaN(v)?'−'+Math.abs(parseFloat(v)).toFixed(4):'—';
+  tbody.innerHTML=keys.map(k=>{const lim=sepLimits[k],name=RAW.seps[k];return`<tr><td class="sep-name">${name}</td><td class="ucl2">${fmtPos(lim.u2)}</td><td class="lcl2">${fmtNeg(lim.l2)}</td><td class="ucl3">${fmtPos(lim.u3)}</td><td class="lcl3">${fmtNeg(lim.l3)}</td></tr>`;}).join('');
 }
 
 // =====================================================
@@ -684,6 +780,7 @@ Chart.register(monthBandPlugin);Chart.register(dataLabelPlugin);
 // =====================================================
 function renderChart(){
   if(!RAW)return;
+  if(currentView==='raw'){renderRawTable();return;}
   const filtered=filterRecords();
   const availParams=new Set(filtered.map(r=>RAW.params[r[I.PAR]]));
   buildParamTabs(availParams);
@@ -778,6 +875,238 @@ function renderChart(){
   chart._monthLbls=monthLbls;
   chart._baseColors=colors;
   chart._baseRadii=radii;
+}
+
+// =====================================================
+// VIEW SWITCHING
+// =====================================================
+let currentView = 'chart';
+let rawSortCol = null, rawSortDir = 1;
+
+function switchView(v) {
+  currentView = v;
+  document.getElementById('vtab-chart').classList.toggle('active', v==='chart');
+  document.getElementById('vtab-raw').classList.toggle('active', v==='raw');
+  if(v==='chart') {
+    // Show chart elements first, then render
+    document.getElementById('rawDataView').style.display = 'none';
+    document.getElementById('paramTabsCard').style.display = '';
+    document.getElementById('chartCard').style.display = '';
+    // ruleSummaryBar and statsCard are managed by renderChart itself
+    renderChart();
+  } else {
+    // Hide chart-specific elements
+    document.getElementById('paramTabsCard').style.display = 'none';
+    document.getElementById('ruleSummaryBar').style.display = 'none';
+    document.getElementById('statsCard').style.display = 'none';
+    document.getElementById('chartCard').style.display = 'none';
+    document.getElementById('rawDataView').style.display = '';
+    renderRawTable();
+  }
+}
+
+// =====================================================
+// RAW DATA TABLE
+// =====================================================
+const RAW_PARAMS_WIDE = [
+  {key:'M',     label:'M'},
+  {key:'CP',    label:'CP'},
+  {key:'EE',    label:'EE'},
+  {key:'AH',    label:'AH'},
+  {key:'FIB',   label:'FIB'},
+  {key:'ASH',   label:'ASH'},
+  {key:'Ca',    label:'Ca'},
+  {key:'P',     label:'P'},
+  {key:'Aw',    label:'Aw'},
+  {key:'NaCl',  label:'NaCl'},
+  {key:'PD',    label:'PD'},
+  {key:'TVBN',  label:'TVBN'},
+  {key:'Sand',  label:'Sand'},
+  {key:'Starch',label:'Starch'},
+  {key:'BHT',   label:'BHT'},
+  {key:'pH',    label:'pH'},
+  {'key':'Fat-C','label':'Fat-C'},
+];
+
+function buildRawWide() {
+  if(!RAW) return [];
+  const keyOf = r => [r[I.NO],r[I.MON],r[I.SEP],r[I.PRD],r[I.EQP],r[I.PLA],r[I.SRC],r[I.TYP],r[I.SMP]].join('|');
+  const map = new Map();
+  RAW.records.forEach(r => {
+    const k = keyOf(r);
+    if(!map.has(k)) map.set(k, {
+      no:r[I.NO],mon:r[I.MON],pla:r[I.PLA],typ:r[I.TYP],
+      eqp:r[I.EQP],src:r[I.SRC],sep:r[I.SEP],prd:r[I.PRD],sample:r[I.SMP],params:{}
+    });
+    const pk = RAW.params[r[I.PAR]];
+    const wc=r[I.WC], nir=r[I.NIR], diff=r[I.DIF];
+    map.get(k).params[pk] = {diff,wc,nir,u2:r[I.U2],l2:r[I.L2],u3:r[I.U3],l3:r[I.L3]};
+  });
+  const rows = [...map.values()];
+  rows.sort((a,b)=>(a.no+'').localeCompare(b.no+'',undefined,{numeric:true}));
+  return rows;
+}
+
+function applyRawFilters(rows) {
+  if(!RAW) return rows;
+  const f = getFilters();
+  return rows.filter(r => {
+    if(f.fPlant!==null && r.pla!==f.fPlant) return false;
+    if(f.fType!==null && r.typ!==f.fType) return false;
+    if(f.fProduct!==null && r.prd!==f.fProduct) return false;
+    if(f.fEquip!==null && r.eqp!==f.fEquip) return false;
+    if(f.fSource!==null && r.src!==f.fSource) return false;
+    if(f.fSep!==null && r.sep!==f.fSep) return false;
+    if(f.fDateFrom!==null && r.mon<f.fDateFrom) return false;
+    if(f.fDateTo!==null && r.mon>f.fDateTo) return false;
+    if(selectedMap.size > 0) {
+      let ok = false;
+      selectedMap.forEach((item) => {
+        if(item.type==='sep' && RAW.seps[r.sep]===item.label) ok=true;
+        if(item.type==='sample' && r.sample===item.label) ok=true;
+        if(item.type==='product' && RAW.products[r.prd]===item.label) ok=true;
+      });
+      if(!ok) return false;
+    }
+    return true;
+  });
+}
+
+function renderRawTable() {
+  if(!RAW) return;
+  let rows = applyRawFilters(buildRawWide());
+  const activePars = RAW_PARAMS_WIDE.filter(p => rows.some(r => r.params[p.key]!==undefined));
+
+  if(rawSortCol !== null) {
+    rows = [...rows].sort((a,b) => {
+      const va = rawSortVal(a,rawSortCol,activePars);
+      const vb = rawSortVal(b,rawSortCol,activePars);
+      if(typeof va==='string') return va.localeCompare(vb)*rawSortDir;
+      return ((va??-Infinity)-(vb??-Infinity))*rawSortDir;
+    });
+  }
+
+  document.getElementById('rawCountLabel').textContent = rows.length + ' แถว';
+
+  const fixCols=[
+    {label:'No.',   cls:'col-fix col-fix-0'},
+    {label:'Month', cls:'col-fix col-fix-1'},
+    {label:'Plant', cls:'col-fix col-fix-2'},
+    {label:'Prod.', cls:'col-fix col-fix-3'},
+    {label:'Sample',cls:'col-fix col-fix-4'},
+  ];
+  let h1='<tr>';
+  fixCols.forEach((c,i)=>{ h1+=`<th rowspan="2" class="${c.cls}" data-col="${i}" onclick="sortRaw(${i})">${c.label}</th>`; });
+  activePars.forEach((p)=>{
+    h1+=`<th colspan="3" class="grp-header grp-sep" style="background:var(--blue-bg);color:var(--blue);position:sticky;top:0;z-index:5">${p.label}</th>`;
+  });
+  h1+='</tr>';
+  let h2='<tr>';
+  activePars.forEach((p,pi)=>{
+    const base=fixCols.length+pi*3;
+    h2+=`<th class="grp-sep" data-col="${base}" onclick="sortRaw(${base})">WC</th>`;
+    h2+=`<th data-col="${base+1}" onclick="sortRaw(${base+1})">NIR</th>`;
+    h2+=`<th data-col="${base+2}" onclick="sortRaw(${base+2})">Diff</th>`;
+  });
+  h2+='</tr>';
+  document.getElementById('rawThead').innerHTML = h1+h2;
+
+  document.querySelectorAll('#rawThead th[data-col]').forEach(th=>{
+    const c=parseInt(th.dataset.col);
+    th.classList.remove('sort-asc','sort-desc');
+    if(c===rawSortCol) th.classList.add(rawSortDir===1?'sort-asc':'sort-desc');
+  });
+
+  const DEC={'ASH':1,'Ca':3,'P':3};
+  const fmt=(v,pk)=>v!=null&&!isNaN(v)?parseFloat(v).toFixed(DEC[pk]??2):'—';
+  const diffHL=(dv,pd)=>{
+    if(dv==null||isNaN(dv)||!pd) return '';
+    const abs=Math.abs(dv);
+    if(pd.u3!=null&&abs>Math.abs(pd.u3)) return 'cell-warn3';
+    if(pd.u2!=null&&abs>Math.abs(pd.u2)) return 'cell-warn2';
+    return dv>0?'cell-pos':'cell-neg';
+  };
+
+  const tbody=rows.map(r=>{
+    const month=RAW.monthLabels[r.mon]||'';
+    const pla=RAW.plants[r.pla]||'';
+    const prd=RAW.products[r.prd]||'';
+    let c=`<td class="cell-fix cell-fix-0">${r.no}</td>`;
+    c+=`<td class="cell-fix cell-fix-1">${month}</td>`;
+    c+=`<td class="cell-fix cell-fix-2">${pla}</td>`;
+    c+=`<td class="cell-fix cell-fix-3">${prd}</td>`;
+    c+=`<td class="cell-fix cell-fix-4">${r.sample||''}</td>`;
+    activePars.forEach((p,pi)=>{
+      const pd=r.params[p.key];
+      const wcv=pd?.wc, nirv=pd?.nir, dv=pd?.diff;
+      const wcStr=pd?fmt(wcv,p.key):'';
+      const nirStr=pd?fmt(nirv,p.key):'';
+      const dStr=pd&&dv!=null?(dv>=0?'+':'')+fmt(dv,p.key):'';
+      const dCls=pd?diffHL(dv,pd):'';
+      c+=`<td class="grp-sep">${wcStr}</td><td>${nirStr}</td><td class="${dCls}">${dStr}</td>`;
+    });
+    return `<tr>${c}</tr>`;
+  }).join('');
+  document.getElementById('rawTbody').innerHTML=tbody;
+
+  let foot='<tr>';
+  foot+=`<td class="cell-fix cell-fix-0" colspan="2" style="text-align:left;font-family:var(--font)">Total (${rows.length})</td>`;
+  foot+=`<td class="cell-fix cell-fix-2"></td><td class="cell-fix cell-fix-3"></td><td class="cell-fix cell-fix-4"></td>`;
+  activePars.forEach((p)=>{
+    const vals=rows.map(r=>r.params[p.key]?.diff).filter(v=>v!=null&&!isNaN(v));
+    const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
+    const aStr=avg!=null?(avg>=0?'+':'')+parseFloat(avg).toFixed(DEC[p.key]??2):'—';
+    const aCls=avg!=null?(avg>0?'cell-pos':'cell-neg'):'';
+    foot+=`<td class="grp-sep"></td><td></td><td class="${aCls}">${aStr}</td>`;
+  });
+  foot+='</tr>';
+  document.getElementById('rawTfoot').innerHTML=foot;
+}
+
+function rawSortVal(row,colIdx,activePars){
+  if(colIdx===0) return row.no+'';
+  if(colIdx===1) return row.mon;
+  if(colIdx===2) return RAW.plants[row.pla]||'';
+  if(colIdx===3) return RAW.products[row.prd]||'';
+  if(colIdx===4) return row.sample||'';
+  const pi=Math.floor((colIdx-5)/3);
+  const sub=(colIdx-5)%3;
+  if(pi<0||pi>=activePars.length) return null;
+  const pd=row.params[activePars[pi].key];
+  if(!pd) return null;
+  if(sub===0) return pd.wc;
+  if(sub===1) return pd.nir;
+  return pd.diff;
+}
+
+function sortRaw(col){
+  if(rawSortCol===col) rawSortDir*=-1;
+  else{rawSortCol=col;rawSortDir=1;}
+  renderRawTable();
+}
+
+function exportCSV(){
+  if(!RAW) return;
+  const rows=applyRawFilters(buildRawWide());
+  const activePars=RAW_PARAMS_WIDE.filter(p=>rows.some(r=>r.params[p.key]!==undefined));
+  const DEC={'ASH':1,'Ca':3,'P':3};
+  const fmt=(v,pk)=>v!=null&&!isNaN(v)?parseFloat(v).toFixed(DEC[pk]??2):'';
+  const headers=['No.','Month','Plant','Product','Sample'];
+  activePars.forEach(p=>{headers.push(p.label+'-WC',p.label+'-NIR',p.label+'-Diff');});
+  const lines=[headers.join(',')];
+  rows.forEach(r=>{
+    const cells=[r.no,RAW.monthLabels[r.mon]||'',RAW.plants[r.pla]||'',RAW.products[r.prd]||'','"'+(r.sample||'')+'"'];
+    activePars.forEach(p=>{
+      const pd=r.params[p.key];
+      cells.push(fmt(pd?.wc,p.key),fmt(pd?.nir,p.key),pd?.diff!=null?pd.diff:'');
+    });
+    lines.push(cells.join(','));
+  });
+  const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='raw_data.csv';
+  a.click();
 }
 
 loadData();
