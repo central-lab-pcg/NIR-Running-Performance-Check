@@ -193,7 +193,13 @@ table.stbl td.diff-neg{color:var(--red);font-weight:700}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-txt{font-size:13px;color:var(--txt2);font-family:var(--mono);font-weight:600}
 
-#errorBox{display:none;background:var(--red-bg);border:1.5px solid var(--red-border);border-radius:var(--r-lg);padding:16px 20px;margin-bottom:16px;color:var(--red);font-size:13px;font-weight:600}
+#errorBox{display:none;background:var(--amber-bg);border:1.5px solid var(--amber-border);border-radius:var(--r-lg);padding:16px 20px;margin-bottom:16px;color:#92600a;font-size:13px;font-weight:600}
+#errorBox .err-tips{margin-top:10px;font-size:12px;color:var(--txt2);line-height:1.7;font-weight:500}
+#errorBox .err-tips li{margin-bottom:3px}
+#fileUploadArea{margin-top:12px;padding:12px 16px;background:var(--amber-bg);border:1.5px dashed var(--amber-border);border-radius:var(--r);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#fileUploadArea label{cursor:pointer;font-size:12px;font-weight:700;color:#92600a;display:flex;align-items:center;gap:6px}
+#fileUploadArea input[type=file]{display:none}
+#fileUploadArea .upload-hint{font-size:11px;color:var(--txt3)}
 
 .view-toggle{display:flex;gap:3px;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--r);padding:3px}
 .vtab{font-size:12px;padding:6px 16px;border-radius:9px;border:none;background:transparent;color:var(--txt2);cursor:pointer;font-weight:700;transition:all .15s;font-family:var(--font)}
@@ -240,12 +246,25 @@ table.rtbl tfoot td.cell-neg{color:var(--red)}
 </head>
 <body>
 
-<div id="loadingOverlay">
+<div id="loadingOverlay" style="display:none">
   <div class="spinner"></div>
   <div class="loading-txt">กำลังโหลดข้อมูล...</div>
 </div>
 
-<div id="errorBox"></div>
+<div id="errorBox">
+  <div id="errorMsg"></div>
+  <ul class="err-tips" id="errorTips" style="display:none">
+    <li>🔒 ถ้า repo เป็น <strong>Private</strong> → ต้องเปลี่ยนเป็น Public หรือใช้ Personal Access Token</li>
+    <li>🌐 ถ้าเปิดไฟล์แบบ <code>file://</code> → ลองใช้ Live Server หรือ web server แทน</li>
+    <li>📁 หรืออัปโหลดไฟล์ data.json จากเครื่องด้านล่าง</li>
+  </ul>
+  <div id="fileUploadArea" style="display:none">
+    <label for="localFileInput">📂 <span>เลือกไฟล์ data.json จากเครื่อง</span>
+      <input type="file" id="localFileInput" accept=".json">
+    </label>
+    <span class="upload-hint">รองรับทั้ง Wide format (rows) และ Long format (records)</span>
+  </div>
+</div>
 <div id="appContent" style="display:none">
 
 <div class="page-header">
@@ -606,42 +625,77 @@ function wideToLong(wideRows) {
 }
 
 // =====================================================
-// Load data.json
+// Countdown timer on loading screen
+// =====================================================
+let _countdownTimer = null;
+function startLoadingCountdown(seconds) {
+  let remain = seconds;
+  const cdEl = document.getElementById('loadingCountdown');
+  const skipBtn = document.getElementById('loadingSkipBtn');
+  cdEl.style.display = 'block';
+  cdEl.textContent = 'หมดเวลาใน ' + remain + ' วินาที...';
+  _countdownTimer = setInterval(() => {
+    remain--;
+    if (remain <= 0) {
+      clearInterval(_countdownTimer);
+      cdEl.textContent = 'กำลังพยายาม...';
+      skipBtn.style.display = 'inline-block';
+    } else {
+      cdEl.textContent = 'หมดเวลาใน ' + remain + ' วินาที...';
+      if (remain <= 5) skipBtn.style.display = 'inline-block';
+    }
+  }, 1000);
+}
+
+function skipToUpload() {
+  clearInterval(_countdownTimer);
+  document.getElementById('loadingOverlay').style.display = 'none';
+  const eb = document.getElementById('errorBox');
+  eb.style.display = 'block';
+  document.getElementById('errorMsg').innerHTML = '⚠️ <strong>ไม่สามารถโหลดจาก GitHub ได้</strong> — กรุณาเลือกไฟล์ data.json จากเครื่อง';
+  document.getElementById('errorTips').style.display = 'block';
+  document.getElementById('fileUploadArea').style.display = 'flex';
+}
+
+
 // รองรับทั้ง 2 format:
 //   1. Wide format:  { "rows": [...] }       ← Power Automate ส่ง raw Excel rows
 //   2. Long format:  { "records": [...] }    ← format เดิม (Long)
 // =====================================================
-async function loadData() {
-  try {
-    const res = await fetch(DATA_URL, {cache:'no-cache'});
-    if (!res.ok) throw new Error('HTTP '+res.status);
-    const json = await res.json();
+function loadData() {
+  // ซ่อน loading overlay ทันที แล้วแสดงหน้า upload
+  document.getElementById('loadingOverlay').style.display = 'none';
+  showUploadScreen();
+}
 
-    let longRecords;
-    if (json.rows) {
-      // Wide format จาก Power Automate → แปลงเป็น Long
-      longRecords = wideToLong(json.rows);
-    } else {
-      // Long format เดิม
-      longRecords = json.records || [];
-    }
-
-    RAW = buildLookups(longRecords, PARAMS_DEF);
-    RAW.generated_at = json.generated_at || '';
-
-    document.getElementById('loadingOverlay').style.display='none';
-    document.getElementById('appContent').style.display='block';
-    if (RAW.generated_at) {
-      document.getElementById('lastUpdated').textContent = 'อัปเดตล่าสุด: ' + RAW.generated_at;
-    }
-    initApp();
-  } catch(e) {
-    document.getElementById('loadingOverlay').style.display='none';
-    const eb = document.getElementById('errorBox');
-    eb.style.display = 'block';
-    eb.innerHTML = '❌ <strong>โหลดข้อมูลไม่ได้:</strong> '+e.message+
-      '<br><small>ตรวจสอบ DATA_URL และสิทธิ์เข้าถึงไฟล์</small>';
-  }
+function showUploadScreen() {
+  const eb = document.getElementById('errorBox');
+  eb.style.display = 'block';
+  document.getElementById('errorMsg').innerHTML = '📂 <strong>กรุณาเลือกไฟล์ data.json</strong> เพื่อโหลดข้อมูล';
+  document.getElementById('errorTips').style.display = 'none';
+  document.getElementById('fileUploadArea').style.display = 'flex';
+  document.getElementById('localFileInput').addEventListener('change', function(ev){
+    const file = ev.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e2){
+      try {
+        const json = JSON.parse(e2.target.result);
+        let longRecords;
+        if (json.rows) { longRecords = wideToLong(json.rows); }
+        else { longRecords = json.records || []; }
+        RAW = buildLookups(longRecords, PARAMS_DEF);
+        RAW.generated_at = json.generated_at || '';
+        eb.style.display = 'none';
+        document.getElementById('appContent').style.display = 'block';
+        if (RAW.generated_at) document.getElementById('lastUpdated').textContent = 'อัปเดตล่าสุด: ' + RAW.generated_at;
+        initApp();
+      } catch(err) {
+        document.getElementById('errorMsg').innerHTML = '❌ <strong>อ่านไฟล์ไม่ได้:</strong> ' + err.message;
+      }
+    };
+    reader.readAsText(file);
+  });
 }
 
 function initApp() {
