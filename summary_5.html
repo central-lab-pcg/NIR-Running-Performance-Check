@@ -126,7 +126,7 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
 .main-layout{display:flex;gap:14px;align-items:flex-start}
 .tbl-wrap{flex:1;min-width:0}
 .detail-panel{width:300px;flex-shrink:0;background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow);overflow:hidden;position:sticky;top:20px;transition:all .2s}
-.detail-panel.dp-empty .dp-body{display:none}
+.detail-panel.dp-empty .dp-body{display:block}
 .dp-header{background:linear-gradient(135deg,#4a6fa5 0%,#7097d4 100%);color:#fff;padding:10px 14px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:7px}
 .dp-header .dp-par{font-size:15px;font-weight:800;font-family:var(--mono)}
 .dp-header .dp-prod{font-size:10px;opacity:.75;font-weight:400;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -147,6 +147,26 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
 .detail-panel.dp-empty .dp-body{display:block}
 .detail-panel.dp-locked-vis{border-color:#5b8ef0}
 .detail-panel.dp-locked-vis .dp-header{background:linear-gradient(135deg,#3a5a9a 0%,#5b8ef0 100%)}
+/* Conclude panel */
+.conclude-wrap{padding:16px 18px}
+.conclude-empty{text-align:center;padding:20px;color:var(--txt3);font-size:12px;font-style:italic}
+.conclude-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.conclude-block{background:#fff;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(45,53,82,0.06)}
+.conclude-block-header{background:linear-gradient(135deg,#4a6fa5,#7097d4);color:#fff;padding:8px 12px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:6px;letter-spacing:0.2px}
+.conclude-block-header .prd-icon{font-size:13px;opacity:.85}
+.conclude-block-body{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.conclude-param-row{display:flex;flex-direction:column;gap:4px}
+.conclude-param-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--txt3);padding-bottom:3px;border-bottom:1px solid var(--border)}
+.conclude-badges{display:flex;flex-wrap:wrap;gap:3px}
+.conclude-badge{display:inline-flex;align-items:center;gap:3px;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:600;border:1px solid;white-space:nowrap}
+.conclude-badge.b-fail3{background:#fce8e6;color:#c53030;border-color:#f0a8a0}
+.conclude-badge.b-fail2{background:#eeeafa;color:#6840c0;border-color:#c0aaef}
+.conclude-badge.b-rule9{background:#fef5e0;color:#b06800;border-color:#f5ce78}
+.conclude-chips{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px}
+.conclude-chip{font-size:9px;font-family:var(--mono);padding:2px 6px;border-radius:4px;border:1px solid;white-space:nowrap}
+.conclude-chip.c-fail3{background:#fff0ef;color:#c53030;border-color:#f5c0bc}
+.conclude-chip.c-fail2{background:#f5f0ff;color:#6840c0;border-color:#c8b0ef}
+.conclude-chip.c-rule9{background:#fffbef;color:#b06800;border-color:#f5d888}
 </style>
 </head>
 <body>
@@ -208,17 +228,14 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
     <tbody id="summaryBody"></tbody>
   </table>
 </div>
-<div class="detail-panel dp-empty" id="detailPanel">
-  <div class="dp-header">
-    <div>
-      <div class="dp-par" id="dpPar">—</div>
-      <div class="dp-prod" id="dpProd">เลือก badge เพื่อดู detail</div>
-    </div>
-  </div>
-  <div class="dp-body" id="dpBody">
-    <div class="dp-empty-msg"><div class="dp-icon">👆</div>คลิก หรือ hover badge ที่ไม่ผ่านเพื่อดูรายละเอียด</div>
-  </div>
 </div>
+
+<!-- Conclude panel — ใต้ตาราง -->
+<div id="concludePanelWrap" style="margin-top:12px;background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow);overflow:hidden">
+  <div style="background:linear-gradient(135deg,#4a6fa5 0%,#7097d4 100%);color:#fff;padding:9px 14px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:7px">
+    <span style="font-size:14px">📋</span> Conclude — สรุปผลที่ไม่ผ่านเกณฑ์
+  </div>
+  <div id="concludePanel" class="conclude-wrap"></div>
 </div>
 
 </div>
@@ -547,6 +564,89 @@ function render(){
     body+='</tr>';
   });
   document.getElementById('summaryBody').innerHTML=body;
+  renderConclude();
+}
+
+// ── conclude panel ────────────────────────────────────────────────────────────
+function renderConclude(){
+  const panel=document.getElementById('concludePanel');
+  if(!panel)return;
+  const selMon=document.getElementById('fMonth').value;
+  const selPla=document.getElementById('fPlant').value;
+  const selTyp=document.getElementById('fType').value;
+  const selEqp=document.getElementById('fEquip').value;
+  const selSrc=document.getElementById('fSource').value;
+  const fBase=r=>{
+    if(selPla&&r.pla!==selPla)return false;
+    if(selTyp&&r.typ!==selTyp)return false;
+    if(selEqp&&r.eqp!==selEqp)return false;
+    if(selSrc&&r.src!==selSrc)return false;
+    return true;
+  };
+  const monRecs=RECS.filter(r=>String(r.mon)===String(selMon)&&fBase(r));
+  const products=[...new Set(monRecs.map(r=>r.prd))].filter(Boolean).sort();
+  const params=[...new Set(monRecs.map(r=>r.par))].filter(Boolean);
+  const sortedP=PARAMS_DEF.map(p=>p.key).filter(k=>params.includes(k));
+
+  // collect fails per product
+  const byPrd=new Map();
+  products.forEach(prd=>{
+    sortedP.forEach(pk=>{
+      const pts=RECS.filter(r=>r.prd===prd&&r.par===pk&&fBase(r)&&parseInt(r.mon)<=parseInt(selMon))
+        .sort((a,b)=>parseInt(a.mon)-parseInt(b.mon));
+      if(!pts.some(r=>String(r.mon)===String(selMon)))return;
+      const det=calcDetail(pts,selMon);
+      if(!det.statuses||det.statuses.every(s=>s==='pass'))return;
+      if(!(det.f3?.length||det.f2?.length||det.f9?.length))return;
+      if(!byPrd.has(prd))byPrd.set(prd,[]);
+      byPrd.get(prd).push({pk,f3:det.f3||[],f2:det.f2||[],f9:det.f9||[]});
+    });
+  });
+
+  if(!byPrd.size){
+    panel.innerHTML=`<div class="conclude-empty">✅ ทุก Product ผ่านเกณฑ์ในเดือนนี้</div>`;
+    return;
+  }
+
+  function uniqSamples(recs){
+    const seen=new Set();
+    return recs.filter(r=>{const k=r.sample||r.no||'?';if(seen.has(k))return false;seen.add(k);return true;});
+  }
+
+  let html=`<div class="conclude-grid">`;
+  byPrd.forEach((entries,prd)=>{
+    html+=`<div class="conclude-block">
+      <div class="conclude-block-header"><span class="prd-icon">📦</span>${prd}</div>
+      <div class="conclude-block-body">`;
+
+    entries.forEach(({pk,f3,f2,f9})=>{
+      html+=`<div class="conclude-param-row">
+        <div class="conclude-param-label">${pk}</div>
+        <div class="conclude-badges">`;
+      if(f3.length) html+=`<span class="conclude-badge b-fail3">⚠ &gt;3 SEP</span>`;
+      if(f2.length) html+=`<span class="conclude-badge b-fail2">◉ 2/3 Points</span>`;
+      if(f9.length) html+=`<span class="conclude-badge b-rule9">◆ ≥9 จุดฝั่งเดียว</span>`;
+      html+=`</div>`;
+
+      // sample chips — dedup across all rules, colour by worst
+      const seenChip=new Set();
+      const chips=[];
+      [[f3,'c-fail3'],[f2,'c-fail2'],[f9,'c-rule9']].forEach(([recs,cls])=>{
+        uniqSamples(recs).forEach(r=>{
+          const k=r.sample||r.no||'?';
+          if(!seenChip.has(k)){seenChip.add(k);chips.push({k,cls});}
+        });
+      });
+      if(chips.length){
+        html+=`<div class="conclude-chips">${chips.map(c=>`<span class="conclude-chip ${c.cls}">${c.k}</span>`).join('')}</div>`;
+      }
+      html+=`</div>`;
+    });
+
+    html+=`</div></div>`;
+  });
+  html+=`</div>`;
+  panel.innerHTML=html;
 }
 
 loadData();
@@ -554,72 +654,16 @@ loadData();
 // ── detail panel ─────────────────────────────────────────────────────────────
 let _dpLocked=null; // locked badge element
 
-function dpRender(el,isLock){
-  try{
-    const d=JSON.parse(el.dataset.det.replace(/&quot;/g,'"'));
-    const prd=el.closest('tr')?.querySelector('.td-product')?.textContent||'';
-    document.getElementById('dpPar').textContent=d.par;
-    document.getElementById('dpProd').textContent=prd;
-    const panel=document.getElementById('detailPanel');
-    panel.classList.remove('dp-empty');
-    if(isLock)panel.classList.add('dp-locked-vis');else panel.classList.remove('dp-locked-vis');
+function dpRender(el,isLock){}
 
-    let html='';
-    // bias row
-    const biasCol=d.bias>0.01?'#c53030':d.bias<-0.01?'#b06800':'#1e8a56';
-    html+=`<div class="dp-meta">
-      <div class="dp-meta-item"><span class="dp-meta-lbl">จำนวนตัวอย่าง</span><span class="dp-meta-val">${d.n}</span></div>
-      <div class="dp-meta-item"><span class="dp-meta-lbl">Bias</span><span class="dp-meta-val" style="color:${biasCol}">${d.bias>=0?'+':''}${d.bias.toFixed(3)}</span></div>
-    </div>`;
-
-    function section(recs,color,title){
-      if(!recs||!recs.length)return'';
-      const seen=new Set();const rows=recs.filter(r=>{if(seen.has(r.nm))return false;seen.add(r.nm);return true;});
-      const lim=rows[0]&&rows[0].u3!=null?rows[0].u3.toFixed(3):(rows[0]&&rows[0].l3!=null?Math.abs(rows[0].l3).toFixed(3):'');
-      const tbody=rows.map(r=>{
-        const diff=(r.diff>=0?'+':'')+r.diff.toFixed(3);
-        const dc=r.diff>0?'#c53030':'#1e8a56';
-        return `<tr><td class="dp-nm">${r.nm}</td><td style="color:${dc};text-align:right">${diff}</td><td style="color:#a0a9c8;text-align:right">${lim?'±'+lim:''}</td><td style="color:#a0a9c8;text-align:right">${r.sep||''}</td></tr>`;
-      }).join('');
-      return `<div class="dp-section">
-        <span class="dp-section-title" style="background:${color}18;color:${color}">${title} (${rows.length})</span>
-        <table class="dp-table">
-          <thead><tr><th>Sample</th><th style="text-align:right">Diff</th><th style="text-align:right">±Limit</th><th style="text-align:right">SEP</th></tr></thead>
-          <tbody>${tbody}</tbody>
-        </table>
-      </div>`;
-    }
-    html+=section(d.f3,'#c53030','⚠ เกิน ±3SEP');
-    html+=section(d.f2,'#6840c0','◉ 2/3 Points');
-    html+=section(d.f9,'#b06800','◆ ≥9 จุดฝั่งเดียว');
-    document.getElementById('dpBody').innerHTML=html;
-  }catch(err){console.warn('dpRender',err);}
-}
-
-function dpShow(el){
-  if(_dpLocked)return; // don't override locked
-  if(!el.dataset.det)return;
-  dpRender(el,false);
-}
+function dpShow(el){}
 function dpHoverEnd(){
   if(_dpLocked)return;
-  // restore empty state
-  const panel=document.getElementById('detailPanel');
-  panel.classList.add('dp-empty');
-  document.getElementById('dpProd').textContent='เลือก badge เพื่อดู detail';
-  document.getElementById('dpPar').textContent='—';
-  document.getElementById('dpBody').innerHTML='<div class="dp-empty-msg"><div class="dp-icon">👆</div>คลิก หรือ hover badge ที่ไม่ผ่านเพื่อดูรายละเอียด</div>';
 }
 function dpClick(el){
   if(!el.dataset.det)return;
-  if(_dpLocked===el){
-    // unlock
-    _dpLocked=null;
-    dpHoverEnd();
-  } else {
-    _dpLocked=el;
-    dpRender(el,true);
-  }
+  if(_dpLocked===el){ _dpLocked=null; }
+  else { _dpLocked=el; }
 }
 
 // reset detail panel when re-rendering table
