@@ -6,6 +6,8 @@
 <title>Running Performance Check</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#f0f6fd;--bg2:#ffffff;--bg3:#e8f2fc;
@@ -140,6 +142,8 @@ table.stbl td.diff-neg{color:var(--red);font-weight:700}
 .vtab.active{background:var(--bg2);color:var(--blue);box-shadow:0 1px 4px rgba(26,29,46,0.1)}
 .btn-export{background:var(--green-bg);color:var(--green);border:1.5px solid #86efbd;border-radius:var(--r);padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)}
 .btn-export:hover{background:#d1fae5}
+.btn-export-chart{background:#e8f2fc;color:#2d6bb0;border:1.5px solid #a8ccee;border-radius:var(--r);padding:5px 13px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all .15s}
+.btn-export-chart:hover{background:#5b9bd5;color:#fff;border-color:#5b9bd5}
 .raw-tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:72vh;border-radius:var(--r)}
 .raw-tbl-wrap::-webkit-scrollbar{width:5px;height:5px}.raw-tbl-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 table.rtbl{border-collapse:collapse;font-size:11px;font-family:var(--mono);min-width:100%}
@@ -267,6 +271,10 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
       <span class="leg"><span class="leg-dot" style="background:#e8b06a"></span>9 จุดฝั่งเดียว</span>
       <span class="leg"><span class="leg-dot" style="background:#5b9bd5"></span>ในเกณฑ์</span>
     </div>
+    <div style="display:flex;gap:6px">
+      <button class="btn-export-chart" onclick="exportChartPNG()" title="Export PNG">🖼 PNG</button>
+      <button class="btn-export-chart" onclick="exportChartPDF()" title="Export PDF">📄 PDF</button>
+    </div>
   </div>
   <div id="canvas-wrap"><canvas id="myChart"></canvas></div>
   <div id="selectionPanel">
@@ -291,9 +299,12 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
 <div id="rawDataView" style="display:none">
   <div class="card">
     <div class="card-title"><span class="bar"></span>Raw Data
-      <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <span class="f-label" id="rawCountLabel"></span>
-        <button class="btn btn-export" onclick="exportCSV()">⬇ Export CSV</button>
+        <button class="btn-export-chart" onclick="exportRawPNG()" title="Export PNG">🖼 PNG</button>
+        <button class="btn-export-chart" onclick="exportRawPDF()" title="Export PDF">📄 PDF</button>
+        <button class="btn btn-export" onclick="exportExcel()">📊 Excel</button>
+        <button class="btn btn-export" onclick="exportCSV()">⬇ CSV</button>
       </span>
     </div>
     <div class="raw-tbl-wrap" id="rawTableWrap">
@@ -603,7 +614,7 @@ function initApp() {
   document.getElementById('fDateTo').value = RAW.months.length-1;
 
   FILTER_IDS.forEach(id => {
-    document.getElementById(id).addEventListener('change', () => { refreshAllDD(); renderChart(); });
+    document.getElementById(id).addEventListener('change', () => { refreshAllDD(); if(currentView==='raw') renderRawTable(); else renderChart(); });
   });
   refreshAllDD();
   renderChart();
@@ -625,9 +636,9 @@ function renderTags(){
   });
   document.getElementById('searchClearAll').style.display=selectedMap.size>0?'inline-block':'none';
 }
-function removeTag(key){selectedMap.delete(key);renderTags();refreshDDContent();refreshAllDD();renderChart();}
-function clearAllSearch(e){e&&e.stopPropagation();selectedMap.clear();searchInput.value='';renderTags();document.getElementById('searchDropdown').classList.remove('open');refreshAllDD();renderChart();}
-function toggleItem(key,type,idx,label){if(selectedMap.has(key))selectedMap.delete(key);else selectedMap.set(key,{type,idx,label});renderTags();refreshDDContent();refreshAllDD();renderChart();}
+function removeTag(key){selectedMap.delete(key);renderTags();refreshDDContent();refreshAllDD();if(currentView==='raw')renderRawTable();else renderChart();}
+function clearAllSearch(e){e&&e.stopPropagation();selectedMap.clear();searchInput.value='';renderTags();document.getElementById('searchDropdown').classList.remove('open');refreshAllDD();if(currentView==='raw')renderRawTable();else renderChart();}
+function toggleItem(key,type,idx,label){if(selectedMap.has(key))selectedMap.delete(key);else selectedMap.set(key,{type,idx,label});renderTags();refreshDDContent();refreshAllDD();if(currentView==='raw')renderRawTable();else renderChart();}
 const searchInput=document.getElementById('searchInput'), searchDrop=document.getElementById('searchDropdown');
 let _dropItems=[];
 function focusInput(){searchInput.focus();}
@@ -655,7 +666,7 @@ function clearAllFilters(){
   ['fPlant','fType','fProduct','fEquip','fSource','fSep'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fDateFrom').value='';
   document.getElementById('fDateTo').value=RAW.months.length-1;
-  refreshAllDD();renderChart();
+  refreshAllDD();if(currentView==='raw')renderRawTable();else renderChart();
 }
 function getFilters(){const g=id=>{const v=document.getElementById(id).value;return v===''?null:parseInt(v,10);};return{fPlant:g('fPlant'),fType:g('fType'),fProduct:g('fProduct'),fEquip:g('fEquip'),fSource:g('fSource'),fSep:g('fSep'),fDateFrom:g('fDateFrom'),fDateTo:g('fDateTo')};}
 function matchSearch(r){if(selectedMap.size===0)return true;for(const[,item]of selectedMap){if(item.type==='sep'&&r[I.SEP]===item.idx)return true;if(item.type==='product'&&r[I.PRD]===item.idx)return true;if(item.type==='sample'&&r[I.SMP]===item.idx)return true;}return false;}
@@ -885,7 +896,9 @@ function switchView(v) {
   const chartEls = ['paramTabsCard','ruleSummaryBar','statsCard','chartCard'];
   chartEls.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=v==='chart'?'':'none'; });
   document.getElementById('rawDataView').style.display = v==='raw'?'':'none';
+  // re-render ด้วย filter ปัจจุบันเสมอ เพื่อให้ sync กัน
   if(v==='raw') renderRawTable();
+  else renderChart();
 }
 
 // =====================================================
@@ -1068,27 +1081,428 @@ function sortRaw(col){
   renderRawTable();
 }
 
-function exportCSV(){
+// =====================================================
+// Export helpers
+// =====================================================
+function getFilterSummary() {
+  const f = getFilters();
+  const parts = [];
+  parts.push('Plant: '     + (f.fPlant !== null     ? RAW.plants[f.fPlant]         : 'All'));
+  parts.push('Product: '   + (f.fProduct !== null   ? RAW.products[f.fProduct]     : 'All'));
+  parts.push('Equipment: ' + (f.fEquip !== null     ? RAW.equipments[f.fEquip]     : 'All'));
+  parts.push('Source: '    + (f.fSource !== null    ? RAW.sources[f.fSource]       : 'All'));
+  parts.push('Type: '      + (f.fType !== null      ? RAW.types[f.fType]           : 'All'));
+  parts.push('SEP: '       + (f.fSep !== null       ? RAW.seps[f.fSep]             : 'All'));
+  const fromLbl = f.fDateFrom !== null ? RAW.monthLabels[f.fDateFrom] : RAW.monthLabels[0];
+  const toLbl   = f.fDateTo   !== null ? RAW.monthLabels[f.fDateTo]   : RAW.monthLabels[RAW.months.length-1];
+  parts.push('Period: ' + fromLbl + ' – ' + toLbl);
+  if(selectedMap.size > 0)
+    parts.push('Search: ' + [...selectedMap.values()].map(v=>v.label).join(', '));
+  return parts; // คืน array เสมอ
+}
+
+function getFilterSummaryString() {
+  return getFilterSummary().join('   |   ');
+}
+
+function getExportFilename(prefix) {
+  const now = new Date().toISOString().slice(0,10);
+  return `${prefix}_${now}`;
+}
+
+// =====================================================
+// Chart Export — PNG & PDF
+// =====================================================
+function buildChartCanvas() {
+  const canvas = document.getElementById('myChart');
+  const exp = document.createElement('canvas');
+  exp.width = canvas.width; exp.height = canvas.height;
+  const ctx = exp.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, exp.width, exp.height);
+  ctx.drawImage(canvas, 0, 0);
+  return exp;
+}
+
+function exportChartPNG() {
+  if(!chart) return;
+  const exp = buildChartCanvas();
+  const filterLines = getFilterSummary();
+  const lineH = 16, padding = 12;
+  // แบ่งเป็น 2 คอลัมน์ 4 แถว
+  const rows = Math.ceil(filterLines.length / 2);
+  const bannerH = padding + 22 + rows * lineH + 8;
+  const out = document.createElement('canvas');
+  const dpr = window.devicePixelRatio || 1;
+  out.width = exp.width; out.height = exp.height + bannerH * dpr;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.drawImage(exp, 0, 0);
+  const bY = exp.height;
+  ctx.fillStyle = '#e8f2fc';
+  ctx.fillRect(0, bY, out.width, bannerH * dpr);
+  ctx.fillStyle = '#0d1f35';
+  ctx.font = `bold ${14 * dpr}px DM Sans, sans-serif`;
+  ctx.fillText('NIR Running Performance Check — Parameter: ' + (currentParam||''), padding * dpr, bY + 18 * dpr);
+  ctx.font = `${11 * dpr}px DM Mono, monospace`;
+  filterLines.forEach((line, i) => {
+    const col = i % 2 === 0 ? padding : out.width / 2;
+    const row = bY + (28 + Math.floor(i/2) * lineH) * dpr;
+    ctx.fillStyle = '#1e3a5f';
+    ctx.fillText('• ' + line, col * (i%2===0?1:0) + col, row);
+  });
+  const now = new Date().toLocaleDateString('th-TH', {year:'numeric',month:'long',day:'numeric'});
+  ctx.font = `${9 * dpr}px DM Mono, monospace`;
+  ctx.fillStyle = '#8aaac8';
+  ctx.fillText('Export: ' + now, padding * dpr, bY + (28 + rows * lineH + 4) * dpr);
+  const a = document.createElement('a');
+  a.href = out.toDataURL('image/png');
+  a.download = getExportFilename('NIR_Chart_' + (currentParam||'')) + '.png';
+  a.click();
+}
+
+function exportChartPDF() {
+  if(!chart) return;
+  const { jsPDF } = window.jspdf;
+  const exp = buildChartCanvas();
+  const imgData = exp.toDataURL('image/png');
+  const ratio = exp.height / exp.width;
+  const filterLines = getFilterSummary();
+  const rows = Math.ceil(filterLines.length / 2);
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const margin = 12;
+  const headerH = 14 + rows * 5.5 + 4;
+  const usableW = pageW - margin * 2;
+  const usableH = pageH - margin * 2 - headerH - 4;
+  let drawW = usableW, drawH = usableW * ratio;
+  if(drawH > usableH) { drawH = usableH; drawW = usableH / ratio; }
+  const x = margin + (usableW - drawW) / 2;
+
+  // Header box
+  pdf.setFillColor(232, 242, 252);
+  pdf.roundedRect(margin, margin, usableW, headerH, 3, 3, 'F');
+
+  // Title
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(12);
+  pdf.setTextColor(13, 31, 53);
+  pdf.text('NIR Running Performance Check — Parameter: ' + (currentParam||''), margin+4, margin+8);
+
+  // Filter details in 2 columns
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8);
+  pdf.setTextColor(30, 74, 107);
+  filterLines.forEach((line, i) => {
+    const col = i%2===0 ? margin+4 : margin+usableW/2;
+    const row = margin + 13 + Math.floor(i/2) * 5.5;
+    pdf.text('• '+line, col, row);
+  });
+
+  // Export date
+  pdf.setFontSize(7.5);
+  pdf.setTextColor(138, 170, 200);
+  const now = new Date().toLocaleDateString('th-TH', {year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  pdf.text('Export: '+now, pageW-margin, margin+8, {align:'right'});
+
+  pdf.addImage(imgData, 'PNG', x, margin+headerH+2, drawW, drawH);
+  pdf.save(getExportFilename('NIR_Chart_'+(currentParam||''))+'.pdf');
+}
+
+// =====================================================
+// Raw Data Export — PNG / PDF / Excel / CSV
+// =====================================================
+function exportRawPNG() {
   if(!RAW) return;
-  const rows=applyRawFilters(buildRawWide());
-  const activePars=RAW_PARAMS_WIDE.filter(p=>rows.some(r=>r.params[p.key]!==undefined));
-  const DEC={'ASH':1,'Ca':3,'P':3};
-  const fmt=(v,pk)=>v!=null&&!isNaN(v)?parseFloat(v).toFixed(DEC[pk]??2):'';
-  const headers=['No.','Month','Plant','Product','Sample'];
-  activePars.forEach(p=>{headers.push(p.label+'-WC',p.label+'-NIR',p.label+'-Diff');});
-  const lines=[headers.join(',')];
-  rows.forEach(r=>{
-    const cells=[r.no,RAW.monthLabels[r.mon]||'',RAW.plants[r.pla]||'',RAW.products[r.prd]||'','"'+(r.sample||'')+'"'];
-    activePars.forEach(p=>{
-      const pd=r.params[p.key];
-      cells.push(fmt(pd?.wc,p.key),fmt(pd?.nir,p.key),pd?.diff!=null?pd.diff:'');
+  const filterLines = getFilterSummary();
+  const lineH = 16, padding = 12;
+  const rows = Math.ceil(filterLines.length / 2);
+  const bannerH = padding + 22 + rows * lineH + 8;
+  const dpr = window.devicePixelRatio || 1;
+  // สร้าง canvas แสดง filter info
+  const canvas = document.createElement('canvas');
+  canvas.width = 1200 * dpr; canvas.height = bannerH * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#e8f2fc';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#0d1f35';
+  ctx.font = `bold ${14*dpr}px DM Sans, sans-serif`;
+  ctx.fillText('NIR Running Performance Check — Raw Data', padding*dpr, 18*dpr);
+  ctx.font = `${11*dpr}px DM Mono, monospace`;
+  filterLines.forEach((line, i) => {
+    const colX = i%2===0 ? padding*dpr : canvas.width/2;
+    const rowY = (28 + Math.floor(i/2) * lineH) * dpr;
+    ctx.fillStyle = '#1e3a5f';
+    ctx.fillText('• ' + line, colX, rowY);
+  });
+  const now = new Date().toLocaleDateString('th-TH', {year:'numeric',month:'long',day:'numeric'});
+  ctx.font = `${9*dpr}px DM Mono, monospace`;
+  ctx.fillStyle = '#8aaac8';
+  ctx.fillText('Export: '+now+'   (Raw Data PNG — ใช้ PDF สำหรับตารางข้อมูลครบถ้วน)', padding*dpr, (28+rows*lineH+4)*dpr);
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = getExportFilename('NIR_RawData') + '_info.png';
+  a.click();
+  // แนะนำให้ใช้ PDF สำหรับตารางเต็ม
+  setTimeout(()=>alert('💡 ไฟล์ PNG นี้แสดงข้อมูล Filter\nสำหรับตารางข้อมูลครบถ้วน กรุณาใช้ Export PDF หรือ Excel'), 300);
+}
+
+function exportRawPDF() {
+  if(!RAW) return;
+  const { jsPDF } = window.jspdf;
+  const rows = applyRawFilters(buildRawWide());
+  const activePars = RAW_PARAMS_WIDE.filter(p => rows.some(r => r.params[p.key] !== undefined));
+  const DEC = {'ASH':1,'Ca':3,'P':3};
+  const fmt = (v, pk) => v != null && !isNaN(v) ? parseFloat(v).toFixed(DEC[pk]??2) : '—';
+
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const margin = 10;
+  const headerH = 26;
+
+  function drawPageHeader(pdf, pageNum, totalPages) {
+    const filterLines = getFilterSummary();
+    const rows = Math.ceil(filterLines.length / 2);
+    const hH = 12 + rows * 5.5 + 2;
+    pdf.setFillColor(232, 242, 252);
+    pdf.rect(margin, margin, pageW-margin*2, hH, 'F');
+    pdf.setFont('helvetica','bold');
+    pdf.setFontSize(11);
+    pdf.setTextColor(13,31,53);
+    pdf.text('NIR Running Performance Check — Raw Data', margin+4, margin+8);
+    pdf.setFont('helvetica','normal');
+    pdf.setFontSize(7.5);
+    pdf.setTextColor(30,74,107);
+    filterLines.forEach((line, i) => {
+      const col = i%2===0 ? margin+4 : margin+(pageW-margin*2)/2;
+      const row = margin + 13 + Math.floor(i/2) * 5.5;
+      pdf.text('• '+line, col, row);
+    });
+    pdf.setTextColor(138,170,200);
+    pdf.setFontSize(7);
+    const now = new Date().toLocaleDateString('th-TH', {year:'numeric',month:'short',day:'numeric'});
+    pdf.text('Export: '+now+'   Page '+pageNum+'/'+totalPages, pageW-margin, margin+8, {align:'right'});
+    return margin + hH + 2;
+  }
+
+  // Build table data
+  const colHeaders = ['No.', 'Month', 'Plant', 'Product', 'Sample'];
+  activePars.forEach(p => { colHeaders.push(p.label+'-WC', p.label+'-NIR', p.label+'-Diff'); });
+
+  const tableData = rows.map(r => {
+    const cells = [
+      r.no, RAW.monthLabels[r.mon]||'', RAW.plants[r.pla]||'',
+      RAW.products[r.prd]||'', r.sample||''
+    ];
+    activePars.forEach(p => {
+      const pd = r.params[p.key];
+      cells.push(
+        pd ? fmt(pd.wc, p.key) : '',
+        pd ? fmt(pd.nir, p.key) : '',
+        pd && pd.diff != null ? (pd.diff >= 0 ? '+' : '') + fmt(pd.diff, p.key) : ''
+      );
+    });
+    return cells;
+  });
+
+  // คำนวณ column widths
+  const fixW = [10, 14, 18, 22, 38];
+  const parW = 9;
+  const totalW = fixW.reduce((a,b)=>a+b,0) + activePars.length * 3 * parW;
+  const scale = Math.min(1, (pageW - margin*2) / totalW);
+  const colW = [...fixW.map(w=>w*scale), ...Array(activePars.length*3).fill(parW*scale)];
+
+  const rowH = 5.5;
+  const startY = margin + Math.ceil(getFilterSummary().length/2)*5.5 + 16;
+  const usableH = pageH - startY - margin;
+  const rowsPerPage = Math.floor(usableH / rowH) - 1;
+  const totalPages = Math.ceil((tableData.length + 1) / rowsPerPage) || 1;
+
+  let page = 1;
+  let y = drawPageHeader(pdf, page, totalPages);
+
+  function drawTableHeader(y) {
+    pdf.setFillColor(221, 238, 255);
+    let x = margin;
+    colHeaders.forEach((h, ci) => {
+      pdf.setFillColor(ci < 5 ? '#ddeeff' : '#c8e0f8');
+      pdf.rect(x, y, colW[ci], rowH, 'F');
+      pdf.setDrawColor(184, 212, 238);
+      pdf.rect(x, y, colW[ci], rowH, 'S');
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(6);
+      pdf.setTextColor(26, 58, 92);
+      const label = h.length > 10 ? h.slice(0,9)+'.' : h;
+      pdf.text(label, x + colW[ci]/2, y + rowH - 1.5, { align: 'center' });
+      x += colW[ci];
+    });
+    return y + rowH;
+  }
+
+  y = drawTableHeader(y);
+
+  tableData.forEach((row, ri) => {
+    if(y + rowH > pageH - margin) {
+      pdf.addPage();
+      page++;
+      y = drawPageHeader(pdf, page, totalPages);
+      y = drawTableHeader(y);
+    }
+    let x = margin;
+    const isEven = ri % 2 === 0;
+    row.forEach((cell, ci) => {
+      pdf.setFillColor(isEven ? 255 : 248, isEven ? 255 : 251, isEven ? 255 : 255);
+      pdf.rect(x, y, colW[ci], rowH, 'F');
+      pdf.setDrawColor(205, 224, 245);
+      pdf.rect(x, y, colW[ci], rowH, 'S');
+      pdf.setFont('helvetica', ci < 5 ? 'normal' : 'normal');
+      pdf.setFontSize(6);
+      // สี diff
+      const isDiff = ci >= 5 && (ci - 5) % 3 === 2;
+      const val = parseFloat(String(cell).replace('+',''));
+      if(isDiff && !isNaN(val)) {
+        pdf.setTextColor(val > 0 ? 26 : val < 0 ? 180 : 80, val > 0 ? 138 : val < 0 ? 50 : 80, val > 0 ? 80 : val < 0 ? 50 : 80);
+      } else {
+        pdf.setTextColor(30, 58, 95);
+      }
+      const txt = String(cell||'');
+      pdf.text(txt.length > 12 ? txt.slice(0,11)+'.' : txt, x + colW[ci]/2, y + rowH - 1.5, { align: 'center' });
+      x += colW[ci];
+    });
+    y += rowH;
+  });
+
+  // Footer summary
+  pdf.setFont('helvetica', 'italic');
+  pdf.setFontSize(7);
+  pdf.setTextColor(144, 170, 200);
+  pdf.text(`Total: ${rows.length} rows`, margin, pageH - margin + 3);
+
+  pdf.save(getExportFilename('NIR_RawData') + '.pdf');
+}
+
+function exportExcel() {
+  if(!RAW) return;
+  const rows = applyRawFilters(buildRawWide());
+  const activePars = RAW_PARAMS_WIDE.filter(p => rows.some(r => r.params[p.key] !== undefined));
+  const DEC = {'ASH':1,'Ca':3,'P':3};
+  const fmt = (v, pk) => v != null && !isNaN(v) ? parseFloat(parseFloat(v).toFixed(DEC[pk]??2)) : '';
+
+  const wb = XLSX.utils.book_new();
+
+  // ===== Sheet 1: Raw Data =====
+  const wsData = [];
+
+  wsData.push(['NIR Running Performance Check — Raw Data']);
+  getFilterSummary().forEach(line => wsData.push([line]));
+  wsData.push(['Export: ' + new Date().toLocaleDateString('th-TH', {year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})]);
+  wsData.push([]);
+
+  // Header row 1 (merged param groups)
+  const h1 = ['No.','Month','Plant','Product','Sample'];
+  activePars.forEach(p => { h1.push(p.label,'',''); });
+  wsData.push(h1);
+
+  // Header row 2
+  const h2 = ['','','','',''];
+  activePars.forEach(() => { h2.push('WC','NIR','Diff'); });
+  wsData.push(h2);
+
+  // Data rows
+  rows.forEach(r => {
+    const cells = [
+      r.no, RAW.monthLabels[r.mon]||'', RAW.plants[r.pla]||'',
+      RAW.products[r.prd]||'', r.sample||''
+    ];
+    activePars.forEach(p => {
+      const pd = r.params[p.key];
+      cells.push(
+        pd ? fmt(pd.wc, p.key) : '',
+        pd ? fmt(pd.nir, p.key) : '',
+        pd && pd.diff != null ? parseFloat(parseFloat(pd.diff).toFixed(DEC[p.key]??2)) : ''
+      );
+    });
+    wsData.push(cells);
+  });
+
+  // Total row
+  const totalRow = ['Total ('+rows.length+')','','','',''];
+  activePars.forEach(p => {
+    const vals = rows.map(r => r.params[p.key]?.diff).filter(v => v != null && !isNaN(v));
+    const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+    totalRow.push('', '', avg !== null ? parseFloat(avg.toFixed(DEC[p.key]??2)) : '');
+  });
+  wsData.push(totalRow);
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Column widths
+  const colWidths = [6,10,14,18,28];
+  activePars.forEach(() => { colWidths.push(10,10,10); });
+  ws['!cols'] = colWidths.map(w => ({wch: w}));
+
+  // Merge param group headers
+  const merges = [];
+  activePars.forEach((_, pi) => {
+    const c = 5 + pi * 3;
+    merges.push({ s:{r:4,c}, e:{r:4,c:c+2} }); // row 4 = header row 1 (0-indexed)
+  });
+  ws['!merges'] = merges;
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Raw Data');
+
+  const f2 = getFilters();
+  const infoData = [
+    ['NIR Running Performance Check'],
+    [''],
+    ['Filter / ตัวกรอง', 'Value / ค่า'],
+    ['Plant',      f2.fPlant !== null     ? RAW.plants[f2.fPlant]         : 'All'],
+    ['Product',    f2.fProduct !== null   ? RAW.products[f2.fProduct]     : 'All'],
+    ['Equipment',  f2.fEquip !== null     ? RAW.equipments[f2.fEquip]     : 'All'],
+    ['Source',     f2.fSource !== null    ? RAW.sources[f2.fSource]       : 'All'],
+    ['Type',       f2.fType !== null      ? RAW.types[f2.fType]           : 'All'],
+    ['SEP Code',   f2.fSep !== null       ? RAW.seps[f2.fSep]             : 'All'],
+    ['From Month', f2.fDateFrom !== null  ? RAW.monthLabels[f2.fDateFrom] : RAW.monthLabels[0]],
+    ['To Month',   f2.fDateTo !== null    ? RAW.monthLabels[f2.fDateTo]   : RAW.monthLabels[RAW.months.length-1]],
+    ['Search Tags', selectedMap.size > 0 ? [...selectedMap.values()].map(v=>v.label).join(', ') : 'None'],
+    [''],
+    ['Total Rows', rows.length],
+    ['Export Date', new Date().toLocaleDateString('th-TH', {year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})],
+  ];
+  const wsInfo = XLSX.utils.aoa_to_sheet(infoData);
+  wsInfo['!cols'] = [{wch:16},{wch:40}];
+  XLSX.utils.book_append_sheet(wb, wsInfo, 'Filter Info');
+
+  XLSX.writeFile(wb, getExportFilename('NIR_RawData') + '.xlsx');
+}
+
+function exportCSV() {
+  if(!RAW) return;
+  const rows = applyRawFilters(buildRawWide());
+  const activePars = RAW_PARAMS_WIDE.filter(p => rows.some(r => r.params[p.key] !== undefined));
+  const DEC = {'ASH':1,'Ca':3,'P':3};
+  const fmt = (v,pk) => v != null && !isNaN(v) ? parseFloat(v).toFixed(DEC[pk]??2) : '';
+  const headers = ['No.','Month','Plant','Product','Sample'];
+  activePars.forEach(p => { headers.push(p.label+'-WC', p.label+'-NIR', p.label+'-Diff'); });
+  const lines = ['# NIR Running Performance Check — Raw Data'];
+  getFilterSummary().forEach(l => lines.push('# ' + l));
+  lines.push('# Export: ' + new Date().toLocaleDateString('th-TH'));
+  lines.push(headers.join(','));
+  rows.forEach(r => {
+    const cells = [r.no, RAW.monthLabels[r.mon]||'', RAW.plants[r.pla]||'', RAW.products[r.prd]||'', '"'+(r.sample||'')+'"'];
+    activePars.forEach(p => {
+      const pd = r.params[p.key];
+      cells.push(fmt(pd?.wc,p.key), fmt(pd?.nir,p.key), pd?.diff != null ? pd.diff : '');
     });
     lines.push(cells.join(','));
   });
-  const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='raw_data.csv';
+  const blob = new Blob(['\ufeff'+lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = getExportFilename('NIR_RawData') + '.csv';
   a.click();
 }
 
