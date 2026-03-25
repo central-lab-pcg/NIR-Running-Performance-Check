@@ -151,11 +151,12 @@ table.rtbl th{background:#ddeeff;color:#1a3a5c;font-weight:700;padding:7px 9px;t
 table.rtbl th:hover{background:#c8e0f8;color:#1a3a5c}
 table.rtbl th.sort-asc::after{content:' ▲';color:#2d6bb0}
 table.rtbl th.sort-desc::after{content:' ▼';color:#2d6bb0}
-table.rtbl th.col-fix{position:sticky;z-index:10;background:#ddeeff}
-table.rtbl th.col-fix-0{left:0;min-width:70px}
-table.rtbl th.col-fix-1{left:70px;min-width:58px}
-table.rtbl th.col-fix-2{left:128px;min-width:58px}
-table.rtbl th.col-fix-3{left:186px;min-width:160px}
+table.rtbl th.col-fix{position:sticky;z-index:12;background:#ddeeff}
+table.rtbl th.col-fix-0{left:0;min-width:70px;top:0!important}
+table.rtbl th.col-fix-1{left:70px;min-width:58px;top:0!important}
+table.rtbl th.col-fix-2{left:128px;min-width:58px;top:0!important}
+table.rtbl th.col-fix-3{left:186px;min-width:160px;top:0!important}
+table.rtbl .rtbl-row2 th{top:28px!important;z-index:5}
 table.rtbl td{padding:6px 9px;text-align:center;border:1px solid #cde0f5;color:#1a3a5c;white-space:nowrap}
 table.rtbl tbody tr:hover td{background:#e8f4ff!important}
 table.rtbl td.cell-fix{position:sticky;background:#ffffff;z-index:4}
@@ -996,18 +997,18 @@ function renderRawTable() {
     {label:'Prod.', cls:'col-fix col-fix-2'},
     {label:'Sample',cls:'col-fix col-fix-3'},
   ];
-  let h1='<tr>';
-  fixCols.forEach((c,i)=>{ h1+=`<th rowspan="2" class="${c.cls}" data-col="${i}" onclick="sortRaw(${i})">${c.label}</th>`; });
+  let h1='<tr class="rtbl-row1">';
+  fixCols.forEach((c,i)=>{ h1+=`<th rowspan="2" class="${c.cls}" style="top:0" data-col="${i}" onclick="sortRaw(${i})">${c.label}</th>`; });
   activePars.forEach((p)=>{
     h1+=`<th colspan="3" class="grp-header grp-sep" style="background:#c8e0f8;color:#1a3a5c;position:sticky;top:0;z-index:5">${p.label}</th>`;
   });
   h1+='</tr>';
-  let h2='<tr>';
+  let h2='<tr class="rtbl-row2">';
   activePars.forEach((p,pi)=>{
     const base=fixCols.length+pi*3;
-    h2+=`<th class="grp-sep" data-col="${base}" onclick="sortRaw(${base})">WC</th>`;
-    h2+=`<th data-col="${base+1}" onclick="sortRaw(${base+1})">NIR</th>`;
-    h2+=`<th data-col="${base+2}" onclick="sortRaw(${base+2})">Diff</th>`;
+    h2+=`<th class="grp-sep" style="top:28px" data-col="${base}" onclick="sortRaw(${base})">WC</th>`;
+    h2+=`<th style="top:28px" data-col="${base+1}" onclick="sortRaw(${base+1})">NIR</th>`;
+    h2+=`<th style="top:28px" data-col="${base+2}" onclick="sortRaw(${base+2})">Diff</th>`;
   });
   h2+='</tr>';
   document.getElementById('rawThead').innerHTML = h1+h2;
