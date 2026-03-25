@@ -152,19 +152,17 @@ table.rtbl th:hover{background:#c8e0f8;color:#1a3a5c}
 table.rtbl th.sort-asc::after{content:' ▲';color:#2d6bb0}
 table.rtbl th.sort-desc::after{content:' ▼';color:#2d6bb0}
 table.rtbl th.col-fix{position:sticky;z-index:10;background:#ddeeff}
-table.rtbl th.col-fix-0{left:0;min-width:38px}
-table.rtbl th.col-fix-1{left:38px;min-width:70px}
-table.rtbl th.col-fix-2{left:108px;min-width:58px}
-table.rtbl th.col-fix-3{left:166px;min-width:58px}
-table.rtbl th.col-fix-4{left:224px;min-width:160px}
+table.rtbl th.col-fix-0{left:0;min-width:70px}
+table.rtbl th.col-fix-1{left:70px;min-width:58px}
+table.rtbl th.col-fix-2{left:128px;min-width:58px}
+table.rtbl th.col-fix-3{left:186px;min-width:160px}
 table.rtbl td{padding:6px 9px;text-align:center;border:1px solid #cde0f5;color:#1a3a5c;white-space:nowrap}
 table.rtbl tbody tr:hover td{background:#e8f4ff!important}
 table.rtbl td.cell-fix{position:sticky;background:#ffffff;z-index:4}
-table.rtbl td.cell-fix-0{left:0;font-weight:700;color:#2d6bb0;font-family:var(--font)}
-table.rtbl td.cell-fix-1{left:38px;font-weight:600;font-family:var(--font)}
-table.rtbl td.cell-fix-2{left:108px}
-table.rtbl td.cell-fix-3{left:166px}
-table.rtbl td.cell-fix-4{left:224px;text-align:left;font-family:var(--font)}
+table.rtbl td.cell-fix-0{left:0;font-weight:600;font-family:var(--font)}
+table.rtbl td.cell-fix-1{left:70px}
+table.rtbl td.cell-fix-2{left:128px;font-weight:700;color:#2d6bb0;font-family:var(--font)}
+table.rtbl td.cell-fix-3{left:186px;text-align:left;font-family:var(--font)}
 table.rtbl tbody tr:hover td.cell-fix{background:#e8f4ff!important}
 table.rtbl th.grp-sep{border-left:2px solid #90bce0}
 table.rtbl td.grp-sep{border-left:2px solid #90bce0}
@@ -174,10 +172,10 @@ table.rtbl th.grp-header{text-align:center;font-size:10px;font-weight:700;letter
 .cell-diff-gray{color:#5a7a9a;font-weight:600}
 .cell-warn2{background:#fff3d0!important;color:#b06000!important;font-weight:700}
 .cell-warn3{background:#ffe0e0!important;color:#cc2222!important;font-weight:700}
-table.rtbl tfoot td{padding:7px 9px;text-align:center;border:1px solid #90bce0;font-weight:700;font-family:var(--mono);background:#1a3a5c;color:#e8f4ff;position:sticky;bottom:0;z-index:4}
-table.rtbl tfoot td.cell-fix{z-index:6;background:#1a3a5c;color:#e8f4ff}
-table.rtbl tfoot td.cell-pos{color:#6de0a8}
-table.rtbl tfoot td.cell-neg{color:#ff9090}
+table.rtbl tfoot td{padding:7px 9px;text-align:center;border:1px solid #b8d4ee;font-weight:700;font-family:var(--mono);background:#ddeeff;color:#1a3a5c;position:sticky;bottom:0;z-index:4}
+table.rtbl tfoot td.cell-fix{z-index:6;background:#ddeeff;color:#1a3a5c}
+table.rtbl tfoot td.cell-pos{color:#1a8a50}
+table.rtbl tfoot td.cell-neg{color:#cc3333}
 </style>
 </head>
 <body>
@@ -993,11 +991,10 @@ function renderRawTable() {
   document.getElementById('rawCountLabel').textContent = rows.length + ' แถว';
 
   const fixCols=[
-    {label:'No.',   cls:'col-fix col-fix-0'},
-    {label:'Month', cls:'col-fix col-fix-1'},
-    {label:'Plant', cls:'col-fix col-fix-2'},
-    {label:'Prod.', cls:'col-fix col-fix-3'},
-    {label:'Sample',cls:'col-fix col-fix-4'},
+    {label:'Month', cls:'col-fix col-fix-0'},
+    {label:'Plant', cls:'col-fix col-fix-1'},
+    {label:'Prod.', cls:'col-fix col-fix-2'},
+    {label:'Sample',cls:'col-fix col-fix-3'},
   ];
   let h1='<tr>';
   fixCols.forEach((c,i)=>{ h1+=`<th rowspan="2" class="${c.cls}" data-col="${i}" onclick="sortRaw(${i})">${c.label}</th>`; });
@@ -1035,11 +1032,10 @@ function renderRawTable() {
     const month=RAW.monthLabels[r.mon]||'';
     const pla=RAW.plants[r.pla]||'';
     const prd=RAW.products[r.prd]||'';
-    let c=`<td class="cell-fix cell-fix-0">${r.no}</td>`;
-    c+=`<td class="cell-fix cell-fix-1">${month}</td>`;
-    c+=`<td class="cell-fix cell-fix-2">${pla}</td>`;
-    c+=`<td class="cell-fix cell-fix-3">${prd}</td>`;
-    c+=`<td class="cell-fix cell-fix-4">${r.sample||''}</td>`;
+    let c=`<td class="cell-fix cell-fix-0">${month}</td>`;
+    c+=`<td class="cell-fix cell-fix-1">${pla}</td>`;
+    c+=`<td class="cell-fix cell-fix-2">${prd}</td>`;
+    c+=`<td class="cell-fix cell-fix-3">${r.sample||''}</td>`;
     activePars.forEach((p,pi)=>{
       const pd=r.params[p.key];
       const wcv=pd?.wc, nirv=pd?.nir, dv=pd?.diff;
@@ -1054,25 +1050,24 @@ function renderRawTable() {
   document.getElementById('rawTbody').innerHTML=tbody;
 
   let foot='<tr>';
-  foot+=`<td class="cell-fix cell-fix-0" colspan="2" style="text-align:left;font-family:var(--font)">Total (${rows.length})</td>`;
-  foot+=`<td class="cell-fix cell-fix-2"></td><td class="cell-fix cell-fix-3"></td><td class="cell-fix cell-fix-4"></td>`;
+  foot+=`<td class="cell-fix cell-fix-0" style="text-align:left;font-family:var(--font)">Total (${rows.length})</td>`;
+  foot+=`<td class="cell-fix cell-fix-1"></td><td class="cell-fix cell-fix-2"></td><td class="cell-fix cell-fix-3"></td>`;
   activePars.forEach((p)=>{
     const vals=rows.map(r=>r.params[p.key]?.diff).filter(v=>v!=null&&!isNaN(v));
     const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
     const aStr=avg!=null?(avg>=0?'+':'')+parseFloat(avg).toFixed(DEC[p.key]??2):'—';
     const aCls=avg!=null?(avg>0?'cell-pos':'cell-neg'):'';
-    foot+=`<td class="grp-sep"></td><td></td><td class="${aCls}" style="color:${avg!=null?(avg>0?'#6de0a8':avg<0?'#ff9090':'#b0c8e0'):'#b0c8e0'}">${aStr}</td>`;
+    foot+=`<td class="grp-sep"></td><td></td><td class="${aCls}">${aStr}</td>`;
   });
   foot+='</tr>';
   document.getElementById('rawTfoot').innerHTML=foot;
 }
 
 function rawSortVal(row,colIdx,activePars){
-  if(colIdx===0) return row.no+'';
-  if(colIdx===1) return row.mon;
-  if(colIdx===2) return RAW.plants[row.pla]||'';
-  if(colIdx===3) return RAW.products[row.prd]||'';
-  if(colIdx===4) return row.sample||'';
+  if(colIdx===0) return row.mon;
+  if(colIdx===1) return RAW.plants[row.pla]||'';
+  if(colIdx===2) return RAW.products[row.prd]||'';
+  if(colIdx===3) return row.sample||'';
   const pi=Math.floor((colIdx-5)/3);
   const sub=(colIdx-5)%3;
   if(pi<0||pi>=activePars.length) return null;
@@ -1350,12 +1345,12 @@ function exportRawPDF() {
   }
 
   // Build table data
-  const colHeaders = ['No.', 'Month', 'Plant', 'Product', 'Sample'];
+  const colHeaders = ['Month', 'Plant', 'Product', 'Sample'];
   activePars.forEach(p => { colHeaders.push(p.label+'\nWC', p.label+'\nNIR', p.label+'\nDiff'); });
 
   const tableData = rows.map(r => {
     const cells = [
-      r.no, RAW.monthLabels[r.mon]||'', RAW.plants[r.pla]||'',
+      RAW.monthLabels[r.mon]||'', RAW.plants[r.pla]||'',
       RAW.products[r.prd]||'', r.sample||''
     ];
     activePars.forEach(p => {
@@ -1369,7 +1364,7 @@ function exportRawPDF() {
     return cells;
   });
 
-  const fixW = [8, 12, 14, 20, 34];
+  const fixW = [12, 14, 20, 34];
   const parW = 8.5;
   const totalW = fixW.reduce((a,b)=>a+b,0) + activePars.length * 3 * parW;
   const scale = Math.min(1, (pageW - margin*2) / totalW);
@@ -1419,7 +1414,7 @@ function exportRawPDF() {
     });
     return y + rowH*2;
   }
-  const fixCols2 = ['No.','Month','Plant','Product','Sample'];
+  const fixCols2 = ['Month','Plant','Product','Sample'];
 
   y = drawTableHeader(y);
 
@@ -1437,11 +1432,11 @@ function exportRawPDF() {
       pdf.rect(x, y, colW[ci], rowH, 'F');
       pdf.setDrawColor(205, 224, 245); pdf.rect(x, y, colW[ci], rowH, 'S');
       pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6);
-      const isDiff = ci >= 5 && (ci - 5) % 3 === 2;
+      const isDiff = ci >= 4 && (ci - 4) % 3 === 2;
       const val = parseFloat(String(cell).replace('+',''));
       if(isDiff && !isNaN(val)) {
         pdf.setTextColor(val > 0 ? 26 : val < 0 ? 180 : 80, val > 0 ? 138 : val < 0 ? 50 : 80, val > 0 ? 80 : val < 0 ? 50 : 80);
-      } else if(ci === 3) {
+      } else if(ci === 2) {
         // Product column — เด่น
         pdf.setFont('helvetica','bold'); pdf.setTextColor(13,80,160);
       } else {
@@ -1459,18 +1454,19 @@ function exportRawPDF() {
   if(y + rowH < pageH - margin) {
     pdf.setFillColor(221,238,255);
     let x = margin;
-    const footCells = ['Total: '+rows.length,'','','',''];
+    const footCells = ['Total: '+rows.length,'','',''];
     activePars.forEach(p => {
       const vals = rows.map(r=>r.params[p.key]?.diff).filter(v=>v!=null&&!isNaN(v));
       const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
       footCells.push('', '', avg!=null?(avg>=0?'+':'')+avg.toFixed(DEC[p.key]??2):'—');
     });
     footCells.forEach((cell, ci) => {
+      pdf.setFillColor(221, 238, 255); // #ddeeff — สีฟ้าอ่อนเหมือนหน้าเว็บ
       pdf.rect(x, y, colW[ci], rowH, 'F');
       pdf.setDrawColor(184,212,238); pdf.rect(x, y, colW[ci], rowH, 'S');
       pdf.setFont('helvetica','bold'); pdf.setFontSize(6);
       const val = parseFloat(String(cell).replace('+',''));
-      const isDiff = ci>=5 && (ci-5)%3===2;
+      const isDiff = ci>=4 && (ci-4)%3===2;
       if(isDiff && !isNaN(val)) pdf.setTextColor(val>0?26:val<0?180:26, val>0?138:val<0?50:58, val>0?80:val<0?50:95);
       else pdf.setTextColor(26,58,92);
       pdf.text(String(cell||''), x+colW[ci]/2, y+rowH-1.5, {align:'center'});
