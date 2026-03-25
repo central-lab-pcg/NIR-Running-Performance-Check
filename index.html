@@ -171,12 +171,13 @@ table.rtbl td.grp-sep{border-left:2px solid #90bce0}
 table.rtbl th.grp-header{text-align:center;font-size:10px;font-weight:700;letter-spacing:0.5px;background:#c8e0f8;color:#1a3a5c}
 .cell-pos{color:#1a8a50;font-weight:700}
 .cell-neg{color:#cc3333;font-weight:700}
+.cell-diff-gray{color:#5a7a9a;font-weight:600}
 .cell-warn2{background:#fff3d0!important;color:#b06000!important;font-weight:700}
 .cell-warn3{background:#ffe0e0!important;color:#cc2222!important;font-weight:700}
-table.rtbl tfoot td{padding:7px 9px;text-align:center;border:1px solid #b8d4ee;font-weight:700;font-family:var(--mono);background:#ddeeff;color:#1a3a5c;position:sticky;bottom:0;z-index:4}
-table.rtbl tfoot td.cell-fix{z-index:6}
-table.rtbl tfoot td.cell-pos{color:#1a8a50}
-table.rtbl tfoot td.cell-neg{color:#cc3333}
+table.rtbl tfoot td{padding:7px 9px;text-align:center;border:1px solid #90bce0;font-weight:700;font-family:var(--mono);background:#1a3a5c;color:#e8f4ff;position:sticky;bottom:0;z-index:4}
+table.rtbl tfoot td.cell-fix{z-index:6;background:#1a3a5c;color:#e8f4ff}
+table.rtbl tfoot td.cell-pos{color:#6de0a8}
+table.rtbl tfoot td.cell-neg{color:#ff9090}
 </style>
 </head>
 <body>
@@ -272,8 +273,15 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
       <span class="leg"><span class="leg-dot" style="background:#5b9bd5"></span>ในเกณฑ์</span>
     </div>
     <div style="display:flex;gap:6px">
-      <button class="btn-export-chart" onclick="exportChartPNG()" title="Export PNG">🖼 PNG</button>
-      <button class="btn-export-chart" onclick="exportChartPDF()" title="Export PDF">📄 PDF</button>
+      <button class="btn-export-chart" onclick="exportChartPNG()" title="Export PNG กราฟนี้">🖼 Export PNG</button>
+      <button class="btn-export-chart" onclick="exportChartPDF()" title="Export PDF กราฟนี้">📄 Export PDF</button>
+      <div style="position:relative;display:inline-block">
+        <button class="btn-export-chart" onclick="toggleExportAllMenu()" title="Export กราฟทั้งหมด" id="btnExportAll">📦 Export ทั้งหมด ▾</button>
+        <div id="exportAllMenu" style="display:none;position:absolute;right:0;top:calc(100%+4px);background:#fff;border:1.5px solid var(--border2);border-radius:var(--r);box-shadow:0 8px 24px rgba(30,58,95,0.12);z-index:999;min-width:180px">
+          <div onclick="exportAllChartsPNG();toggleExportAllMenu()" style="padding:9px 16px;cursor:pointer;font-size:12px;font-weight:600;color:#2d4a6b;border-bottom:1px solid var(--border);">🖼 PNG ทุกพารามิเตอร์</div>
+          <div onclick="exportAllChartsPDF();toggleExportAllMenu()" style="padding:9px 16px;cursor:pointer;font-size:12px;font-weight:600;color:#2d4a6b;">📄 PDF ทุกพารามิเตอร์</div>
+        </div>
+      </div>
     </div>
   </div>
   <div id="canvas-wrap"><canvas id="myChart"></canvas></div>
@@ -301,10 +309,9 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
     <div class="card-title"><span class="bar"></span>Raw Data
       <span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <span class="f-label" id="rawCountLabel"></span>
-        <button class="btn-export-chart" onclick="exportRawPNG()" title="Export PNG">🖼 PNG</button>
-        <button class="btn-export-chart" onclick="exportRawPDF()" title="Export PDF">📄 PDF</button>
-        <button class="btn btn-export" onclick="exportExcel()">📊 Excel</button>
-        <button class="btn btn-export" onclick="exportCSV()">⬇ CSV</button>
+        <button class="btn-export-chart" onclick="exportRawPDF()" title="Export PDF">📄 Export PDF</button>
+        <button class="btn btn-export" onclick="exportExcel()">📊 Export Excel</button>
+        <button class="btn btn-export" onclick="exportCSV()">⬇ Export CSV</button>
       </span>
     </div>
     <div class="raw-tbl-wrap" id="rawTableWrap">
@@ -1017,11 +1024,11 @@ function renderRawTable() {
   const DEC={'ASH':1,'Ca':3,'P':3};
   const fmt=(v,pk)=>v!=null&&!isNaN(v)?parseFloat(v).toFixed(DEC[pk]??2):'—';
   const diffHL=(dv,pd)=>{
-    if(dv==null||isNaN(dv)||!pd) return '';
+    if(dv==null||isNaN(dv)||!pd) return 'cell-diff-gray';
     const abs=Math.abs(dv);
     if(pd.u3!=null&&abs>Math.abs(pd.u3)) return 'cell-warn3';
     if(pd.u2!=null&&abs>Math.abs(pd.u2)) return 'cell-warn2';
-    return dv>0?'cell-pos':'cell-neg';
+    return 'cell-diff-gray';
   };
 
   const tbody=rows.map(r=>{
@@ -1054,7 +1061,7 @@ function renderRawTable() {
     const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
     const aStr=avg!=null?(avg>=0?'+':'')+parseFloat(avg).toFixed(DEC[p.key]??2):'—';
     const aCls=avg!=null?(avg>0?'cell-pos':'cell-neg'):'';
-    foot+=`<td class="grp-sep"></td><td></td><td class="${aCls}">${aStr}</td>`;
+    foot+=`<td class="grp-sep"></td><td></td><td class="${aCls}" style="color:${avg!=null?(avg>0?'#6de0a8':avg<0?'#ff9090':'#b0c8e0'):'#b0c8e0'}">${aStr}</td>`;
   });
   foot+='</tr>';
   document.getElementById('rawTfoot').innerHTML=foot;
@@ -1128,13 +1135,14 @@ function buildChartCanvas() {
 function exportChartPNG() {
   if(!chart) return;
   const exp = buildChartCanvas();
+  const f = getFilters();
+  const productLabel = f.fProduct !== null ? RAW.products[f.fProduct] : 'All Products';
   const filterLines = getFilterSummary();
-  const lineH = 16, padding = 12;
-  // แบ่งเป็น 2 คอลัมน์ 4 แถว
+  const lineH = 15, padding = 14;
   const rows = Math.ceil(filterLines.length / 2);
-  const bannerH = padding + 22 + rows * lineH + 8;
-  const out = document.createElement('canvas');
+  const bannerH = padding + 28 + 18 + rows * lineH + 12;
   const dpr = window.devicePixelRatio || 1;
+  const out = document.createElement('canvas');
   out.width = exp.width; out.height = exp.height + bannerH * dpr;
   const ctx = out.getContext('2d');
   ctx.fillStyle = '#ffffff';
@@ -1143,23 +1151,36 @@ function exportChartPNG() {
   const bY = exp.height;
   ctx.fillStyle = '#e8f2fc';
   ctx.fillRect(0, bY, out.width, bannerH * dpr);
+
+  // Title
   ctx.fillStyle = '#0d1f35';
-  ctx.font = `bold ${14 * dpr}px DM Sans, sans-serif`;
-  ctx.fillText('NIR Running Performance Check — Parameter: ' + (currentParam||''), padding * dpr, bY + 18 * dpr);
-  ctx.font = `${11 * dpr}px DM Mono, monospace`;
+  ctx.font = `bold ${13*dpr}px DM Sans, sans-serif`;
+  ctx.fillText('NIR Running Performance Check  —  Parameter: ' + (currentParam||''), padding*dpr, bY + 16*dpr);
+
+  // Product — เด่นชัด
+  ctx.fillStyle = '#0d50a0';
+  ctx.font = `bold ${14*dpr}px DM Sans, sans-serif`;
+  ctx.fillText('📦 Product: ' + productLabel, padding*dpr, bY + 32*dpr);
+
+  // Filter lines 2 คอลัมน์
+  ctx.font = `${10*dpr}px DM Mono, monospace`;
+  ctx.fillStyle = '#1e3a5f';
   filterLines.forEach((line, i) => {
-    const col = i % 2 === 0 ? padding : out.width / 2;
-    const row = bY + (28 + Math.floor(i/2) * lineH) * dpr;
-    ctx.fillStyle = '#1e3a5f';
-    ctx.fillText('• ' + line, col * (i%2===0?1:0) + col, row);
+    const col = i%2===0 ? padding*dpr : out.width/2;
+    const row = bY + (46 + Math.floor(i/2)*lineH)*dpr;
+    ctx.fillText('• '+line, col, row);
   });
-  const now = new Date().toLocaleDateString('th-TH', {year:'numeric',month:'long',day:'numeric'});
-  ctx.font = `${9 * dpr}px DM Mono, monospace`;
-  ctx.fillStyle = '#8aaac8';
-  ctx.fillText('Export: ' + now, padding * dpr, bY + (28 + rows * lineH + 4) * dpr);
+
+  // Export date — clear
+  const now = new Date();
+  const nowStr = now.toLocaleDateString('en-GB', {year:'numeric',month:'short',day:'numeric'}) + '  ' + now.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
+  ctx.font = `${9*dpr}px DM Mono, monospace`;
+  ctx.fillStyle = '#6a9abf';
+  ctx.fillText('Exported: ' + nowStr, padding*dpr, bY + (50+rows*lineH)*dpr);
+
   const a = document.createElement('a');
   a.href = out.toDataURL('image/png');
-  a.download = getExportFilename('NIR_Chart_' + (currentParam||'')) + '.png';
+  a.download = getExportFilename('NIR_Chart_'+(currentParam||'')+'_'+productLabel.replace(/\s+/g,'_')) + '.png';
   a.click();
 }
 
@@ -1169,47 +1190,62 @@ function exportChartPDF() {
   const exp = buildChartCanvas();
   const imgData = exp.toDataURL('image/png');
   const ratio = exp.height / exp.width;
+  const f = getFilters();
+  const productLabel = f.fProduct !== null ? RAW.products[f.fProduct] : 'All Products';
   const filterLines = getFilterSummary();
-  const rows = Math.ceil(filterLines.length / 2);
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
   const margin = 12;
-  const headerH = 14 + rows * 5.5 + 4;
-  const usableW = pageW - margin * 2;
-  const usableH = pageH - margin * 2 - headerH - 4;
-  let drawW = usableW, drawH = usableW * ratio;
-  if(drawH > usableH) { drawH = usableH; drawW = usableH / ratio; }
-  const x = margin + (usableW - drawW) / 2;
 
   // Header box
+  const headerH = 36;
   pdf.setFillColor(232, 242, 252);
-  pdf.roundedRect(margin, margin, usableW, headerH, 3, 3, 'F');
+  pdf.roundedRect(margin, margin, pageW-margin*2, headerH, 3, 3, 'F');
 
   // Title
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(12);
+  pdf.setFontSize(13);
   pdf.setTextColor(13, 31, 53);
-  pdf.text('NIR Running Performance Check — Parameter: ' + (currentParam||''), margin+4, margin+8);
+  pdf.text('NIR Running Performance Check', margin+4, margin+8);
 
-  // Filter details in 2 columns
+  // Parameter
+  pdf.setFontSize(11);
+  pdf.setTextColor(91, 155, 213);
+  pdf.text('Parameter: ' + (currentParam||''), margin+4, margin+15);
+
+  // Product — เด่นชัด
+  pdf.setFontSize(12);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(13, 80, 160);
+  pdf.text('Product: ' + productLabel, margin+4, margin+22);
+
+  // Filter details — 2 คอลัมน์
   pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(8);
+  pdf.setFontSize(7.5);
   pdf.setTextColor(30, 74, 107);
-  filterLines.forEach((line, i) => {
-    const col = i%2===0 ? margin+4 : margin+usableW/2;
-    const row = margin + 13 + Math.floor(i/2) * 5.5;
-    pdf.text('• '+line, col, row);
+  filterLines.filter(l=>!l.startsWith('Product')).forEach((line, i) => {
+    const col = i%2===0 ? margin+4 : margin+(pageW-margin*2)/2;
+    const row = margin + 27 + Math.floor(i/2) * 4.5;
+    if(row < margin+headerH-1) pdf.text('• '+line, col, row);
   });
 
-  // Export date
+  // Export date — clear
+  const now = new Date();
+  const nowStr = now.toLocaleDateString('en-GB', {year:'numeric',month:'short',day:'numeric'}) + '  ' + now.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
   pdf.setFontSize(7.5);
-  pdf.setTextColor(138, 170, 200);
-  const now = new Date().toLocaleDateString('th-TH', {year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
-  pdf.text('Export: '+now, pageW-margin, margin+8, {align:'right'});
+  pdf.setFont('helvetica', 'italic');
+  pdf.setTextColor(100, 140, 180);
+  pdf.text('Exported: '+nowStr, pageW-margin, margin+8, {align:'right'});
 
+  // Chart
+  const usableW = pageW - margin*2;
+  const usableH = pageH - margin*2 - headerH - 4;
+  let drawW = usableW, drawH = usableW * ratio;
+  if(drawH > usableH) { drawH = usableH; drawW = usableH / ratio; }
+  const x = margin + (usableW - drawW) / 2;
   pdf.addImage(imgData, 'PNG', x, margin+headerH+2, drawW, drawH);
-  pdf.save(getExportFilename('NIR_Chart_'+(currentParam||''))+'.pdf');
+  pdf.save(getExportFilename('NIR_Chart_'+(currentParam||'')+'_'+productLabel.replace(/\s+/g,'_'))+'.pdf');
 }
 
 // =====================================================
@@ -1257,41 +1293,65 @@ function exportRawPDF() {
   const activePars = RAW_PARAMS_WIDE.filter(p => rows.some(r => r.params[p.key] !== undefined));
   const DEC = {'ASH':1,'Ca':3,'P':3};
   const fmt = (v, pk) => v != null && !isNaN(v) ? parseFloat(v).toFixed(DEC[pk]??2) : '—';
+  const f = getFilters();
+  const productLabel = f.fProduct !== null ? RAW.products[f.fProduct] : 'All Products';
 
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
   const margin = 10;
-  const headerH = 26;
+  const rowH = 5.5;
 
-  function drawPageHeader(pdf, pageNum, totalPages) {
-    const filterLines = getFilterSummary();
-    const rows = Math.ceil(filterLines.length / 2);
-    const hH = 12 + rows * 5.5 + 2;
+  // Header สูงคงที่ — ไม่ซ้อน
+  const HEADER_H = 30;
+
+  function drawPageHeader(pageNum, totalPages) {
     pdf.setFillColor(232, 242, 252);
-    pdf.rect(margin, margin, pageW-margin*2, hH, 'F');
-    pdf.setFont('helvetica','bold');
+    pdf.rect(margin, margin, pageW-margin*2, HEADER_H, 'F');
+
+    // Title
+    pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(11);
-    pdf.setTextColor(13,31,53);
-    pdf.text('NIR Running Performance Check — Raw Data', margin+4, margin+8);
-    pdf.setFont('helvetica','normal');
-    pdf.setFontSize(7.5);
-    pdf.setTextColor(30,74,107);
-    filterLines.forEach((line, i) => {
-      const col = i%2===0 ? margin+4 : margin+(pageW-margin*2)/2;
-      const row = margin + 13 + Math.floor(i/2) * 5.5;
-      pdf.text('• '+line, col, row);
-    });
-    pdf.setTextColor(138,170,200);
+    pdf.setTextColor(13, 31, 53);
+    pdf.text('NIR Running Performance Check — Raw Data', margin+3, margin+7);
+
+    // Product — bold blue
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(13, 80, 160);
+    pdf.text('Product: ' + productLabel, margin+3, margin+14);
+
+    // Filter info — 2 lines
+    const f2 = getFilters();
+    const leftInfo = [
+      'Plant: '+(f2.fPlant!==null?RAW.plants[f2.fPlant]:'All'),
+      'Type: '+(f2.fType!==null?RAW.types[f2.fType]:'All'),
+      'Equipment: '+(f2.fEquip!==null?RAW.equipments[f2.fEquip]:'All'),
+    ].join('   ');
+    const rightInfo = [
+      'Source: '+(f2.fSource!==null?RAW.sources[f2.fSource]:'All'),
+      'SEP: '+(f2.fSep!==null?RAW.seps[f2.fSep]:'All'),
+      'Period: '+(f2.fDateFrom!==null?RAW.monthLabels[f2.fDateFrom]:RAW.monthLabels[0])+' - '+(f2.fDateTo!==null?RAW.monthLabels[f2.fDateTo]:RAW.monthLabels[RAW.months.length-1]),
+    ].join('   ');
+    pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(7);
-    const now = new Date().toLocaleDateString('th-TH', {year:'numeric',month:'short',day:'numeric'});
-    pdf.text('Export: '+now+'   Page '+pageNum+'/'+totalPages, pageW-margin, margin+8, {align:'right'});
-    return margin + hH + 2;
+    pdf.setTextColor(30, 74, 107);
+    pdf.text(leftInfo, margin+3, margin+20);
+    pdf.text(rightInfo, margin+3, margin+24.5);
+
+    // Export date + page — English only
+    const now2 = new Date();
+    const nowStr2 = now2.toLocaleDateString('en-GB', {year:'numeric',month:'short',day:'numeric'}) + '  ' + now2.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
+    pdf.setFont('helvetica', 'italic');
+    pdf.setFontSize(7);
+    pdf.setTextColor(100, 140, 180);
+    pdf.text('Exported: '+nowStr2+'   |   Page '+pageNum+'/'+totalPages+'   |   Total: '+rows.length+' rows', pageW-margin, margin+7, {align:'right'});
+    return margin + HEADER_H + 2;
   }
 
   // Build table data
   const colHeaders = ['No.', 'Month', 'Plant', 'Product', 'Sample'];
-  activePars.forEach(p => { colHeaders.push(p.label+'-WC', p.label+'-NIR', p.label+'-Diff'); });
+  activePars.forEach(p => { colHeaders.push(p.label+'\nWC', p.label+'\nNIR', p.label+'\nDiff'); });
 
   const tableData = rows.map(r => {
     const cells = [
@@ -1309,80 +1369,116 @@ function exportRawPDF() {
     return cells;
   });
 
-  // คำนวณ column widths
-  const fixW = [10, 14, 18, 22, 38];
-  const parW = 9;
+  const fixW = [8, 12, 14, 20, 34];
+  const parW = 8.5;
   const totalW = fixW.reduce((a,b)=>a+b,0) + activePars.length * 3 * parW;
   const scale = Math.min(1, (pageW - margin*2) / totalW);
   const colW = [...fixW.map(w=>w*scale), ...Array(activePars.length*3).fill(parW*scale)];
 
-  const rowH = 5.5;
-  const startY = margin + Math.ceil(getFilterSummary().length/2)*5.5 + 16;
-  const usableH = pageH - startY - margin;
-  const rowsPerPage = Math.floor(usableH / rowH) - 1;
-  const totalPages = Math.ceil((tableData.length + 1) / rowsPerPage) || 1;
+  // คำนวณ rows per page
+  const firstY = drawPageHeader(1, 1);
+  const tblHeaderH = rowH * 2; // 2 แถว header
+  const usableH = pageH - firstY - tblHeaderH - margin;
+  const rowsPerPage = Math.max(1, Math.floor(usableH / rowH));
+  const totalPages = Math.ceil(tableData.length / rowsPerPage) || 1;
 
   let page = 1;
-  let y = drawPageHeader(pdf, page, totalPages);
+  let y = drawPageHeader(page, totalPages);
 
   function drawTableHeader(y) {
-    pdf.setFillColor(221, 238, 255);
+    // แถว 1: group header (param labels)
     let x = margin;
-    colHeaders.forEach((h, ci) => {
-      pdf.setFillColor(ci < 5 ? '#ddeeff' : '#c8e0f8');
-      pdf.rect(x, y, colW[ci], rowH, 'F');
-      pdf.setDrawColor(184, 212, 238);
-      pdf.rect(x, y, colW[ci], rowH, 'S');
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(6);
-      pdf.setTextColor(26, 58, 92);
-      const label = h.length > 10 ? h.slice(0,9)+'.' : h;
-      pdf.text(label, x + colW[ci]/2, y + rowH - 1.5, { align: 'center' });
+    fixCols2.forEach((h, ci) => {
+      pdf.setFillColor(221, 238, 255);
+      pdf.rect(x, y, colW[ci], rowH*2, 'F');
+      pdf.setDrawColor(184, 212, 238); pdf.rect(x, y, colW[ci], rowH*2, 'S');
+      pdf.setFont('helvetica','bold'); pdf.setFontSize(6); pdf.setTextColor(26,58,92);
+      pdf.text(h, x+colW[ci]/2, y+rowH*2-1.5, {align:'center'});
       x += colW[ci];
     });
-    return y + rowH;
+    activePars.forEach((p, pi) => {
+      const cw = colW[fixCols2.length + pi*3];
+      const cw2 = colW[fixCols2.length + pi*3+1];
+      const cw3 = colW[fixCols2.length + pi*3+2];
+      const groupW = cw + cw2 + cw3;
+      // Group header
+      pdf.setFillColor(200, 224, 248);
+      pdf.rect(x, y, groupW, rowH, 'F');
+      pdf.setDrawColor(144,188,224); pdf.rect(x, y, groupW, rowH, 'S');
+      pdf.setFont('helvetica','bold'); pdf.setFontSize(6); pdf.setTextColor(26,58,92);
+      pdf.text(p.label, x+groupW/2, y+rowH-1.5, {align:'center'});
+      // Sub headers WC NIR Diff
+      [[cw,'WC'],[cw2,'NIR'],[cw3,'Diff']].forEach(([w,lbl]) => {
+        pdf.setFillColor(221,238,255);
+        pdf.rect(x, y+rowH, w, rowH, 'F');
+        pdf.setDrawColor(184,212,238); pdf.rect(x, y+rowH, w, rowH, 'S');
+        pdf.setFont('helvetica','bold'); pdf.setFontSize(5.5); pdf.setTextColor(60,100,150);
+        pdf.text(lbl, x+w/2, y+rowH*2-1.5, {align:'center'});
+        x += w;
+      });
+    });
+    return y + rowH*2;
   }
+  const fixCols2 = ['No.','Month','Plant','Product','Sample'];
 
   y = drawTableHeader(y);
 
   tableData.forEach((row, ri) => {
     if(y + rowH > pageH - margin) {
-      pdf.addPage();
-      page++;
-      y = drawPageHeader(pdf, page, totalPages);
+      pdf.addPage(); page++;
+      y = drawPageHeader(page, totalPages);
       y = drawTableHeader(y);
     }
     let x = margin;
     const isEven = ri % 2 === 0;
     row.forEach((cell, ci) => {
-      pdf.setFillColor(isEven ? 255 : 248, isEven ? 255 : 251, isEven ? 255 : 255);
+      const bg = isEven ? [255,255,255] : [248,251,255];
+      pdf.setFillColor(...bg);
       pdf.rect(x, y, colW[ci], rowH, 'F');
-      pdf.setDrawColor(205, 224, 245);
-      pdf.rect(x, y, colW[ci], rowH, 'S');
-      pdf.setFont('helvetica', ci < 5 ? 'normal' : 'normal');
-      pdf.setFontSize(6);
-      // สี diff
+      pdf.setDrawColor(205, 224, 245); pdf.rect(x, y, colW[ci], rowH, 'S');
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6);
       const isDiff = ci >= 5 && (ci - 5) % 3 === 2;
       const val = parseFloat(String(cell).replace('+',''));
       if(isDiff && !isNaN(val)) {
         pdf.setTextColor(val > 0 ? 26 : val < 0 ? 180 : 80, val > 0 ? 138 : val < 0 ? 50 : 80, val > 0 ? 80 : val < 0 ? 50 : 80);
+      } else if(ci === 3) {
+        // Product column — เด่น
+        pdf.setFont('helvetica','bold'); pdf.setTextColor(13,80,160);
       } else {
         pdf.setTextColor(30, 58, 95);
       }
       const txt = String(cell||'');
-      pdf.text(txt.length > 12 ? txt.slice(0,11)+'.' : txt, x + colW[ci]/2, y + rowH - 1.5, { align: 'center' });
+      const maxLen = colW[ci] < 12 ? 6 : colW[ci] < 20 ? 10 : 18;
+      pdf.text(txt.length > maxLen ? txt.slice(0,maxLen-1)+'.' : txt, x+colW[ci]/2, y+rowH-1.5, {align:'center'});
       x += colW[ci];
     });
     y += rowH;
   });
 
-  // Footer summary
-  pdf.setFont('helvetica', 'italic');
-  pdf.setFontSize(7);
-  pdf.setTextColor(144, 170, 200);
-  pdf.text(`Total: ${rows.length} rows`, margin, pageH - margin + 3);
+  // Footer
+  if(y + rowH < pageH - margin) {
+    pdf.setFillColor(221,238,255);
+    let x = margin;
+    const footCells = ['Total: '+rows.length,'','','',''];
+    activePars.forEach(p => {
+      const vals = rows.map(r=>r.params[p.key]?.diff).filter(v=>v!=null&&!isNaN(v));
+      const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+      footCells.push('', '', avg!=null?(avg>=0?'+':'')+avg.toFixed(DEC[p.key]??2):'—');
+    });
+    footCells.forEach((cell, ci) => {
+      pdf.rect(x, y, colW[ci], rowH, 'F');
+      pdf.setDrawColor(184,212,238); pdf.rect(x, y, colW[ci], rowH, 'S');
+      pdf.setFont('helvetica','bold'); pdf.setFontSize(6);
+      const val = parseFloat(String(cell).replace('+',''));
+      const isDiff = ci>=5 && (ci-5)%3===2;
+      if(isDiff && !isNaN(val)) pdf.setTextColor(val>0?26:val<0?180:26, val>0?138:val<0?50:58, val>0?80:val<0?50:95);
+      else pdf.setTextColor(26,58,92);
+      pdf.text(String(cell||''), x+colW[ci]/2, y+rowH-1.5, {align:'center'});
+      x += colW[ci];
+    });
+  }
 
-  pdf.save(getExportFilename('NIR_RawData') + '.pdf');
+  pdf.save(getExportFilename('NIR_RawData_'+productLabel.replace(/\s+/g,'_')) + '.pdf');
 }
 
 function exportExcel() {
@@ -1505,6 +1601,114 @@ function exportCSV() {
   a.href = URL.createObjectURL(blob);
   a.download = getExportFilename('NIR_RawData') + '.csv';
   a.click();
+}
+
+// =====================================================
+// Export All Charts
+// =====================================================
+function toggleExportAllMenu() {
+  const menu = document.getElementById('exportAllMenu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', e => {
+  if(!e.target.closest('#btnExportAll') && !e.target.closest('#exportAllMenu')) {
+    const m = document.getElementById('exportAllMenu');
+    if(m) m.style.display = 'none';
+  }
+});
+
+async function exportAllChartsPNG() {
+  if(!RAW || !chart) return;
+  const f = getFilters();
+  const productLabel = f.fProduct !== null ? RAW.products[f.fProduct] : 'All Products';
+  const filtered = filterRecords();
+  const availParams = [...new Set(filtered.map(r => RAW.params[r[I.PAR]]))].filter(Boolean);
+  const origParam = currentParam;
+  for(const pk of availParams) {
+    currentParam = pk;
+    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.pk===pk));
+    renderChart();
+    await new Promise(r=>setTimeout(r,400));
+    exportChartPNG();
+    await new Promise(r=>setTimeout(r,300));
+  }
+  currentParam = origParam;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.pk===origParam));
+  renderChart();
+}
+
+async function exportAllChartsPDF() {
+  if(!RAW || !chart) return;
+  const { jsPDF } = window.jspdf;
+  const f = getFilters();
+  const productLabel = f.fProduct !== null ? RAW.products[f.fProduct] : 'All Products';
+  const filtered = filterRecords();
+  const availParams = [...new Set(filtered.map(r => RAW.params[r[I.PAR]]))].filter(Boolean);
+  const origParam = currentParam;
+
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const margin = 12;
+  const now = new Date();
+  const nowStr = now.toLocaleDateString('en-GB', {year:'numeric',month:'short',day:'numeric'}) + '  ' + now.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
+
+  for(let pi=0; pi<availParams.length; pi++) {
+    const pk = availParams[pi];
+    currentParam = pk;
+    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.pk===pk));
+    renderChart();
+    await new Promise(r=>setTimeout(r,450));
+
+    if(pi > 0) pdf.addPage();
+
+    const exp = buildChartCanvas();
+    const imgData = exp.toDataURL('image/png');
+    const ratio = exp.height / exp.width;
+
+    // === Header เหมือน exportChartPDF ทุกจุด ===
+    const headerH = 36;
+    pdf.setFillColor(232, 242, 252);
+    pdf.roundedRect(margin, margin, pageW-margin*2, headerH, 3, 3, 'F');
+
+    // Title
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(13); pdf.setTextColor(13,31,53);
+    pdf.text('NIR Running Performance Check', margin+4, margin+8);
+
+    // Parameter
+    pdf.setFontSize(11); pdf.setFont('helvetica','bold'); pdf.setTextColor(91,155,213);
+    pdf.text('Parameter: '+pk, margin+4, margin+15);
+
+    // Product
+    pdf.setFontSize(12); pdf.setFont('helvetica','bold'); pdf.setTextColor(13,80,160);
+    pdf.text('Product: '+productLabel, margin+4, margin+22);
+
+    // Filter details 2 columns
+    const filterLines = getFilterSummary();
+    pdf.setFont('helvetica','normal'); pdf.setFontSize(7.5); pdf.setTextColor(30,74,107);
+    filterLines.filter(l=>!l.startsWith('Product')).forEach((line, i) => {
+      const col = i%2===0 ? margin+4 : margin+(pageW-margin*2)/2;
+      const row = margin + 27 + Math.floor(i/2) * 4.5;
+      if(row < margin+headerH-1) pdf.text('• '+line, col, row);
+    });
+
+    // Export date + page number
+    pdf.setFontSize(7.5); pdf.setFont('helvetica','italic'); pdf.setTextColor(100,140,180);
+    pdf.text('Exported: '+nowStr+'   |   Page '+(pi+1)+'/'+availParams.length, pageW-margin, margin+8, {align:'right'});
+
+    // Chart image
+    const usableW = pageW-margin*2;
+    const usableH = pageH-margin*2-headerH-4;
+    let drawW=usableW, drawH=usableW*ratio;
+    if(drawH>usableH){drawH=usableH;drawW=usableH/ratio;}
+    const x=margin+(usableW-drawW)/2;
+    pdf.addImage(imgData,'PNG',x,margin+headerH+2,drawW,drawH);
+  }
+
+  currentParam = origParam;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.pk===origParam));
+  renderChart();
+  pdf.save(getExportFilename('NIR_AllCharts_'+productLabel.replace(/\s+/g,'_'))+'.pdf');
 }
 
 loadData();
