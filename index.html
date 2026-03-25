@@ -506,14 +506,14 @@ const WIDE_PARAM_MAP = [
   { par:'Ca',     wc:'Ca-WC',         nir:'Ca-NIR',         diff:'Ca Diff , WC-NIR6',          u2:'Ca2SEPeqa',          l2:'Ca-2SEPeqa2',         u3:'Ca3SEPeqa',           l3:'Ca-3SEPeqa3'          },
   { par:'P',      wc:'P-WC',          nir:'P-NIR',          diff:'P Diff , WC-NIR6',           u2:'P2SEPeqa',           l2:'P-2SEPeqa2',          u3:'P3SEPeqa',            l3:'P-3SEPeqa3'           },
   { par:'Aw',     wc:'Aw-WC',         nir:'Aw-NIR',         diff:'Aw Diff , WC-NIR6',          u2:'Aw2SEPeqa',          l2:'Aw-2SEPeqa2',         u3:'Aw3SEPeqa',           l3:'Aw-3SEPeqa3'          },
-  { par:'NaCl',   wc:'NaCl-WC',       nir:'NaCl-NIR',       diff:'NaCl Diff , WC-NIR5',        u2:'NaCl2SEPeqa2',       l2:'NaCl3SEPeqa2',        u3:'NaCl3SEPeqa3',        l3:'NaCl3SEPeqa2'         },
+  { par:'NaCl',   wc:'NaCl-WC',       nir:'NaCl-NIR',       diff:'NaCl Diff , WC-NIR5',        u2:'NaCl2SEPeqa',        l2:'NaCl-2SEPeqa3',       u3:'NaCl3SEPeqa2',        l3:'NaCl-3SEPeqa2'        },
   { par:'PD',     wc:'PD-WC',         nir:'PD-NIR',         diff:'PD Diff , WC-NIR6',          u2:'PD2SEP',             l2:'PD-2SEPeqa2',         u3:'PD3SEPeqa',           l3:'PD-3SEPeqa3'          },
   { par:'TVBN',   wc:'TVBN-WC',       nir:'TVBN-NIR',       diff:'TVBN Diff , WC-NIR6',        u2:'TVBN2SEP',           l2:'TVBN-2SEPeqa2',       u3:'TVBN3SEPeqa',         l3:'TVBN-3SEPeqa3'        },
   { par:'Sand',   wc:'Sand-WC',       nir:'Sand-NIR',       diff:'Sand Diff , WC-NIR37',       u2:'Sand2SEP',           l2:'Sand-2SEPeqa23',      u3:'Sand 3SEPeqa2',       l3:'Sand-3SEPeqa34'       },
   { par:'Starch', wc:'Starch-WC',     nir:'Starch-NIR',     diff:'Starch Diff , WC-NIR47',     u2:'Starch2SEP',         l2:'Starch-2SEPeqa23',    u3:'Starch3SEPeqa2',      l3:'Starch-3SEPeqa34'     },
   { par:'BHT',    wc:'BHT-WC',        nir:'BHT-NIR',        diff:'BHT Diff , WC-NIR6',         u2:'BHT2SEP',            l2:'BHT-2SEPeqa2',        u3:'BHT3SEPeqa',          l3:'BHT-3SEPeqa3'         },
   { par:'pH',     wc:'pH-WC',         nir:'pH-NIR',         diff:'pH Diff , WC-NIR6',          u2:'pH2SEP',             l2:'pH-2SEPeqa2',         u3:'pH3SEPeqa',           l3:'pH-3SEPeqa3'          },
-  { par:'Fat-C',  wc:'Fat-C-WC',      nir:'Fat-C-NIR',      diff:'Fat-C Diff , WC-NIR5',       u2:'Fat-C2SEPeqa',       l2:'Fat-C3SEPeqa2',       u3:'Fat-C3SEPeqa3',       l3:'Fat-C3SEPeqa2'        },
+  { par:'Fat-C',  wc:'Fat-C-WC',      nir:'Fat-C-NIR',      diff:'Fat-C Diff , WC-NIR5',       u2:'Fat-C2SEP',          l2:'Fat-C-2SEPeqa3',      u3:'Fat-C 3SEPeqa2',      l3:'Fat-C-3SEPeqa2'       },
 ];
 
 function wideToLong(wideRows) {
@@ -752,7 +752,8 @@ function updateLimitsTable(sepLimits){
   card.style.display='block';
   const fmtPos=v=>v!==null&&!isNaN(v)?'+'+parseFloat(v).toFixed(4):'—';
   const fmtNeg=v=>v!==null&&!isNaN(v)?'−'+Math.abs(parseFloat(v)).toFixed(4):'—';
-  tbody.innerHTML=keys.map(k=>{const lim=sepLimits[k],name=RAW.seps[k];return`<tr><td class="sep-name">${name}</td><td class="ucl2">${fmtPos(lim.u2)}</td><td class="lcl2">${fmtNeg(lim.l2)}</td><td class="ucl3">${fmtPos(lim.u3)}</td><td class="lcl3">${fmtNeg(lim.l3)}</td></tr>`;}).join('');
+  const fmtPosOnly=v=>v!==null&&!isNaN(v)?'+'+Math.abs(parseFloat(v)).toFixed(4):'—';
+  tbody.innerHTML=keys.map(k=>{const lim=sepLimits[k],name=RAW.seps[k];const isPosOnly=(currentParam==='NaCl');return`<tr><td class="sep-name">${name}</td><td class="ucl2">${fmtPos(lim.u2)}</td><td class="lcl2">${isPosOnly?fmtPosOnly(lim.l2):fmtNeg(lim.l2)}</td><td class="ucl3">${fmtPos(lim.u3)}</td><td class="lcl3">${isPosOnly?fmtPosOnly(lim.l3):fmtNeg(lim.l3)}</td></tr>`;}).join('');
 }
 
 // =====================================================
