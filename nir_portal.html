@@ -228,15 +228,36 @@ const TOOLS = [
 
 const TAG_CLASS = { active: "tag-active", new: "tag-new", soon: "tag-soon", locked: "tag-locked" };
 
-const DEFAULT_PERMS = {
-  running: true, summary: true, constituent: true, placeholder1: false
+const ALL_PERMS = { running: true, summary: true, constituent: true, placeholder1: true };
+const DEFAULT_PERMS = { running: true, summary: true, constituent: true, placeholder1: false };
+
+// Role definitions — เพิ่ม role ใหม่ได้ที่นี่
+const ROLES = {
+  admin:   { label: "Admin",   color: "#1a6fbf", bg: "#e8f0fb" },
+  user:    { label: "User",    color: "#555",    bg: "#f0f0ec" },
 };
 
-let USERS = JSON.parse(localStorage.getItem("nir_users") || "null") || {
-  admin:  { password: "admin123",  role: "admin",  name: "Admin",   perms: { running: true, summary: true, constituent: true, placeholder1: true } },
-  user1:  { password: "pass1",     role: "user",   name: "User 1",  perms: { running: true, summary: true, constituent: false, placeholder1: false } },
-  user2:  { password: "pass2",     role: "user",   name: "User 2",  perms: { running: true, summary: false, constituent: true, placeholder1: false } },
+const DEFAULT_USERS = {
+  "admin":        { password: "admin123",   role: "admin", name: "Admin",        perms: { ...ALL_PERMS } },
+  "gavin.kaw":    { password: "Sky@nir169", role: "admin", name: "Gavin",        perms: { ...ALL_PERMS } },
+  "kulthida.the": { password: "Pam@nir169", role: "admin", name: "Kulthida",     perms: { ...ALL_PERMS } },
+  "mintra.wor":   { password: "Noon@nir169",role: "admin", name: "Mintra",       perms: { ...ALL_PERMS } },
+  "sasitorn.yon": { password: "Ple@nir169", role: "admin", name: "Sasitorn",     perms: { ...ALL_PERMS } },
+  "user1":        { password: "pass1",      role: "user",  name: "User 1",       perms: { ...DEFAULT_PERMS } },
+  "user2":        { password: "pass2",      role: "user",  name: "User 2",       perms: { ...DEFAULT_PERMS } },
 };
+
+// Merge saved perms with default users (ป้องกัน user ใหม่หายเมื่อ localStorage เก่ายังอยู่)
+let USERS = (() => {
+  const saved = JSON.parse(localStorage.getItem("nir_users") || "null");
+  if (!saved) return { ...DEFAULT_USERS };
+  // Add new users that don't exist in saved
+  const merged = { ...saved };
+  for (const [k, v] of Object.entries(DEFAULT_USERS)) {
+    if (!merged[k]) merged[k] = v;
+  }
+  return merged;
+})();
 
 let currentUser = null;
 
@@ -319,12 +340,17 @@ function renderPermTable() {
   tbody.innerHTML = "";
   Object.entries(USERS).forEach(([ukey, udata]) => {
     const tr = document.createElement("tr");
+    const roleInfo = ROLES[udata.role] || { label: udata.role, color: "#888", bg: "#f0f0ec" };
+    const roleBadge = `<span style="font-size:10px;background:${roleInfo.bg};color:${roleInfo.color};border-radius:4px;padding:1px 7px;font-weight:500;margin-left:6px;">${roleInfo.label}</span>`;
     const toolBtns = TOOLS.map(t => {
       const on = udata.perms[t.id] ? "on" : "";
       return `<button class="perm-toggle ${on}" data-user="${ukey}" data-tool="${t.id}" onclick="togglePerm(this)">${t.name}</button>`;
     }).join("");
     tr.innerHTML = `
-      <td style="font-weight:500; color:#1a1a1a;">${udata.name}<br><span style="font-size:11px;color:#aaa;font-weight:400">${ukey}</span></td>
+      <td style="font-weight:500; color:#1a1a1a; white-space:nowrap;">
+        ${udata.name} ${roleBadge}<br>
+        <span style="font-size:11px;color:#aaa;font-weight:400">${ukey}</span>
+      </td>
       <td><div class="toggle-wrap">${toolBtns}</div></td>`;
     tbody.appendChild(tr);
   });
