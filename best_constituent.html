@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Best Constituent Finder — NIR Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Mono', monospace; min-height: 100vh; background: #f5f5f3; color: #1a1a1a; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #ebebea; }
+  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+  .card { background: #fff; border: 0.5px solid #e0e0dc; border-radius: 8px; }
+  .best-row { background: #edfaf3 !important; }
+  .best-badge { display: inline-flex; align-items: center; gap: 4px; background: #edfaf3; color: #1a7a45; border: 1px solid #b2e8cc; border-radius: 3px; padding: 1px 7px; font-size: 10px; letter-spacing: 0.05em; }
+  .metric-val { font-size: 22px; font-weight: 600; font-family: 'Space Mono', monospace; }
+  .metric-label { font-size: 10px; color: #999; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px; }
+  .summary-card { background: #fff; border: 0.5px solid #e0e0dc; border-radius: 8px; padding: 16px 20px; cursor: pointer; transition: border-color 0.15s; }
+  .summary-card:hover { border-color: #aaa; }
+  .summary-card.active { border-color: #1a6fbf; }
+  .highlight-sec { color: #0e7a6a; }
+  .highlight-rsq { color: #6d4fc2; }
+  .highlight-secv { color: #c25a10; }
+  .highlight-vr { color: #1a7a45; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { background: #f5f5f3; color: #999; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; padding: 8px 10px; border-bottom: 0.5px solid #e0e0dc; text-align: right; }
+  th:first-child { text-align: left; }
+  td { padding: 7px 10px; border-bottom: 0.5px solid #f0f0ec; text-align: right; color: #555; }
+  td:first-child { text-align: left; color: #1a1a1a; }
+  tr:hover td { background: #fafaf8; }
+
+  textarea {
+    width: 100%; background: #fafaf8; border: 0.5px solid #d8d8d4; border-radius: 6px;
+    color: #333; font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    padding: 12px; resize: vertical; outline: none; transition: border-color 0.15s;
+  }
+  textarea:focus { border-color: #999; }
+
+  .btn {
+    cursor: pointer; background: #1a1a1a; border: none; color: #fff;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 10px 28px;
+    border-radius: 5px; letter-spacing: 0.1em; transition: all 0.15s;
+  }
+  .btn:hover { background: #333; }
+
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; color: #888; text-decoration: none; letter-spacing: 0.06em;
+    transition: color 0.15s;
+  }
+  .back-btn:hover { color: #1a1a1a; }
+
+  .topbar {
+    border-bottom: 0.5px solid #e0e0dc; padding: 0 32px; height: 52px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; background: #fff; z-index: 10;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #1a6fbf; }
+  .topbar-title { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.15em; color: #1a1a1a; }
+  .topbar-sub { font-size: 10px; color: #aaa; letter-spacing: 0.1em; }
+
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .error-msg { color: #c0392b; font-size: 11px; }
+  .criteria-hint { font-size: 10px; color: #aaa; margin-left: auto; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="dot"></div>
+    <span class="topbar-title">NIR MODEL SELECTOR</span>
+    <span class="topbar-sub">— BEST CONSTITUENT FINDER</span>
+  </div>
+  <a href="nir_portal.html" class="back-btn">← กลับหน้าหลัก</a>
+</div>
+
+<div style="padding: 24px 32px;">
+
+  <!-- Input -->
+  <div class="card" style="padding: 20px; margin-bottom: 20px;">
+    <div style="font-size: 10px; color: #aaa; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px;">ข้อมูล CSV (วางข้อมูลของคุณที่นี่)</div>
+    <textarea id="csv-input" rows="6" placeholder="วาง CSV ที่มี header: Constit,Type,N,Mean,SD,Est. M,Est. M2,SEC,RSQ,SECV,1-VR,#,Seq"></textarea>
+    <div style="display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
+      <button class="btn" onclick="analyze()">▶ วิเคราะห์</button>
+      <span class="error-msg" id="error-msg"></span>
+      <span class="criteria-hint">เกณฑ์: SEC↓ › SECV↓ › RSQ↑ › 1-VR↑ › |SEC−SECV|↓</span>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="cards-grid" id="cards-grid"></div>
+
+  <!-- Detail Table -->
+  <div id="detail-section" style="display:none;">
+    <div class="card" style="overflow: hidden; margin-bottom: 16px;">
+      <div style="padding: 14px 20px; border-bottom: 0.5px solid #e0e0dc; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <span id="detail-title" style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700;"></span>
+        <span style="font-size: 10px; color: #999;">— รายละเอียดทุก Type</span>
+        <div style="margin-left: auto; display: flex; gap: 16px; font-size: 10px; color: #aaa;">
+          <span><span style="color:#4adebb">■</span> SEC</span>
+          <span><span style="color:#fb923c">■</span> SECV</span>
+          <span><span style="color:#a78bfa">■</span> RSQ</span>
+          <span><span style="color:#34d399">■</span> 1-VR</span>
+        </div>
+      </div>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th><th>N</th><th>Mean</th><th>SD</th>
+              <th style="color:#4adebb">SEC ↓</th>
+              <th style="color:#a78bfa">RSQ ↑</th>
+              <th style="color:#fb923c">SECV ↓</th>
+              <th style="color:#34d399">1-VR ↑</th>
+              <th>|SEC−SECV|</th>
+              <th>#</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="detail-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Table -->
+  <div id="summary-section" style="display:none;">
+    <div class="card" style="padding: 16px 20px;">
+      <div style="font-size: 10px; color: #aaa; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 12px;">สรุปผลลัพธ์ทั้งหมด</div>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align:left">Constit</th><th>Type</th><th>N</th>
+              <th style="color:#4adebb">SEC</th>
+              <th style="color:#a78bfa">RSQ</th>
+              <th style="color:#fb923c">SECV</th>
+              <th style="color:#34d399">1-VR</th>
+              <th>|SEC−SECV|</th>
+            </tr>
+          </thead>
+          <tbody id="summary-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SAMPLE_DATA = `Constit,Type,N,Mean,SD,Est. M,Est. M2,SEC,RSQ,SECV,1-VR,#,Seq
+Aw,8,16,0.5956,0.0452,0.4601,0.7311,0.0277,0.6463,0.0346,0.3757,172,0
+Aw,7,16,0.5956,0.0452,0.4601,0.7311,0.0269,0.6463,0.0346,0.3753,172,0
+Aw,6,15,0.602,0.0386,0.4863,0.7177,0.0277,0.3041,0.0348,0.1263,173,0
+Aw,10,15,0.602,0.0386,0.4863,0.7177,0.0324,0.2934,0.0348,0.1277,167,0
+Aw,9,15,0.602,0.0386,0.4863,0.7177,0.0324,0.2961,0.0348,0.1247,172,0
+Aw,3,16,0.5956,0.0452,0.4601,0.7311,0.028,0.6165,0.035,0.3606,172,0
+Aw,1,15,0.602,0.0386,0.4863,0.7177,0.0277,0.5244,0.0346,0.0859,173,0
+Aw,4,15,0.602,0.0386,0.4863,0.7177,0.0336,0.2397,0.0357,0.0822,172,0
+Aw,5,15,0.602,0.0386,0.4863,0.7177,0.0337,0.2388,0.0357,0.0813,172,0
+Aw,2,15,0.602,0.0386,0.4863,0.7177,0.0215,0.6884,0.0369,0.0201,172,0
+M,1,186,10.6822,0.7455,8.4458,12.9187,0.1199,0.9741,0.1506,0.959,172,0
+M,4,185,10.6991,0.711,8.5661,12.832,0.1282,0.9675,0.1537,0.953,172,0
+M,10,185,10.6779,0.7448,8.4436,12.9123,0.1439,0.9613,0.159,0.957,137,0
+M,6,187,10.6794,0.7445,8.446,12.9128,0.1261,0.9713,0.1591,0.9541,173,0
+M,9,186,10.7214,0.6831,8.6721,12.7707,0.1497,0.9611,0.1809,0.9371,172,0
+M,5,187,10.6855,0.7515,8.431,12.9399,0.1483,0.9611,0.1722,0.9472,167,0
+M,11,187,10.7317,0.7037,8.6206,12.8427,0.1376,0.9617,0.1754,0.9375,174,0
+M,8,188,10.7028,0.7598,8.4235,12.982,0.1558,0.9579,0.1858,0.9399,172,0
+M,3,188,10.7028,0.7598,8.4235,12.982,0.1556,0.958,0.1875,0.9388,172,0
+M,7,187,10.6887,0.7521,8.4323,12.9451,0.1626,0.9533,0.1918,0.9346,172,0
+M,2,187,10.6887,0.7521,8.4323,12.9451,0.1628,0.9552,0.1923,0.9343,172,0
+CP,6,200,7.9996,0.8051,5.5844,10.4148,0.1775,0.9514,0.2098,0.9318,173,0
+CP,9,199,8.0015,0.9127,5.5069,10.3696,0.1868,0.9453,0.2134,0.9282,172,0
+CP,5,201,7.9971,0.8183,5.5423,10.4518,0.2042,0.9378,0.2137,0.9314,167,0
+CP,1,200,8.0075,0.8094,5.5793,10.4356,0.1866,0.9468,0.2169,0.9277,172,0
+CP,4,201,8.0005,0.8134,5.5604,10.4406,0.1892,0.9459,0.2188,0.9272,172,0
+CP,3,201,7.9859,0.7918,5.6104,10.3613,0.177,0.95,0.2198,0.9228,172,0
+CP,8,201,7.9859,0.7918,5.6104,10.3613,0.1772,0.9499,0.2198,0.9226,172,0
+CP,10,201,8.0026,0.8127,5.5646,10.4407,0.2001,0.9363,0.221,0.9257,167,0
+CP,11,202,7.9831,0.8158,5.5358,10.4304,0.2005,0.9396,0.2235,0.9246,173,0
+CP,7,201,7.9859,0.7918,5.6104,10.3613,0.1699,0.954,0.2251,0.9193,172,0
+CP,2,201,7.9859,0.7918,5.6104,10.3613,0.1708,0.9535,0.2251,0.9187,172,0
+EE,11,226,0.6534,0.2653,0,1.4506,0.25,0.1146,0.2572,0.0586,173,0
+EE,4,229,0.6641,0.2799,0,1.5039,0.2325,0.3101,0.2598,0.1345,172,0
+EE,2,223,0.6504,0.2646,0,1.4448,0.2318,0.2324,0.2624,0.0182,173,0
+EE,3,227,0.654,0.2656,0,1.4508,0.2571,0.0626,0.262,0.0222,172,0
+EE,8,228,0.6584,0.2727,0,1.4765,0.221,0.3433,0.2623,0.0704,172,0
+EE,10,227,0.6616,0.2808,0,1.504,0.226,0.3523,0.2624,0.1232,167,0
+EE,7,223,0.6504,0.2646,0,1.4433,0.2313,0.2361,0.2601,0.0108,173,0
+EE,1,228,0.6607,0.2759,0,1.4885,0.2596,0.1148,0.2662,0.0651,173,0
+EE,9,227,0.6568,0.2701,0,1.4671,0.2571,0.0948,0.2683,0.0091,172,0
+EE,5,228,0.6688,0.289,0,1.5358,0.2471,0.269,0.2715,0.1136,167,0
+EE,6,226,0.6543,0.268,0,1.4807,0.1777,0.7747,0.2747,-0.0552,173,0
+ASH,1,174,5.4526,1.6146,0.6088,10.2954,0.4373,0.9266,0.4839,0.9097,173,0
+ASH,6,174,5.4643,1.631,0.5712,10.3573,0.447,0.9249,0.4956,0.9072,172,0
+ASH,4,176,5.497,1.6412,0.5734,10.4207,0.4723,0.9172,0.5123,0.902,172,0
+ASH,9,175,5.5035,1.6331,0.6044,10.4027,0.4383,0.928,0.5475,0.9,172,0
+ASH,8,177,5.4547,1.6102,0.624,10.2854,0.4729,0.9137,0.5475,0.8837,172,0
+ASH,3,177,5.4547,1.6102,0.624,10.2854,0.4744,0.9132,0.4883,0.8835,172,0
+ASH,5,175,5.4725,1.6107,0.6403,10.3046,0.4732,0.9137,0.5487,0.8833,167,0
+ASH,10,175,5.5047,1.6335,0.6042,10.4052,0.4831,0.9125,0.5507,0.8857,172,0`;
+
+document.getElementById("csv-input").value = SAMPLE_DATA;
+
+let results = null;
+let allData = null;
+let activeConstit = null;
+
+function parseCSV(text) {
+  const lines = text.trim().split("\n");
+  const headers = lines[0].split(",").map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const vals = line.split(",");
+    const obj = {};
+    headers.forEach((h, i) => {
+      const v = vals[i] ? vals[i].trim() : "";
+      obj[h] = (!isNaN(v) && v !== "") ? parseFloat(v) : v;
+    });
+    return obj;
+  });
+}
+
+function findBest(rows) {
+  if (!rows.length) return null;
+  return rows.reduce((best, row) => {
+    const bSEC = best["SEC"], rSEC = row["SEC"];
+    if (rSEC < bSEC) return row;
+    if (rSEC > bSEC) return best;
+    const bSECV = best["SECV"], rSECV = row["SECV"];
+    if (rSECV < bSECV) return row;
+    if (rSECV > bSECV) return best;
+    const bRSQ = best["RSQ"], rRSQ = row["RSQ"];
+    if (rRSQ > bRSQ) return row;
+    if (rRSQ < bRSQ) return best;
+    const bVR = best["1-VR"], rVR = row["1-VR"];
+    if (rVR > bVR) return row;
+    if (rVR < bVR) return best;
+    const bDiff = Math.abs(best["SEC"] - best["SECV"]);
+    const rDiff = Math.abs(row["SEC"] - row["SECV"]);
+    return rDiff < bDiff ? row : best;
+  });
+}
+
+function groupBy(arr, key) {
+  return arr.reduce((acc, row) => {
+    const k = row[key];
+    if (!acc[k]) acc[k] = [];
+    acc[k].push(row);
+    return acc;
+  }, {});
+}
+
+function fmt(v) {
+  return typeof v === "number" ? v.toFixed(4) : (v ?? "-");
+}
+
+function analyze() {
+  const text = document.getElementById("csv-input").value;
+  const errEl = document.getElementById("error-msg");
+  try {
+    const rows = parseCSV(text);
+    const grouped = groupBy(rows, "Constit");
+    const best = {};
+    for (const [k, v] of Object.entries(grouped)) best[k] = findBest(v);
+    results = best;
+    allData = grouped;
+    activeConstit = Object.keys(grouped)[0];
+    errEl.textContent = "";
+    renderCards();
+    renderDetail(activeConstit);
+    renderSummary();
+  } catch(e) {
+    errEl.textContent = "ไม่สามารถอ่านข้อมูลได้ กรุณาตรวจสอบรูปแบบ CSV";
+  }
+}
+
+function renderCards() {
+  const grid = document.getElementById("cards-grid");
+  grid.innerHTML = "";
+  Object.entries(results).forEach(([constit, row]) => {
+    const div = document.createElement("div");
+    div.className = "summary-card" + (constit === activeConstit ? " active" : "");
+    div.onclick = () => { activeConstit = constit; renderCards(); renderDetail(constit); };
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <span style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:${constit===activeConstit?'#1a6fbf':'#1a1a1a'}">${constit}</span>
+        <span style="font-size:10px;background:#e8f0fb;color:#1a6fbf;border:1px solid #b8d0f0;border-radius:3px;padding:1px 7px">Type ${row["Type"]}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><div class="metric-val highlight-sec">${fmt(row["SEC"])}</div><div class="metric-label">SEC</div></div>
+        <div><div class="metric-val highlight-secv">${fmt(row["SECV"])}</div><div class="metric-label">SECV</div></div>
+        <div><div class="metric-val highlight-rsq">${fmt(row["RSQ"])}</div><div class="metric-label">RSQ</div></div>
+        <div><div class="metric-val highlight-vr">${fmt(row["1-VR"])}</div><div class="metric-label">1-VR</div></div>
+      </div>`;
+    grid.appendChild(div);
+  });
+}
+
+function renderDetail(constit) {
+  document.getElementById("detail-section").style.display = "block";
+  document.getElementById("detail-title").textContent = constit;
+  const tbody = document.getElementById("detail-tbody");
+  tbody.innerHTML = "";
+  const sorted = allData[constit].slice().sort((a, b) => a["SEC"] - b["SEC"]);
+  sorted.forEach(row => {
+    const isBest = results[constit]["Type"] === row["Type"];
+    const tr = document.createElement("tr");
+    if (isBest) tr.className = "best-row";
+    tr.innerHTML = `
+      <td style="color:${isBest?'#1a7a45':'#1a1a1a'};font-weight:${isBest?600:400}">${row["Type"]}</td>
+      <td>${row["N"]}</td>
+      <td>${fmt(row["Mean"])}</td>
+      <td>${fmt(row["SD"])}</td>
+      <td style="color:#4adebb">${fmt(row["SEC"])}</td>
+      <td style="color:#a78bfa">${fmt(row["RSQ"])}</td>
+      <td style="color:#fb923c">${fmt(row["SECV"])}</td>
+      <td style="color:#34d399">${fmt(row["1-VR"])}</td>
+      <td>${Math.abs(row["SEC"] - row["SECV"]).toFixed(4)}</td>
+      <td>${row["#"]}</td>
+      <td>${isBest ? '<span class="best-badge">✓ BEST</span>' : ""}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderSummary() {
+  document.getElementById("summary-section").style.display = "block";
+  const tbody = document.getElementById("summary-tbody");
+  tbody.innerHTML = "";
+  Object.entries(results).forEach(([constit, row]) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td style="color:#1a1a1a;font-weight:600">${constit}</td>
+      <td>${row["Type"]}</td>
+      <td>${row["N"]}</td>
+      <td style="color:#4adebb">${fmt(row["SEC"])}</td>
+      <td style="color:#a78bfa">${fmt(row["RSQ"])}</td>
+      <td style="color:#fb923c">${fmt(row["SECV"])}</td>
+      <td style="color:#34d399">${fmt(row["1-VR"])}</td>
+      <td>${Math.abs(row["SEC"] - row["SECV"]).toFixed(4)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+</script>
+</body>
+</html>
