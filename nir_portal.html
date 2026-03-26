@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NIR Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #f5f5f3; min-height: 100vh; color: #1a1a1a; }
+
+  /* LOGIN */
+  #login-screen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #f5f5f3;
+  }
+  .login-card {
+    background: #fff; border: 0.5px solid #e0e0dc; border-radius: 16px;
+    padding: 40px 48px; width: 360px;
+  }
+  .login-logo { font-size: 11px; font-weight: 600; letter-spacing: 0.15em; color: #888; text-transform: uppercase; margin-bottom: 32px; }
+  .login-title { font-size: 22px; font-weight: 500; margin-bottom: 6px; }
+  .login-sub { font-size: 13px; color: #888; margin-bottom: 28px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 12px; color: #666; margin-bottom: 6px; font-weight: 500; letter-spacing: 0.03em; }
+  .field input {
+    width: 100%; padding: 10px 12px; border: 0.5px solid #d8d8d4; border-radius: 8px;
+    font-size: 14px; font-family: 'Inter', sans-serif; background: #fafaf8; outline: none;
+    transition: border-color 0.15s;
+  }
+  .field input:focus { border-color: #999; background: #fff; }
+  .btn-login {
+    width: 100%; padding: 11px; background: #1a1a1a; color: #fff; border: none;
+    border-radius: 8px; font-size: 14px; font-weight: 500; font-family: 'Inter', sans-serif;
+    cursor: pointer; margin-top: 8px; transition: background 0.15s;
+  }
+  .btn-login:hover { background: #333; }
+  .login-error { font-size: 12px; color: #c0392b; margin-top: 10px; display: none; }
+
+  /* PORTAL */
+  #portal-screen { display: none; min-height: 100vh; }
+  .topbar {
+    background: #fff; border-bottom: 0.5px solid #e0e0dc;
+    padding: 0 32px; height: 56px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .topbar-logo { font-size: 11px; font-weight: 600; letter-spacing: 0.15em; color: #888; text-transform: uppercase; }
+  .topbar-sep { width: 0.5px; height: 16px; background: #d8d8d4; }
+  .topbar-title { font-size: 14px; font-weight: 500; color: #1a1a1a; }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .user-badge {
+    display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666;
+  }
+  .user-avatar {
+    width: 28px; height: 28px; border-radius: 50%; background: #e8e8e4;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; color: #555;
+  }
+  .btn-logout {
+    font-size: 12px; color: #888; background: none; border: 0.5px solid #d8d8d4;
+    border-radius: 6px; padding: 5px 12px; cursor: pointer; font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+  }
+  .btn-logout:hover { color: #1a1a1a; border-color: #999; }
+
+  /* MAIN */
+  .main { padding: 40px 32px; max-width: 960px; margin: 0 auto; }
+  .greeting { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
+  .greeting-sub { font-size: 13px; color: #888; margin-bottom: 36px; }
+
+  /* CARDS GRID */
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: #aaa; text-transform: uppercase; margin-bottom: 16px; }
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-bottom: 40px; }
+  .tool-card {
+    background: #fff; border: 0.5px solid #e0e0dc; border-radius: 14px; padding: 24px;
+    text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 12px;
+    transition: border-color 0.15s, box-shadow 0.15s; cursor: pointer;
+  }
+  .tool-card:hover { border-color: #bbb; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  .tool-card.locked { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+  .card-icon {
+    width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center;
+    justify-content: center;
+  }
+  .card-icon svg { width: 18px; height: 18px; }
+  .card-name { font-size: 15px; font-weight: 500; }
+  .card-desc { font-size: 12px; color: #888; line-height: 1.5; }
+  .card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 8px; }
+  .card-tag { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 5px; }
+  .card-arrow { font-size: 16px; color: #bbb; }
+  .tag-active { background: #eaf5ee; color: #2d7a4a; }
+  .tag-new { background: #eef0fb; color: #3a4ab0; }
+  .tag-soon { background: #f5f5f3; color: #aaa; }
+  .tag-locked { background: #fdf0f0; color: #c0392b; }
+
+  /* ADMIN */
+  .admin-panel {
+    background: #fff; border: 0.5px solid #e0e0dc; border-radius: 14px; padding: 24px; margin-bottom: 24px;
+  }
+  .admin-title { font-size: 14px; font-weight: 500; margin-bottom: 16px; color: #1a1a1a; }
+  .user-table { width: 100%; font-size: 13px; border-collapse: collapse; }
+  .user-table th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: #aaa; text-transform: uppercase; padding: 0 0 10px; border-bottom: 0.5px solid #e8e8e4; }
+  .user-table td { padding: 10px 0; border-bottom: 0.5px solid #f0f0ec; color: #444; vertical-align: middle; }
+  .user-table tr:last-child td { border-bottom: none; }
+  .toggle-wrap { display: flex; gap: 6px; flex-wrap: wrap; }
+  .perm-toggle {
+    font-size: 10px; padding: 3px 8px; border-radius: 5px; cursor: pointer;
+    border: 0.5px solid #d8d8d4; background: #fafaf8; color: #666;
+    font-family: 'Inter', sans-serif; font-weight: 500; transition: all 0.15s;
+  }
+  .perm-toggle.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .perm-toggle:hover { border-color: #999; }
+  .save-btn {
+    margin-top: 16px; padding: 8px 20px; background: #1a1a1a; color: #fff; border: none;
+    border-radius: 7px; font-size: 13px; font-family: 'Inter', sans-serif; cursor: pointer;
+    font-weight: 500; transition: background 0.15s;
+  }
+  .save-btn:hover { background: #333; }
+  .save-msg { font-size: 12px; color: #2d7a4a; margin-left: 12px; display: none; }
+</style>
+</head>
+<body>
+
+<!-- ==================== LOGIN ==================== -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">NIR Portal</div>
+    <div class="login-title">ยินดีต้อนรับ</div>
+    <div class="login-sub">กรุณาเข้าสู่ระบบเพื่อใช้งาน</div>
+    <div class="field">
+      <label>Username</label>
+      <input type="text" id="inp-user" placeholder="username" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="inp-pass" placeholder="••••••••">
+    </div>
+    <button class="btn-login" onclick="doLogin()">เข้าสู่ระบบ</button>
+    <div class="login-error" id="login-err">Username หรือ Password ไม่ถูกต้อง</div>
+  </div>
+</div>
+
+<!-- ==================== PORTAL ==================== -->
+<div id="portal-screen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-logo">NIR Portal</span>
+      <div class="topbar-sep"></div>
+      <span class="topbar-title">Spectroscopy Tools</span>
+    </div>
+    <div class="topbar-right">
+      <div class="user-badge">
+        <div class="user-avatar" id="user-avatar">--</div>
+        <span id="user-display">-</span>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="greeting" id="greeting">สวัสดี</div>
+    <div class="greeting-sub" id="greeting-sub">เลือก tool ที่ต้องการใช้งาน</div>
+
+    <div class="section-label">เครื่องมือ</div>
+    <div class="cards-grid" id="cards-grid"></div>
+
+    <!-- Admin Panel -->
+    <div id="admin-panel" style="display:none;">
+      <div class="section-label">จัดการสิทธิ์ผู้ใช้</div>
+      <div class="admin-panel">
+        <div class="admin-title">กำหนดสิทธิ์การเข้าถึง</div>
+        <table class="user-table">
+          <thead>
+            <tr>
+              <th style="width:130px;">ผู้ใช้</th>
+              <th>สิทธิ์เครื่องมือ</th>
+            </tr>
+          </thead>
+          <tbody id="perm-tbody"></tbody>
+        </table>
+        <button class="save-btn" onclick="savePerms()">บันทึก</button>
+        <span class="save-msg" id="save-msg">บันทึกแล้ว</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOOLS = [
+  {
+    id: "running",
+    name: "Running Performance Check",
+    desc: "ตรวจสอบ performance ของโมเดล NIR แบบ real-time",
+    color: "#eaf5ee", iconColor: "#2d7a4a",
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+    url: "#running",
+    tag: "active", tagLabel: "Active"
+  },
+  {
+    id: "summary",
+    name: "Summary",
+    desc: "สรุปผลและรายงานภาพรวมของข้อมูล NIR",
+    color: "#f0f4ff", iconColor: "#3a4ab0",
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`,
+    url: "#summary",
+    tag: "active", tagLabel: "Active"
+  },
+  {
+    id: "constituent",
+    name: "Best Constituent Finder",
+    desc: "ค้นหา model ที่ดีที่สุดของแต่ละ constituent โดยอัตโนมัติ",
+    color: "#fdf5e8", iconColor: "#a05e0a",
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+    url: "#constituent",
+    tag: "new", tagLabel: "New"
+  },
+  {
+    id: "placeholder1",
+    name: "Tool 4",
+    desc: "เพิ่มเครื่องมือใหม่ได้ที่นี่",
+    color: "#f5f5f3", iconColor: "#bbb",
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+    url: "#",
+    tag: "soon", tagLabel: "Coming soon"
+  },
+];
+
+const TAG_CLASS = { active: "tag-active", new: "tag-new", soon: "tag-soon", locked: "tag-locked" };
+
+const DEFAULT_PERMS = {
+  running: true, summary: true, constituent: true, placeholder1: false
+};
+
+let USERS = JSON.parse(localStorage.getItem("nir_users") || "null") || {
+  admin:  { password: "admin123",  role: "admin",  name: "Admin",   perms: { running: true, summary: true, constituent: true, placeholder1: true } },
+  user1:  { password: "pass1",     role: "user",   name: "User 1",  perms: { running: true, summary: true, constituent: false, placeholder1: false } },
+  user2:  { password: "pass2",     role: "user",   name: "User 2",  perms: { running: true, summary: false, constituent: true, placeholder1: false } },
+};
+
+let currentUser = null;
+
+function saveUsers() {
+  localStorage.setItem("nir_users", JSON.stringify(USERS));
+}
+
+function doLogin() {
+  const u = document.getElementById("inp-user").value.trim().toLowerCase();
+  const p = document.getElementById("inp-pass").value;
+  const err = document.getElementById("login-err");
+  if (USERS[u] && USERS[u].password === p) {
+    err.style.display = "none";
+    currentUser = u;
+    renderPortal();
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("portal-screen").style.display = "block";
+  } else {
+    err.style.display = "block";
+  }
+}
+
+document.getElementById("inp-pass").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+document.getElementById("inp-user").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+
+function doLogout() {
+  currentUser = null;
+  document.getElementById("portal-screen").style.display = "none";
+  document.getElementById("login-screen").style.display = "flex";
+  document.getElementById("inp-pass").value = "";
+}
+
+function renderPortal() {
+  const u = USERS[currentUser];
+  const initials = u.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  document.getElementById("user-avatar").textContent = initials;
+  document.getElementById("user-display").textContent = u.name;
+  document.getElementById("greeting").textContent = "สวัสดี, " + u.name;
+
+  const grid = document.getElementById("cards-grid");
+  grid.innerHTML = "";
+  TOOLS.forEach(t => {
+    const hasAccess = u.perms[t.id];
+    const card = document.createElement("a");
+    card.href = hasAccess ? t.url : "#";
+    card.className = "tool-card" + (hasAccess ? "" : " locked");
+    const tagClass = hasAccess ? TAG_CLASS[t.tag] : "tag-locked";
+    const tagLabel = hasAccess ? t.tagLabel : "ไม่มีสิทธิ์";
+    card.innerHTML = `
+      <div class="card-icon" style="background:${t.color}; color:${t.iconColor}">${t.icon}</div>
+      <div>
+        <div class="card-name">${t.name}</div>
+        <div class="card-desc">${t.desc}</div>
+      </div>
+      <div class="card-footer">
+        <span class="card-tag ${tagClass}">${tagLabel}</span>
+        <span class="card-arrow">→</span>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  const adminPanel = document.getElementById("admin-panel");
+  if (u.role === "admin") {
+    adminPanel.style.display = "block";
+    renderPermTable();
+  } else {
+    adminPanel.style.display = "none";
+  }
+}
+
+function renderPermTable() {
+  const tbody = document.getElementById("perm-tbody");
+  tbody.innerHTML = "";
+  Object.entries(USERS).forEach(([ukey, udata]) => {
+    const tr = document.createElement("tr");
+    const toolBtns = TOOLS.map(t => {
+      const on = udata.perms[t.id] ? "on" : "";
+      return `<button class="perm-toggle ${on}" data-user="${ukey}" data-tool="${t.id}" onclick="togglePerm(this)">${t.name}</button>`;
+    }).join("");
+    tr.innerHTML = `
+      <td style="font-weight:500; color:#1a1a1a;">${udata.name}<br><span style="font-size:11px;color:#aaa;font-weight:400">${ukey}</span></td>
+      <td><div class="toggle-wrap">${toolBtns}</div></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function togglePerm(btn) {
+  btn.classList.toggle("on");
+}
+
+function savePerms() {
+  document.querySelectorAll(".perm-toggle").forEach(btn => {
+    const u = btn.dataset.user;
+    const t = btn.dataset.tool;
+    USERS[u].perms[t] = btn.classList.contains("on");
+  });
+  saveUsers();
+  renderPortal();
+  const msg = document.getElementById("save-msg");
+  msg.style.display = "inline";
+  setTimeout(() => { msg.style.display = "none"; }, 2000);
+}
+</script>
+</body>
+</html>
