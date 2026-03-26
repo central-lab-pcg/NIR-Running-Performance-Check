@@ -83,13 +83,7 @@
     <span class="topbar-title">NIR MODEL SELECTOR</span>
     <span class="topbar-sub">— BEST CONSTITUENT FINDER</span>
   </div>
-  <div style="display:flex;align-items:center;gap:10px;">
-    <button class="btn-clear" onclick="openHistory()" style="font-size:11px;padding:6px 14px;position:relative;">
-      📋 ประวัติ
-      <span id="history-badge" style="display:none;position:absolute;top:-5px;right:-5px;background:#1a6fbf;color:#fff;font-size:9px;border-radius:10px;padding:1px 5px;font-weight:600;"></span>
-    </button>
-    <a href="nir_portal.html" class="back-btn">← กลับหน้าหลัก</a>
-  </div>
+  <a href="nir_portal.html" class="back-btn">← กลับหน้าหลัก</a>
 </div>
 
 <div style="padding: 24px 32px;">
@@ -179,26 +173,14 @@
     </div>
   </div>
 
-  <!-- History Modal -->
-  <div id="history-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:100;align-items:flex-start;justify-content:flex-end;">
-    <div style="background:#f5f5f3;width:480px;max-width:95vw;height:100vh;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,0.12);display:flex;flex-direction:column;">
-      <!-- Modal Header -->
-      <div style="background:#fff;border-bottom:0.5px solid #e0e0dc;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;">
-        <div>
-          <div style="font-size:13px;font-weight:500;color:#1a1a1a;">ประวัติการวิเคราะห์</div>
-          <div style="font-size:10px;color:#aaa;margin-top:2px;" id="history-count-label"></div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <button class="btn-clear" onclick="clearHistory()" style="font-size:11px;padding:5px 12px;">✕ ล้างประวัติ</button>
-          <button onclick="closeHistory()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#aaa;padding:0 4px;line-height:1;">×</button>
-        </div>
-      </div>
-      <!-- Modal Body -->
-      <div style="padding:16px 20px;flex:1;">
-        <div id="history-list"></div>
-        <div id="history-empty" style="font-size:12px;color:#bbb;padding:32px 0;text-align:center;">ยังไม่มีประวัติการวิเคราะห์</div>
-      </div>
+  <!-- History Section -->
+  <div id="history-section" style="margin-top: 32px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+      <div style="font-size: 10px; color: #aaa; letter-spacing: 0.12em; text-transform: uppercase;">ประวัติการวิเคราะห์</div>
+      <button class="btn-clear" onclick="clearHistory()" style="font-size: 11px; padding: 5px 14px;">✕ ล้างประวัติ</button>
     </div>
+    <div id="history-list"></div>
+    <div id="history-empty" style="font-size: 12px; color: #bbb; padding: 16px 0; display: none;">ยังไม่มีประวัติ</div>
   </div>
 
 </div>
@@ -210,7 +192,6 @@
 let results = null;
 let allData = null;
 let activeConstit = null;
-let lastEqaFilename = "";
 
 // --- Session user ---
 function getSessionUser() {
@@ -241,7 +222,6 @@ function addHistoryEntry(resultData) {
     user: user ? user.name : "Unknown",
     username: user ? user.username : "-",
     loginTime: user ? user.loginTime : null,
-    eqaFile: lastEqaFilename || "-",
     constituents: Object.keys(resultData).length,
     results: Object.entries(resultData).map(([c, r]) => ({
       constit: c, type: r["Type"], sec: r["SEC"], secv: r["SECV"], rsq: r["RSQ"], vr: r["1-VR"]
@@ -249,38 +229,13 @@ function addHistoryEntry(resultData) {
   };
   hist.unshift(entry);
   saveHistory(hist);
-  updateHistoryBadge();
-}
-
-function openHistory() {
   renderHistory();
-  document.getElementById("history-modal").style.display = "flex";
-}
-
-function closeHistory() {
-  document.getElementById("history-modal").style.display = "none";
-}
-
-document.getElementById("history-modal").addEventListener("click", function(e) {
-  if (e.target === this) closeHistory();
-});
-
-function updateHistoryBadge() {
-  const hist = loadHistory();
-  const badge = document.getElementById("history-badge");
-  if (hist.length > 0) {
-    badge.textContent = hist.length > 99 ? "99+" : hist.length;
-    badge.style.display = "inline-block";
-  } else {
-    badge.style.display = "none";
-  }
 }
 
 function clearHistory() {
   if (!confirm("ต้องการล้างประวัติทั้งหมดใช่ไหม?")) return;
   localStorage.removeItem(HISTORY_KEY);
   renderHistory();
-  updateHistoryBadge();
 }
 
 function timeSince(isoStr) {
@@ -300,53 +255,60 @@ function renderHistory() {
   const hist = loadHistory();
   const list = document.getElementById("history-list");
   const empty = document.getElementById("history-empty");
-  const countLabel = document.getElementById("history-count-label");
   list.innerHTML = "";
-  countLabel.textContent = hist.length ? `${hist.length} รายการ` : "";
 
-  if (!hist.length) { empty.style.display = "block"; return; }
+  if (!hist.length) {
+    empty.style.display = "block";
+    return;
+  }
   empty.style.display = "none";
 
   hist.forEach(entry => {
     const card = document.createElement("div");
-    card.style.cssText = `background:#fff;border:0.5px solid #e0e0dc;border-radius:10px;padding:14px 16px;margin-bottom:10px;`;
+    card.style.cssText = `background:#fff;border:0.5px solid #e0e0dc;border-radius:10px;padding:14px 18px;margin-bottom:10px;`;
+
+    // Avatar initials
     const initials = entry.user.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
+
+    // Best results mini table
     const rows = (entry.results || []).map(r =>
       `<tr>
-        <td style="padding:3px 8px 3px 0;color:#1a1a1a;font-weight:500;min-width:44px">${r.constit}</td>
-        <td style="padding:3px 6px;color:#555">Type ${r.type}</td>
-        <td style="padding:3px 6px;color:#9d174d">${r.sec.toFixed(4)}</td>
-        <td style="padding:3px 6px;color:#6d4fc2">${r.rsq.toFixed(4)}</td>
-        <td style="padding:3px 6px;color:#c25a10">${r.secv.toFixed(4)}</td>
-        <td style="padding:3px 6px;color:#1a7a45">${r.vr.toFixed(4)}</td>
+        <td style="padding:3px 10px 3px 0;color:#1a1a1a;font-weight:500;min-width:50px">${r.constit}</td>
+        <td style="padding:3px 8px;color:#555">Type ${r.type}</td>
+        <td style="padding:3px 8px;color:#0e7a6a">${r.sec.toFixed(4)}</td>
+        <td style="padding:3px 8px;color:#6d4fc2">${r.rsq.toFixed(4)}</td>
+        <td style="padding:3px 8px;color:#c25a10">${r.secv.toFixed(4)}</td>
+        <td style="padding:3px 8px;color:#1a7a45">${r.vr.toFixed(4)}</td>
       </tr>`
     ).join("");
 
     card.innerHTML = `
-      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
-        <div style="width:30px;height:30px;border-radius:50%;background:#e8f0fb;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#1a6fbf;flex-shrink:0">${initials}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:500;color:#1a1a1a">${entry.user}
-            <span style="font-size:10px;color:#aaa;font-weight:400;margin-left:4px">(${entry.username})</span>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div style="width:32px;height:32px;border-radius:50%;background:#e8f0fb;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a6fbf;flex-shrink:0">${initials}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500;color:#1a1a1a">${entry.user}
+            <span style="font-size:10px;color:#aaa;font-weight:400;margin-left:6px">(${entry.username})</span>
           </div>
-          <div style="font-size:10px;color:#aaa;margin-top:3px;display:flex;flex-direction:column;gap:3px;">
-            <span>🕐 ${formatDateTime(entry.time)} · ${timeSince(entry.time)}</span>
-            ${entry.loginTime ? `<span>🔑 Login: ${formatDateTime(entry.loginTime)}</span>` : ""}
-            <span>📄 <span style="font-family:'IBM Plex Mono',monospace;background:#f5f5f3;padding:1px 7px;border-radius:4px;font-size:10px;color:#555;border:0.5px solid #e0e0dc;">${entry.eqaFile || "-"}</span></span>
+          <div style="font-size:11px;color:#aaa;margin-top:1px;display:flex;gap:12px;flex-wrap:wrap">
+            <span>🕐 ${formatDateTime(entry.time)}</span>
+            <span style="color:#bbb">${timeSince(entry.time)}</span>
+            ${entry.loginTime ? `<span>Login: ${formatDateTime(entry.loginTime)}</span>` : ""}
           </div>
         </div>
-        <div style="font-size:10px;background:#f0f4ff;color:#3a4ab0;border-radius:5px;padding:2px 8px;white-space:nowrap;flex-shrink:0">${entry.constituents} ตัว</div>
+        <div style="font-size:11px;background:#f0f4ff;color:#3a4ab0;border-radius:5px;padding:3px 10px;white-space:nowrap">${entry.constituents} Constituent</div>
       </div>
-      <div style="overflow-x:auto;border-top:0.5px solid #f0f0ec;padding-top:8px">
-        <table style="width:100%;border-collapse:collapse;font-size:10.5px;font-family:'IBM Plex Mono',monospace">
-          <thead><tr>
-            <th style="text-align:left;padding:2px 8px 4px 0;color:#bbb;font-weight:500">Constit</th>
-            <th style="padding:2px 6px 4px;color:#bbb;font-weight:500">Type</th>
-            <th style="padding:2px 6px 4px;color:#9d174d;font-weight:500">SEC</th>
-            <th style="padding:2px 6px 4px;color:#6d4fc2;font-weight:500">RSQ</th>
-            <th style="padding:2px 6px 4px;color:#c25a10;font-weight:500">SECV</th>
-            <th style="padding:2px 6px 4px;color:#1a7a45;font-weight:500">1-VR</th>
-          </tr></thead>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:'IBM Plex Mono',monospace">
+          <thead>
+            <tr style="border-bottom:0.5px solid #f0f0ec">
+              <th style="text-align:left;padding:3px 10px 5px 0;color:#bbb;font-weight:500;font-size:10px">Constit</th>
+              <th style="padding:3px 8px;color:#bbb;font-weight:500;font-size:10px">Type</th>
+              <th style="padding:3px 8px;color:#0e7a6a;font-weight:500;font-size:10px">SEC</th>
+              <th style="padding:3px 8px;color:#6d4fc2;font-weight:500;font-size:10px">RSQ</th>
+              <th style="padding:3px 8px;color:#c25a10;font-weight:500;font-size:10px">SECV</th>
+              <th style="padding:3px 8px;color:#1a7a45;font-weight:500;font-size:10px">1-VR</th>
+            </tr>
+          </thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
@@ -354,9 +316,8 @@ function renderHistory() {
   });
 }
 
-// Init on load
-updateHistoryBadge();
-
+// Init history on load
+renderHistory();
 
 function clearAll() {
   document.getElementById("csv-input").value = "";
@@ -394,13 +355,6 @@ function cleanVal(v) {
 
 function parseEQA(text) {
   const lines = text.split("\n").map(l => l.trimEnd());
-
-  // Extract .EQA filename from metadata (e.g. "File Name:...xxx.EQA")
-  lastEqaFilename = "";
-  for (let i = 0; i < Math.min(lines.length, 15); i++) {
-    const m = lines[i].match(/([^\\\/]+\.EQA)/i);
-    if (m) { lastEqaFilename = m[1].trim(); break; }
-  }
 
   // Find the header row — it must contain both "Constituent" (or "Constit") AND "SEC"
   let headerIdx = -1;
