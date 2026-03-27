@@ -418,11 +418,13 @@ function doLogin() {
     err.style.display = "none";
     currentUser = u;
     addLoginHistory(u);
-    localStorage.setItem("nir_user", JSON.stringify({
+    const sessionData = JSON.stringify({
       username: u,
       name: USERS[u].name,
       loginTime: new Date().toISOString()
-    }));
+    });
+    localStorage.setItem("nir_user", sessionData);
+    sessionStorage.setItem("nir_tab_active", "1");
     renderPortal();
     document.getElementById("login-screen").style.display = "none";
     document.getElementById("portal-screen").style.display = "block";
@@ -439,6 +441,7 @@ document.getElementById("inp-user").addEventListener("keydown", e => { if (e.key
 function doLogout() {
   currentUser = null;
   localStorage.removeItem("nir_user");
+  sessionStorage.removeItem("nir_tab_active");
 
   document.getElementById("portal-screen").style.display = "none";
   document.getElementById("login-screen").style.display = "flex";
@@ -545,8 +548,10 @@ window.addEventListener("popstate", function(e) {
 });
 // ---- Auto-restore session on page load ----
 (function() {
+  // Only restore if this tab was already active (prevents fresh-open skip)
+  const tabActive = sessionStorage.getItem("nir_tab_active");
   const saved = localStorage.getItem("nir_user");
-  if (saved) {
+  if (tabActive && saved) {
     try {
       const u = JSON.parse(saved);
       if (u && u.username && USERS[u.username]) {
