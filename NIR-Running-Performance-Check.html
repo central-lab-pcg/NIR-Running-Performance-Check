@@ -198,6 +198,7 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
     <div class="last-updated" id="lastUpdated"></div>
   </div>
   <div style="display:flex;gap:8px;align-items:flex-start;margin-top:8px;flex-wrap:wrap">
+    <a href="index.html" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#666;text-decoration:none;padding:5px 12px;border:0.5px solid #d8d8d4;border-radius:7px;font-family:inherit;" onmouseover="this.style.color='#1a1a1a'" onmouseout="this.style.color='#666'">← กลับหน้าหลัก</a>
     <div class="view-toggle">
       <button class="vtab active" id="vtab-chart" onclick="switchView('chart')">📈 Chart</button>
       <button class="vtab" id="vtab-raw" onclick="switchView('raw')">📋 Raw Data</button>
@@ -225,7 +226,7 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
     <div class="f-group"><span class="f-label">Product</span><select id="fProduct"><option value="">All</option></select></div>
     <div class="f-group"><span class="f-label">Equipment</span><select id="fEquip"><option value="">All</option></select></div>
     <div class="f-group"><span class="f-label">Source</span><select id="fSource"><option value="">All</option></select></div>
-    <div class="f-group"><span class="f-label">SEP Code</span><select id="fSep"><option value="">All</option></select></div>
+    
     <div class="f-group"><span class="f-label">จากเดือน</span><select id="fDateFrom"><option value="">From</option></select></div>
     <div class="f-group"><span class="f-label">ถึงเดือน</span><select id="fDateTo"><option value="">To</option></select></div>
   </div>
@@ -671,19 +672,11 @@ searchInput.addEventListener('keydown',e=>{if(e.key==='Escape'){searchDrop.class
 document.addEventListener('click',e=>{if(!e.target.closest('.search-wrap'))searchDrop.classList.remove('open');});
 function clearAllFilters(){
   selectedMap.clear();searchInput.value='';renderTags();searchDrop.classList.remove('open');
-  var _allowedPlants=null;
-  try{var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');var _p=_u.plants;if(_p&&_p.length>0)_allowedPlants=_p;}catch(e){}
+  var _ap=null;try{var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');var _p=_u.plants;if(_p&&_p.length>0)_ap=_p;}catch(e){}
   ['fPlant','fType','fProduct','fEquip','fSource','fSep'].forEach(id=>{
     var el=document.getElementById(id);if(!el)return;
-    if(id==='fPlant'&&_allowedPlants){
-      if(_allowedPlants.length===1){
-        var opts=Array.from(el.options);
-        var match=opts.find(o=>o.text===_allowedPlants[0]);
-        if(match)el.value=match.value;
-      }
-    }else{
-      el.value='';
-    }
+    if(id==='fPlant'&&_ap){if(_ap.length===1){var m=Array.from(el.options).find(o=>o.text===_ap[0]);if(m)el.value=m.value;}}
+    else{el.value='';}
   });
   document.getElementById('fDateFrom').value='';
   document.getElementById('fDateTo').value=RAW.months.length-1;
@@ -1729,20 +1722,13 @@ loadData();
 window.addEventListener('load',function(){
   try{
     var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');
-    var _p=_u.plants;
-    if(!_p||_p.length===0)return;
+    var _p=_u.plants;if(!_p||_p.length===0)return;
     if(_p.length===1){
-      var s=document.getElementById('fPlant');
-      if(!s)return;
-      var check=function(){
-        var opts=Array.from(s.options);
-        var match=opts.find(o=>o.text===_p[0]);
-        if(match){
-          s.value=match.value;s.disabled=true;
-          s.style.opacity='0.6';s.style.cursor='not-allowed';
-          s.dispatchEvent(new Event('change',{bubbles:true}));
-        }else{setTimeout(check,200);}
-      };
+      var s=document.getElementById('fPlant');if(!s)return;
+      var check=function(){var m=Array.from(s.options).find(o=>o.text===_p[0]);
+        if(m){s.value=m.value;s.disabled=true;s.style.opacity='0.6';s.style.cursor='not-allowed';
+          s.dispatchEvent(new Event('change',{bubbles:true}));}
+        else setTimeout(check,200);};
       setTimeout(check,500);
     }
   }catch(e){}
