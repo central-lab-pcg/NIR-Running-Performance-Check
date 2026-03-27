@@ -182,6 +182,7 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
 </style>
 </head>
 <body>
+<a href="index.html" style="position:fixed;top:14px;right:16px;z-index:9999;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#666;text-decoration:none;padding:5px 14px;border:0.5px solid #d8d8d4;border-radius:7px;background:#fff;font-family:inherit;box-shadow:0 1px 4px rgba(0,0,0,0.08);" onmouseover="this.style.color='#1a1a1a';this.style.borderColor='#999'" onmouseout="this.style.color='#666';this.style.borderColor='#d8d8d4'">← กลับหน้าหลัก</a>
 
 <div id="loadingOverlay">
   <div class="spinner"></div>
@@ -198,7 +199,6 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
     <div class="last-updated" id="lastUpdated"></div>
   </div>
   <div style="display:flex;gap:8px;align-items:flex-start;margin-top:8px;flex-wrap:wrap">
-    <a href="index.html" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#666;text-decoration:none;padding:5px 12px;border:0.5px solid #d8d8d4;border-radius:7px;font-family:inherit;" onmouseover="this.style.color='#1a1a1a'" onmouseout="this.style.color='#666'">← กลับหน้าหลัก</a>
     <div class="view-toggle">
       <button class="vtab active" id="vtab-chart" onclick="switchView('chart')">📈 Chart</button>
       <button class="vtab" id="vtab-raw" onclick="switchView('raw')">📋 Raw Data</button>
@@ -676,7 +676,7 @@ function clearAllFilters(){
   ['fPlant','fType','fProduct','fEquip','fSource','fSep'].forEach(id=>{
     var el=document.getElementById(id);if(!el)return;
     if(id==='fPlant'&&_ap){if(_ap.length===1){var m=Array.from(el.options).find(o=>o.text===_ap[0]);if(m)el.value=m.value;}}
-    else{el.value='';}
+    else el.value='';
   });
   document.getElementById('fDateFrom').value='';
   document.getElementById('fDateTo').value=RAW.months.length-1;
@@ -1720,17 +1720,13 @@ loadData();
 </script>
 <script>
 window.addEventListener('load',function(){
-  try{
-    var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');
-    var _p=_u.plants;if(!_p||_p.length===0)return;
-    if(_p.length===1){
-      var s=document.getElementById('fPlant');if(!s)return;
-      var check=function(){var m=Array.from(s.options).find(o=>o.text===_p[0]);
+  try{var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');var _p=_u.plants;
+    if(!_p||_p.length===0)return;
+    if(_p.length===1){var s=document.getElementById('fPlant');if(!s)return;
+      var c=function(){var m=Array.from(s.options).find(o=>o.text===_p[0]);
         if(m){s.value=m.value;s.disabled=true;s.style.opacity='0.6';s.style.cursor='not-allowed';
-          s.dispatchEvent(new Event('change',{bubbles:true}));}
-        else setTimeout(check,200);};
-      setTimeout(check,500);
-    }
+          s.dispatchEvent(new Event('change',{bubbles:true}));}else setTimeout(c,200);};
+      setTimeout(c,500);}
   }catch(e){}
 });
 </script>
