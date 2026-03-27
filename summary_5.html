@@ -3,7 +3,6 @@
 <head>
 <script>var NIR_TOOL_ID = "summary";</script>
 <script src="nir_auth.js"></script>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Summary Running Performance Check</title>
@@ -315,12 +314,7 @@ async function loadData(){
     if(!res.ok)throw new Error('HTTP '+res.status);
     const json=await res.json();
     RECS=json.rows?wideToLong(json.rows):(json.records||[]);
-    // Plant permission filter
-    try{
-      const _u=JSON.parse(localStorage.getItem('nir_user')||'{}');
-      const _p=_u.plants;
-      if(_p&&_p.length>0) RECS=RECS.filter(r=>_p.includes(r.pla));
-    }catch(e){}
+    try{const _u=JSON.parse(localStorage.getItem('nir_user')||'{}');const _p=_u.plants;if(_p&&_p.length>0)RECS=RECS.filter(r=>_p.includes(r.pla));}catch(e){}
     const monSet=new Map(),pla=new Set(),typ=new Set(),eqp=new Set(),src=new Set();
     RECS.forEach(r=>{if(r.mon)monSet.set(String(r.mon),1);if(r.pla)pla.add(r.pla);if(r.typ)typ.add(r.typ);if(r.eqp)eqp.add(r.eqp);if(r.src)src.add(r.src);});
     const ms=[...monSet.keys()].sort((a,b)=>parseInt(a)-parseInt(b));
@@ -600,9 +594,16 @@ function render(){
 
 // ── clear filters ─────────────────────────────────────────────────────────────
 function clearFilters(){
+  var _allowedPlants=null;
+  try{var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');var _p=_u.plants;if(_p&&_p.length>0)_allowedPlants=_p;}catch(e){}
   ['fPlant','fType','fEquip','fSource'].forEach(id=>{
     const el=document.getElementById(id);
-    if(el) el.value='';
+    if(!el)return;
+    if(id==='fPlant'&&_allowedPlants){
+      if(_allowedPlants.length===1)el.value=_allowedPlants[0];
+    }else{
+      el.value='';
+    }
   });
   refreshFilterOptions(document.getElementById('fMonth').value);
   render();
@@ -1018,12 +1019,9 @@ window.addEventListener('load',function(){
       var check=function(){
         for(var i=1;i<s.options.length;i++){
           if(s.options[i].value===_p[0]){
-            s.value=_p[0];
-            s.disabled=true;
-            s.style.opacity='0.6';
-            s.style.cursor='not-allowed';
-            s.dispatchEvent(new Event('change',{bubbles:true}));
-            return;
+            s.value=_p[0];s.disabled=true;
+            s.style.opacity='0.6';s.style.cursor='not-allowed';
+            s.dispatchEvent(new Event('change',{bubbles:true}));return;
           }
         }
         setTimeout(check,200);

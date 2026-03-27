@@ -671,7 +671,20 @@ searchInput.addEventListener('keydown',e=>{if(e.key==='Escape'){searchDrop.class
 document.addEventListener('click',e=>{if(!e.target.closest('.search-wrap'))searchDrop.classList.remove('open');});
 function clearAllFilters(){
   selectedMap.clear();searchInput.value='';renderTags();searchDrop.classList.remove('open');
-  ['fPlant','fType','fProduct','fEquip','fSource','fSep'].forEach(id=>document.getElementById(id).value='');
+  var _allowedPlants=null;
+  try{var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');var _p=_u.plants;if(_p&&_p.length>0)_allowedPlants=_p;}catch(e){}
+  ['fPlant','fType','fProduct','fEquip','fSource','fSep'].forEach(id=>{
+    var el=document.getElementById(id);if(!el)return;
+    if(id==='fPlant'&&_allowedPlants){
+      if(_allowedPlants.length===1){
+        var opts=Array.from(el.options);
+        var match=opts.find(o=>o.text===_allowedPlants[0]);
+        if(match)el.value=match.value;
+      }
+    }else{
+      el.value='';
+    }
+  });
   document.getElementById('fDateFrom').value='';
   document.getElementById('fDateTo').value=RAW.months.length-1;
   refreshAllDD();if(currentView==='raw')renderRawTable();else renderChart();
@@ -1713,29 +1726,26 @@ async function exportAllChartsPDF() {
 loadData();
 </script>
 <script>
-window.addEventListener('load', function(){
-  try {
-    const _u = JSON.parse(localStorage.getItem('nir_user') || '{}');
-    const _p = _u.plants;
-    if (!_p || _p.length === 0) return; // admin - no restriction
-    const s = document.getElementById('fPlant');
-    if (!s) return;
-    // Remove options not in allowed plants
-    Array.from(s.options).forEach(function(opt) {
-      if (opt.value === '' || opt.value === null) return;
-      if (!_p.includes(opt.text) && !_p.includes(opt.value)) {
-        opt.parentNode.removeChild(opt);
-      }
-    });
-    // If only one plant - auto select and lock
-    if (_p.length === 1) {
-      if (s.options.length > 1) s.value = s.options[1].value;
-      s.disabled = true;
-      s.style.opacity = '0.6';
-      s.style.cursor = 'not-allowed';
-      s.dispatchEvent(new Event('change', { bubbles: true }));
+window.addEventListener('load',function(){
+  try{
+    var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');
+    var _p=_u.plants;
+    if(!_p||_p.length===0)return;
+    if(_p.length===1){
+      var s=document.getElementById('fPlant');
+      if(!s)return;
+      var check=function(){
+        var opts=Array.from(s.options);
+        var match=opts.find(o=>o.text===_p[0]);
+        if(match){
+          s.value=match.value;s.disabled=true;
+          s.style.opacity='0.6';s.style.cursor='not-allowed';
+          s.dispatchEvent(new Event('change',{bubbles:true}));
+        }else{setTimeout(check,200);}
+      };
+      setTimeout(check,500);
     }
-  } catch(e) {}
+  }catch(e){}
 });
 </script>
 </body>
