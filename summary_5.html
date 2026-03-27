@@ -511,6 +511,14 @@ function refreshFilterOptions(selMon){
     const sorted=[...validVals(field,field)].sort();
     if(!sorted.length){if(grp)grp.style.display='none';s.value='';return;}
     if(grp)grp.style.display='';
+    // Plant restriction
+    if(id==='fPlant'){
+      try{
+        const _u=JSON.parse(localStorage.getItem('nir_user')||'{}');
+        const _p=_u.plants;
+        if(_p&&_p.length>0) sorted=sorted.filter(v=>_p.includes(v));
+      }catch(e){}
+    }
     sorted.forEach(v=>s.appendChild(new Option(v,v)));
     // keep selection if still valid, otherwise reset
     if([...s.options].some(o=>o.value===prev))s.value=prev;else s.value='';
@@ -1004,17 +1012,9 @@ window.addEventListener('load', function(){
   try {
     const _u = JSON.parse(localStorage.getItem('nir_user') || '{}');
     const _p = _u.plants;
-    if (!_p || _p.length === 0) return; // admin - no restriction
+    if (!_p || _p.length === 0) return;
     const s = document.getElementById('fPlant');
     if (!s) return;
-    // Remove options not in allowed plants
-    Array.from(s.options).forEach(function(opt) {
-      if (opt.value === '' || opt.value === null) return;
-      if (!_p.includes(opt.text) && !_p.includes(opt.value)) {
-        opt.parentNode.removeChild(opt);
-      }
-    });
-    // If only one plant - auto select and lock
     if (_p.length === 1) {
       if (s.options.length > 1) s.value = s.options[1].value;
       s.disabled = true;
