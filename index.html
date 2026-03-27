@@ -279,13 +279,20 @@ const ROLES = {
 const ALL_PLANTS = ["169","Indonesia","Myanmar","POC","Rayong","Wet Food"];
 
 const DEFAULT_USERS = {
-  "admin":        { password: "admin123",   role: "admin", name: "Admin",        perms: { ...ALL_PERMS }, plants: [...ALL_PLANTS] },
-  "gavin.kaw":    { password: "Sky@nir169", role: "admin", name: "Gavin",        perms: { ...ALL_PERMS }, plants: [...ALL_PLANTS] },
-  "kulthida.the": { password: "Pam@nir169", role: "admin", name: "Kulthida",     perms: { ...ALL_PERMS }, plants: [...ALL_PLANTS] },
-  "mintra.wor":   { password: "Noon@nir169",role: "admin", name: "Mintra",       perms: { ...ALL_PERMS }, plants: [...ALL_PLANTS] },
-  "sasitorn.yon": { password: "Ple@nir169", role: "admin", name: "Sasitorn",     perms: { ...ALL_PERMS }, plants: [...ALL_PLANTS] },
-  "user1":        { password: "pass1",      role: "user",  name: "User 1",       perms: { ...DEFAULT_PERMS }, plants: [] },
-  "user2":        { password: "pass2",      role: "user",  name: "User 2",       perms: { ...DEFAULT_PERMS }, plants: [] },
+  "admin":            { password: "admin123",    role: "admin", name: "Admin",          perms: { ...ALL_PERMS },     plants: [...ALL_PLANTS] },
+  "gavin.kaw":        { password: "Sky@nir169",  role: "admin", name: "Gavin",          perms: { ...ALL_PERMS },     plants: [...ALL_PLANTS] },
+  "kulthida.the":     { password: "Pam@nir169",  role: "admin", name: "Kulthida",       perms: { ...ALL_PERMS },     plants: [...ALL_PLANTS] },
+  "mintra.wor":       { password: "Noon@nir169", role: "admin", name: "Mintra",         perms: { ...ALL_PERMS },     plants: [...ALL_PLANTS] },
+  "sasitorn.yon":     { password: "Ple@nir169",  role: "admin", name: "Sasitorn",       perms: { ...ALL_PERMS },     plants: [...ALL_PLANTS] },
+  "fgry.pcg":         { password: "Fg@nirry",    role: "user",  name: "FG Rayong",      perms: { ...DEFAULT_PERMS }, plants: ["Rayong"] },
+  "rmry.pcg":         { password: "RM@nirry",    role: "user",  name: "RM Rayong",      perms: { ...DEFAULT_PERMS }, plants: ["Rayong"] },
+  "kanwara.cha":      { password: "WF@nirpcg2",  role: "user",  name: "Kanwara",        perms: { ...DEFAULT_PERMS }, plants: ["Wet Food"] },
+  "wiparat.tho":      { password: "WF@nirpcg1",  role: "user",  name: "Wiparat",        perms: { ...DEFAULT_PERMS }, plants: ["Wet Food"] },
+  "poc.pcg":          { password: "Poc@nirpcg",  role: "user",  name: "POC",            perms: { ...DEFAULT_PERMS }, plants: ["POC"] },
+  "thanatchaya.bos":  { password: "FG@nir169",   role: "user",  name: "Thanatchaya",    perms: { ...DEFAULT_PERMS }, plants: ["169"] },
+  "somporn.phl":      { password: "RM@nir169",   role: "user",  name: "Somporn",        perms: { ...DEFAULT_PERMS }, plants: ["169"] },
+  "sittichai.vic":    { password: "MM@nirpcg",   role: "user",  name: "Sittichai",      perms: { ...DEFAULT_PERMS }, plants: ["Myanmar"] },
+  "dela.viani":       { password: "Indo@nirpcg", role: "user",  name: "Dela",           perms: { ...DEFAULT_PERMS }, plants: ["Indonesia"] },
 };
 
 // Merge saved perms with default users (ป้องกัน user ใหม่หายเมื่อ localStorage เก่ายังอยู่)
