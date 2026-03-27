@@ -1713,5 +1713,43 @@ async function exportAllChartsPDF() {
 
 loadData();
 </script>
+<script>
+// Plant restriction hook for Running Performance Check
+(function hookPlantFilter(){
+  const raw = localStorage.getItem("nir_user");
+  if(!raw) return;
+  let session;
+  try { session = JSON.parse(raw); } catch(e){ return; }
+  const allowedPlants = (session.plants && session.plants.length > 0) ? session.plants : null;
+  if(!allowedPlants) return; // admin
+
+  // Override initDD to strip disallowed plants
+  const origInitDD = window.initDD;
+  if(typeof origInitDD === 'function'){
+    window.initDD = function(id, arr){
+      origInitDD.apply(this, arguments);
+      if(id === 'fPlant'){
+        const s = document.getElementById('fPlant');
+        if(!s) return;
+        // Remove options not in allowedPlants
+        Array.from(s.options).forEach(opt => {
+          if(opt.value === '') return;
+          if(!allowedPlants.includes(opt.text) && !allowedPlants.includes(opt.value)){
+            opt.remove();
+          }
+        });
+        // Auto-select & lock if single plant
+        if(allowedPlants.length === 1 && s.options.length >= 2){
+          s.value = s.options[1].value;
+          s.disabled = true;
+          s.style.opacity = '0.6';
+          s.style.cursor = 'not-allowed';
+          s.dispatchEvent(new Event('change', {bubbles:true}));
+        }
+      }
+    };
+  }
+})();
+</script>
 </body>
 </html>
