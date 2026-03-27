@@ -465,21 +465,34 @@ function parseEQA(text) {
 
 function findBest(rows) {
   if (!rows.length) return null;
+
+  // คำนวณค่า best ของแต่ละเกณฑ์
+  const minSEC  = Math.min(...rows.map(r => r["SEC"]));
+  const minSECV = Math.min(...rows.map(r => r["SECV"]));
+  const maxRSQ  = Math.max(...rows.map(r => r["RSQ"]));
+  const maxVR   = Math.max(...rows.map(r => r["1-VR"]));
+
+  // นับ highlight ของแต่ละแถว
+  function countHighlights(r) {
+    let score = 0;
+    if (r["SEC"]   === minSEC)  score++;
+    if (r["SECV"]  === minSECV) score++;
+    if (r["RSQ"]   === maxRSQ)  score++;
+    if (r["1-VR"]  === maxVR)   score++;
+    return score;
+  }
+
   return rows.reduce((best, row) => {
-    const bSEC = best["SEC"], rSEC = row["SEC"];
-    if (rSEC < bSEC) return row;
-    if (rSEC > bSEC) return best;
-    const bSECV = best["SECV"], rSECV = row["SECV"];
-    if (rSECV < bSECV) return row;
-    if (rSECV > bSECV) return best;
-    const bRSQ = best["RSQ"], rRSQ = row["RSQ"];
-    if (rRSQ > bRSQ) return row;
-    if (rRSQ < bRSQ) return best;
-    const bVR = best["1-VR"], rVR = row["1-VR"];
-    if (rVR > bVR) return row;
-    if (rVR < bVR) return best;
-    const bDiff = Math.abs(best["SEC"] - best["SECV"]);
-    const rDiff = Math.abs(row["SEC"] - row["SECV"]);
+    const bScore = countHighlights(best);
+    const rScore = countHighlights(row);
+
+    // แถวที่ได้ highlight มากกว่าชนะ
+    if (rScore > bScore) return row;
+    if (rScore < bScore) return best;
+
+    // ถ้า highlight เท่ากัน → SECV−SEC ต่ำสุดชนะ
+    const bDiff = best["SECV"] - best["SEC"];
+    const rDiff = row["SECV"]  - row["SEC"];
     return rDiff < bDiff ? row : best;
   });
 }
@@ -550,7 +563,7 @@ function renderDetail(constit) {
   const tbody = document.getElementById("detail-tbody");
   tbody.innerHTML = "";
   const rows = allData[constit];
-  const sorted = rows.slice().sort((a, b) => a["SEC"] - b["SEC"]);
+  const sorted = rows.slice().sort((a, b) => a["Type"] - b["Type"]);
 
   // Find best per criterion
   const minSEC  = Math.min(...rows.map(r => r["SEC"]));
