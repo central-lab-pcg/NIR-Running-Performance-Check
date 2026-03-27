@@ -12,7 +12,7 @@
   /* LOGIN */
   #login-screen {
     min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: #f5f5f3;
+    background: #f5f5f3; position: fixed; inset: 0; z-index: 50;
   }
   .login-card {
     background: #fff; border: 0.5px solid #e0e0dc; border-radius: 16px;
@@ -418,7 +418,7 @@ function doLogin() {
     err.style.display = "none";
     currentUser = u;
     addLoginHistory(u);
-    sessionStorage.setItem("nir_user", JSON.stringify({
+    localStorage.setItem("nir_user", JSON.stringify({
       username: u,
       name: USERS[u].name,
       loginTime: new Date().toISOString()
@@ -438,7 +438,7 @@ document.getElementById("inp-user").addEventListener("keydown", e => { if (e.key
 
 function doLogout() {
   currentUser = null;
-  sessionStorage.removeItem("nir_user");
+  localStorage.removeItem("nir_user");
 
   document.getElementById("portal-screen").style.display = "none";
   document.getElementById("login-screen").style.display = "flex";
@@ -529,23 +529,6 @@ function savePerms() {
   msg.style.display = "inline";
   setTimeout(() => { msg.style.display = "none"; }, 2000);
 }
-// ---- Auto-restore session on page load ----
-(function() {
-  const saved = sessionStorage.getItem("nir_user");
-  if (saved) {
-    try {
-      const u = JSON.parse(saved);
-      if (u && u.username && USERS[u.username]) {
-        currentUser = u.username;
-        renderPortal();
-        document.getElementById("login-screen").style.display = "none";
-        document.getElementById("portal-screen").style.display = "block";
-        lockPortalHistory();
-      }
-    } catch(e) {}
-  }
-})();
-
 // ---- Back button protection ----
 // Push two states so browser back stays on portal
 function lockPortalHistory() {
@@ -560,6 +543,22 @@ window.addEventListener("popstate", function(e) {
   }
   // Not logged in — allow normal back
 });
+// ---- Auto-restore session on page load ----
+(function() {
+  const saved = localStorage.getItem("nir_user");
+  if (saved) {
+    try {
+      const u = JSON.parse(saved);
+      if (u && u.username && USERS[u.username]) {
+        currentUser = u.username;
+        renderPortal();
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("portal-screen").style.display = "block";
+        lockPortalHistory();
+      }
+    } catch(e) {}
+  }
+})();
 </script>
 </body>
 </html>
