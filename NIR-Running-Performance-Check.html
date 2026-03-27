@@ -182,7 +182,6 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
 </style>
 </head>
 <body>
-<a href="index.html" style="position:fixed;top:14px;right:16px;z-index:9999;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#666;text-decoration:none;padding:5px 14px;border:0.5px solid #d8d8d4;border-radius:7px;background:#fff;font-family:inherit;box-shadow:0 1px 4px rgba(0,0,0,0.08);" onmouseover="this.style.color='#1a1a1a';this.style.borderColor='#999'" onmouseout="this.style.color='#666';this.style.borderColor='#d8d8d4'">← กลับหน้าหลัก</a>
 
 <div id="loadingOverlay">
   <div class="spinner"></div>
@@ -204,6 +203,7 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
       <button class="vtab" id="vtab-raw" onclick="switchView('raw')">📋 Raw Data</button>
     </div>
     <a href="summary_5.html" class="nav-link">📋 Summary</a>
+    <a href="index.html" class="nav-link" style="color:#555;background:#f5f5f3;border-color:#d8d8d4;margin-left:auto;">← กลับหน้าหลัก</a>
   </div>
 </div>
 
@@ -675,8 +675,7 @@ function clearAllFilters(){
   var _ap=null;try{var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');var _p=_u.plants;if(_p&&_p.length>0)_ap=_p;}catch(e){}
   ['fPlant','fType','fProduct','fEquip','fSource','fSep'].forEach(id=>{
     var el=document.getElementById(id);if(!el)return;
-    if(id==='fPlant'&&_ap){if(_ap.length===1){var m=Array.from(el.options).find(o=>o.text===_ap[0]);if(m)el.value=m.value;}}
-    else el.value='';
+    if(id==='fPlant'&&_ap){if(_ap.length===1){var m=Array.from(el.options).find(o=>o.text===_ap[0]);if(m)el.value=m.value;}}else el.value='';
   });
   document.getElementById('fDateFrom').value='';
   document.getElementById('fDateTo').value=RAW.months.length-1;
