@@ -93,6 +93,8 @@
     <span class="topbar-sub">— BEST CONSTITUENT FINDER</span>
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
+    <button class="btn-clear" onclick="exportPNG()" id="btn-export-png" style="font-size:11px;padding:6px 14px;display:none;">🖼 Save PNG</button>
+    <button class="btn-clear" onclick="exportPDF()" id="btn-export-pdf" style="font-size:11px;padding:6px 14px;display:none;">📄 Save PDF</button>
     <button class="btn-clear" onclick="openHistory()" style="font-size:11px;padding:6px 14px;position:relative;">
       📋 ประวัติ
       <span id="history-badge" style="display:none;position:absolute;top:-5px;right:-5px;background:#1a6fbf;color:#fff;font-size:9px;border-radius:10px;padding:1px 5px;font-weight:600;"></span>
@@ -279,7 +281,7 @@ function updateHistoryBadge() {
   const badge = document.getElementById("history-badge");
   if (hist.length > 0) {
     badge.textContent = hist.length > 99 ? "99+" : hist.length;
-    badge.style.display = "inline-block";
+    badge.style.display = "none";
   } else {
     badge.style.display = "none";
   }
@@ -376,6 +378,8 @@ function clearAll() {
   document.getElementById("detail-section").style.display = "none";
   document.getElementById("summary-section").style.display = "none";
   results = null; allData = null; activeConstit = null;
+  document.getElementById("btn-export-png").style.display = "none";
+  document.getElementById("btn-export-pdf").style.display = "none";
 }
 
 function filterCards() {
@@ -526,6 +530,8 @@ function analyze() {
     renderDetail(activeConstit);
     renderSummary();
     addHistoryEntry(best);
+    document.getElementById("btn-export-png").style.display = "inline-block";
+    document.getElementById("btn-export-pdf").style.display = "inline-block";
   } catch(e) {
     errEl.textContent = "❌ " + (e.message || "ไม่สามารถอ่านข้อมูลได้ — ลองวางข้อมูลทั้งหมดจากไฟล์ .EQA");
   }
@@ -620,6 +626,115 @@ function renderSummary() {
       <td>${(row["SECV"] - row["SEC"]).toFixed(4)}</td>`;
     tbody.appendChild(tr);
   });
+}
+
+// ---- Export ----
+function buildExportHTML() {
+  if (!results || !allData) return null;
+  const eqaFile = lastEqaFilename || "-";
+  const now = new Date().toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
+  const user = getSessionUser();
+  const userName = user ? user.name : "";
+
+  const cardsHTML = Object.entries(results).map(([constit, row]) => `
+    <div style="border:1px solid #e0e0dc;border-radius:8px;padding:10px 14px;display:inline-block;margin:4px;vertical-align:top;min-width:120px;text-align:center;background:#fff;">
+      <div style="font-size:12px;font-weight:700;color:#1a1a1a;">${constit}</div>
+      <div style="font-size:9px;color:#1a6fbf;background:#e8f0fb;border-radius:3px;padding:1px 6px;display:inline-block;margin:3px 0 6px;">Type ${row["Type"]}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:10px;">
+        <div><b style="color:#9d174d">${row["SEC"].toFixed(4)}</b><br><span style="color:#aaa;font-size:8px">SEC</span></div>
+        <div><b style="color:#c25a10">${row["SECV"].toFixed(4)}</b><br><span style="color:#aaa;font-size:8px">SECV</span></div>
+        <div><b style="color:#6d4fc2">${row["RSQ"].toFixed(4)}</b><br><span style="color:#aaa;font-size:8px">RSQ</span></div>
+        <div><b style="color:#1a7a45">${row["1-VR"].toFixed(4)}</b><br><span style="color:#aaa;font-size:8px">1-VR</span></div>
+      </div>
+    </div>`).join("");
+
+  const tablesHTML = Object.entries(allData).map(([constit, rows]) => {
+    const best = results[constit];
+    const sorted = rows.slice().sort((a,b) => a["Type"]-b["Type"]);
+    const minSEC  = Math.min(...rows.map(r=>r["SEC"]));
+    const minSECV = Math.min(...rows.map(r=>r["SECV"]));
+    const maxRSQ  = Math.max(...rows.map(r=>r["RSQ"]));
+    const maxVR   = Math.max(...rows.map(r=>r["1-VR"]));
+    const hl = (v,ok,bg,tc) => ok
+      ? `<td style="background:${bg};color:${tc};font-weight:700;padding:3px 5px;font-size:9px;text-align:right">${v}</td>`
+      : `<td style="padding:3px 5px;font-size:9px;text-align:right;color:#444">${v}</td>`;
+    const rowsHTML = sorted.map(row => {
+      const isBest = best["Type"] === row["Type"];
+      return `<tr style="${isBest?"background:#edfaf3;":""}">
+        <td style="padding:3px 5px;font-size:9px;font-weight:${isBest?700:400};color:${isBest?"#1a7a45":"#1a1a1a"}">${row["Type"]}</td>
+        <td style="padding:3px 5px;font-size:9px;text-align:right;color:#444">${row["N"]}</td>
+        <td style="padding:3px 5px;font-size:9px;text-align:right;color:#444">${row["Mean"].toFixed(4)}</td>
+        <td style="padding:3px 5px;font-size:9px;text-align:right;color:#444">${row["SD"].toFixed(4)}</td>
+        ${hl(row["SEC"].toFixed(4),  row["SEC"]===minSEC,  "#fce7f3","#9d174d")}
+        ${hl(row["RSQ"].toFixed(4),  row["RSQ"]===maxRSQ,  "#ede9fe","#5b21b6")}
+        ${hl(row["SECV"].toFixed(4), row["SECV"]===minSECV,"#fef9c3","#854d0e")}
+        ${hl(row["1-VR"].toFixed(4), row["1-VR"]===maxVR,  "#dbeafe","#1e40af")}
+        <td style="padding:3px 5px;font-size:9px;text-align:right;color:#444">${(row["SECV"]-row["SEC"]).toFixed(4)}</td>
+        <td style="padding:3px 5px;font-size:9px;text-align:right;color:#444">${row["#"]}</td>
+        <td style="padding:3px 5px;font-size:9px;color:#1a7a45;font-weight:700">${isBest?"✓ BEST":""}</td>
+      </tr>`;
+    }).join("");
+    return `<div style="margin-bottom:14px;page-break-inside:avoid;">
+      <div style="font-size:11px;font-weight:700;font-family:monospace;margin-bottom:3px;display:flex;justify-content:space-between;align-items:center;">
+        <span>${constit} — รายละเอียดทุก Type</span>
+        <span style="font-size:8px;font-weight:400;color:#aaa;">
+          <span style="background:#fce7f3;padding:1px 4px;border-radius:2px;">SEC</span>
+          <span style="background:#fef9c3;padding:1px 4px;border-radius:2px;">SECV</span>
+          <span style="background:#ede9fe;padding:1px 4px;border-radius:2px;">RSQ</span>
+          <span style="background:#dbeafe;padding:1px 4px;border-radius:2px;">1-VR</span>
+          <span style="background:#edfaf3;padding:1px 4px;border-radius:2px;">BEST</span>
+        </span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;border:0.5px solid #e0e0dc;">
+        <thead><tr style="background:#f5f5f3;">
+          <th style="padding:4px 5px;font-size:9px;text-align:left;color:#666;border-bottom:0.5px solid #e0e0dc;">TYPE</th>
+          <th style="padding:4px 5px;font-size:9px;text-align:right;color:#666;border-bottom:0.5px solid #e0e0dc;">N</th>
+          <th style="padding:4px 5px;font-size:9px;text-align:right;color:#666;border-bottom:0.5px solid #e0e0dc;">MEAN</th>
+          <th style="padding:4px 5px;font-size:9px;text-align:right;color:#666;border-bottom:0.5px solid #e0e0dc;">SD</th>
+          <th style="padding:4px 5px;font-size:9px;text-align:right;color:#9d174d;border-bottom:0.5px solid #e0e0dc;">SEC ↓</th>
+          <th style="padding:4px 5px;font-size:9px;text-align:right;color:#5b21b6;border-bottom:0.5px solid #e0e0dc;">RSQ ↑</th>
+          <th style="padding:4px 5px;font-size:9px;text-align:right;color:#854d0e;border-bottom:0.5px solid #e0e0dc;">SECV ↓</th>
+          <th style="padding:4px 5px;font-size:9px;text-align:right;color:#1e40af;border-bottom:0.5px solid #e0e0dc;">1-VR ↑</th>
+          <th style="padding:4px 5px;font-size:9px;text-align:right;color:#666;border-bottom:0.5px solid #e0e0dc;">SECV−SEC</th>
+          <th style="padding:4px 5px;font-size:9px;text-align:right;color:#666;border-bottom:0.5px solid #e0e0dc;">#</th>
+          <th style="padding:4px 5px;font-size:9px;color:#666;border-bottom:0.5px solid #e0e0dc;">STATUS</th>
+        </tr></thead>
+        <tbody>${rowsHTML}</tbody>
+      </table>
+    </div>`;
+  }).join("");
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    body{font-family:'Courier New',monospace,sans-serif;background:#fff;color:#1a1a1a;padding:20px;font-size:10px;margin:0;}
+    @media print{@page{size:A4 landscape;margin:12mm;}body{padding:0;}}
+  </style></head><body>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;border-bottom:1px solid #e0e0dc;padding-bottom:10px;">
+    <div>
+      <div style="font-size:15px;font-weight:700;">NIR Model Selector — Best Constituent Report</div>
+      <div style="font-size:10px;color:#888;margin-top:2px;">📄 ${eqaFile} &nbsp;|&nbsp; 🕐 ${now}${userName?" &nbsp;|&nbsp; 👤 "+userName:""}</div>
+    </div>
+    <div style="font-size:9px;color:#aaa;text-align:right;">เกณฑ์: Highlight มากสุด › SECV−SEC ต่ำสุด</div>
+  </div>
+  <div style="margin-bottom:14px;white-space:nowrap;overflow-x:auto;">${cardsHTML}</div>
+  ${tablesHTML}
+  </body></html>`;
+}
+
+function exportPDF() {
+  const html = buildExportHTML();
+  if (!html) { alert("กรุณาวิเคราะห์ข้อมูลก่อน"); return; }
+  const win = window.open("", "_blank");
+  win.document.write(html + `<script>window.onload=function(){window.print();}<\/script>`);
+  win.document.close();
+}
+
+function exportPNG() {
+  const html = buildExportHTML();
+  if (!html) { alert("กรุณาวิเคราะห์ข้อมูลก่อน"); return; }
+  const win = window.open("", "_blank");
+  win.document.write(html + `<script>window.onload=function(){window.print();}<\/script>`);
+  win.document.close();
 }
 </script>
 </body>
