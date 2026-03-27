@@ -1,9 +1,6 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<script>var NIR_TOOL_ID = "summary";</script>
-<script src="nir_auth.js"></script>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Summary Running Performance Check</title>
@@ -509,7 +506,15 @@ function refreshFilterOptions(selMon){
     const prev=s.value;
     while(s.options.length>1)s.remove(1);
     const grp=s.closest('.f-group');
-    const sorted=[...validVals(field,field)].sort();
+    let sorted=[...validVals(field,field)].sort();
+    // Plant restriction
+    if(id==='fPlant'){
+      try{
+        const _u=JSON.parse(localStorage.getItem('nir_user')||'{}');
+        const _p=_u.plants;
+        if(_p&&_p.length>0) sorted=sorted.filter(v=>_p.includes(v));
+      }catch(e){}
+    }
     if(!sorted.length){if(grp)grp.style.display='none';s.value='';return;}
     if(grp)grp.style.display='';
     sorted.forEach(v=>s.appendChild(new Option(v,v)));
@@ -1001,41 +1006,25 @@ function ttClick(el,e){
 }
 </script>
 <script>
-// Plant restriction hook for summary - runs after page fully loaded
-(function hookPlantFilter(){
-  const raw = localStorage.getItem("nir_user");
-  if(!raw) return;
-  let session;
-  try { session = JSON.parse(raw); } catch(e){ return; }
-  const allowedPlants = (session.plants && session.plants.length > 0) ? session.plants : null;
-  if(!allowedPlants) return; // admin - no restriction
-
-  // Override refill to strip disallowed plants after each call
-  const origRefill = window.refill;
-  if(typeof origRefill === 'function'){
-    window.refill = function(id, field){
-      origRefill.apply(this, arguments);
-      if(id === 'fPlant'){
-        const s = document.getElementById('fPlant');
-        if(!s) return;
-        Array.from(s.options).forEach(opt => {
-          if(opt.value === '') return;
-          if(!allowedPlants.includes(opt.text) && !allowedPlants.includes(opt.value)){
-            opt.remove();
-          }
-        });
-        // Auto-select if only one allowed
-        if(allowedPlants.length === 1 && s.options.length >= 2){
-          s.value = s.options[1].value;
-          s.disabled = true;
-          s.style.opacity = '0.6';
-          s.style.cursor = 'not-allowed';
-          s.dispatchEvent(new Event('change',{bubbles:true}));
-        }
-      }
-    };
-  }
-})();
+window.addEventListener('load', function(){
+  try{
+    const _u = JSON.parse(localStorage.getItem('nir_user')||'{}');
+    const _p = _u.plants;
+    if(!_p || _p.length===0) return;
+    const s = document.getElementById('fPlant');
+    if(!s) return;
+    if(_p.length===1){
+      // Auto-select and lock
+      Array.from(s.options).forEach(opt=>{
+        if(opt.value===_p[0]||opt.text===_p[0]) s.value=opt.value;
+      });
+      s.disabled=true;
+      s.style.opacity='0.6';
+      s.style.cursor='not-allowed';
+      s.dispatchEvent(new Event('change',{bubbles:true}));
+    }
+  }catch(e){}
+});
 </script>
 </body>
 </html>
