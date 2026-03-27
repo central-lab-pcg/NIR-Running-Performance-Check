@@ -3,6 +3,7 @@
 <head>
 <script>var NIR_TOOL_ID = "summary";</script>
 <script src="nir_auth.js"></script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Summary Running Performance Check</title>
@@ -511,14 +512,7 @@ function refreshFilterOptions(selMon){
     const sorted=[...validVals(field,field)].sort();
     if(!sorted.length){if(grp)grp.style.display='none';s.value='';return;}
     if(grp)grp.style.display='';
-    // Plant restriction
-    if(id==='fPlant'){
-      try{
-        const _u=JSON.parse(localStorage.getItem('nir_user')||'{}');
-        const _p=_u.plants;
-        if(_p&&_p.length>0) sorted=sorted.filter(v=>_p.includes(v));
-      }catch(e){}
-    }
+    if(id==='fPlant'){try{const _u=JSON.parse(localStorage.getItem('nir_user')||'{}');const _p=_u.plants;if(_p&&_p.length>0)sorted=sorted.filter(v=>_p.includes(v));}catch(e){}}
     sorted.forEach(v=>s.appendChild(new Option(v,v)));
     // keep selection if still valid, otherwise reset
     if([...s.options].some(o=>o.value===prev))s.value=prev;else s.value='';
@@ -1008,21 +1002,26 @@ function ttClick(el,e){
 }
 </script>
 <script>
-window.addEventListener('load', function(){
-  try {
-    const _u = JSON.parse(localStorage.getItem('nir_user') || '{}');
-    const _p = _u.plants;
-    if (!_p || _p.length === 0) return;
-    const s = document.getElementById('fPlant');
-    if (!s) return;
-    if (_p.length === 1) {
-      if (s.options.length > 1) s.value = s.options[1].value;
-      s.disabled = true;
-      s.style.opacity = '0.6';
-      s.style.cursor = 'not-allowed';
-      s.dispatchEvent(new Event('change', { bubbles: true }));
+window.addEventListener('load',function(){
+  try{
+    var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');
+    var _p=_u.plants;
+    if(!_p||_p.length===0)return;
+    var s=document.getElementById('fPlant');
+    if(!s)return;
+    // Remove disallowed options
+    for(var i=s.options.length-1;i>=1;i--){
+      if(!_p.includes(s.options[i].value))s.remove(i);
     }
-  } catch(e) {}
+    // Auto-select and lock if single plant
+    if(_p.length===1){
+      if(s.options.length>1)s.value=s.options[1].value;
+      s.disabled=true;
+      s.style.opacity='0.6';
+      s.style.cursor='not-allowed';
+      s.dispatchEvent(new Event('change',{bubbles:true}));
+    }
+  }catch(e){}
 });
 </script>
 </body>
