@@ -144,7 +144,10 @@
     </div>
     <div class="field">
       <label>Password</label>
-      <input type="password" id="inp-pass" placeholder="••••••••">
+      <div style="position:relative;">
+        <input type="password" id="inp-pass" placeholder="••••••••" style="padding-right:40px;">
+        <button type="button" onclick="togglePass()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:16px;padding:0;line-height:1;" id="btn-toggle-pass">👁</button>
+      </div>
     </div>
     <button class="btn-login" onclick="doLogin()">เข้าสู่ระบบ</button>
     <div class="login-error" id="login-err">Username หรือ Password ไม่ถูกต้อง</div>
@@ -190,6 +193,7 @@
             <tr>
               <th style="width:130px;">ผู้ใช้</th>
               <th>สิทธิ์เครื่องมือ</th>
+              <th>สิทธิ์ Plant</th>
             </tr>
           </thead>
           <tbody id="perm-tbody"></tbody>
@@ -272,14 +276,16 @@ const ROLES = {
   user:    { label: "User",    color: "#555",    bg: "#f0f0ec" },
 };
 
+const ALL_PLANTS = ["169","Indonesia","Myanmar","POC","Rayong","Wet Food"];
+
 const DEFAULT_USERS = {
-  "admin":        { password: "admin123",   role: "admin", name: "Admin",        perms: { ...ALL_PERMS } },
-  "gavin.kaw":    { password: "Sky@nir169", role: "admin", name: "Gavin",        perms: { ...ALL_PERMS } },
-  "kulthida.the": { password: "Pam@nir169", role: "admin", name: "Kulthida",     perms: { ...ALL_PERMS } },
-  "mintra.wor":   { password: "Noon@nir169",role: "admin", name: "Mintra",       perms: { ...ALL_PERMS } },
-  "sasitorn.yon": { password: "Ple@nir169", role: "admin", name: "Sasitorn",     perms: { ...ALL_PERMS } },
-  "user1":        { password: "pass1",      role: "user",  name: "User 1",       perms: { ...DEFAULT_PERMS } },
-  "user2":        { password: "pass2",      role: "user",  name: "User 2",       perms: { ...DEFAULT_PERMS } },
+  "admin":        { password: "admin123",   role: "admin", name: "Admin",        perms: { ...ALL_PERMS }, plants: [...ALL_PLANTS] },
+  "gavin.kaw":    { password: "Sky@nir169", role: "admin", name: "Gavin",        perms: { ...ALL_PERMS }, plants: [...ALL_PLANTS] },
+  "kulthida.the": { password: "Pam@nir169", role: "admin", name: "Kulthida",     perms: { ...ALL_PERMS }, plants: [...ALL_PLANTS] },
+  "mintra.wor":   { password: "Noon@nir169",role: "admin", name: "Mintra",       perms: { ...ALL_PERMS }, plants: [...ALL_PLANTS] },
+  "sasitorn.yon": { password: "Ple@nir169", role: "admin", name: "Sasitorn",     perms: { ...ALL_PERMS }, plants: [...ALL_PLANTS] },
+  "user1":        { password: "pass1",      role: "user",  name: "User 1",       perms: { ...DEFAULT_PERMS }, plants: [] },
+  "user2":        { password: "pass2",      role: "user",  name: "User 2",       perms: { ...DEFAULT_PERMS }, plants: [] },
 };
 
 // Merge saved perms with default users (ป้องกัน user ใหม่หายเมื่อ localStorage เก่ายังอยู่)
@@ -410,6 +416,20 @@ function renderLoginHistory() {
   });
 }
 
+function togglePass() {
+  const inp = document.getElementById("inp-pass");
+  const btn = document.getElementById("btn-toggle-pass");
+  if (inp.type === "password") {
+    inp.type = "text";
+    btn.textContent = "🙈";
+    btn.style.color = "#555";
+  } else {
+    inp.type = "password";
+    btn.textContent = "👁";
+    btn.style.color = "#aaa";
+  }
+}
+
 function doLogin() {
   const u = document.getElementById("inp-user").value.trim().toLowerCase();
   const p = document.getElementById("inp-pass").value;
@@ -421,6 +441,8 @@ function doLogin() {
     const sessionData = JSON.stringify({
       username: u,
       name: USERS[u].name,
+      role: USERS[u].role,
+      plants: USERS[u].plants || [],
       loginTime: new Date().toISOString()
     });
     localStorage.setItem("nir_user", sessionData);
@@ -506,14 +528,24 @@ function renderPermTable() {
       const on = udata.perms[t.id] ? "on" : "";
       return `<button class="perm-toggle ${on}" data-user="${ukey}" data-tool="${t.id}" onclick="togglePerm(this)">${t.name}</button>`;
     }).join("");
+    const userPlants = udata.plants || [];
+    const plantBtns = ALL_PLANTS.map(p => {
+      const on = userPlants.includes(p) ? "on" : "";
+      return `<button class="perm-toggle ${on}" data-user="${ukey}" data-plant="${p}" onclick="togglePlant(this)" style="font-size:10px;">${p}</button>`;
+    }).join("");
     tr.innerHTML = `
       <td style="font-weight:500; color:#1a1a1a; white-space:nowrap;">
         ${udata.name} ${roleBadge}<br>
         <span style="font-size:11px;color:#aaa;font-weight:400">${ukey}</span>
       </td>
-      <td><div class="toggle-wrap">${toolBtns}</div></td>`;
+      <td><div class="toggle-wrap">${toolBtns}</div></td>
+      <td><div class="toggle-wrap">${plantBtns}</div></td>`;
     tbody.appendChild(tr);
   });
+}
+
+function togglePlant(btn) {
+  btn.classList.toggle("on");
 }
 
 function togglePerm(btn) {
@@ -521,10 +553,21 @@ function togglePerm(btn) {
 }
 
 function savePerms() {
-  document.querySelectorAll(".perm-toggle").forEach(btn => {
+  // Save tool perms
+  document.querySelectorAll(".perm-toggle[data-tool]").forEach(btn => {
     const u = btn.dataset.user;
     const t = btn.dataset.tool;
     USERS[u].perms[t] = btn.classList.contains("on");
+  });
+  // Save plant perms
+  Object.keys(USERS).forEach(u => { USERS[u].plants = []; });
+  document.querySelectorAll(".perm-toggle[data-plant]").forEach(btn => {
+    const u = btn.dataset.user;
+    const p = btn.dataset.plant;
+    if (btn.classList.contains("on")) {
+      if (!USERS[u].plants) USERS[u].plants = [];
+      USERS[u].plants.push(p);
+    }
   });
   saveUsers();
   renderPortal();
