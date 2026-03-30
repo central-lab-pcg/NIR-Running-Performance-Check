@@ -1,0 +1,30 @@
+name: Sync data.json from SharePoint
+
+on:
+  repository_dispatch:
+    types: [sync-data]
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download data.json from SharePoint
+        run: |
+          curl -L \
+            -H "Authorization: Bearer ${{ secrets.SHAREPOINT_TOKEN }}" \
+            "${{ secrets.SHAREPOINT_FILE_URL }}" \
+            -o data.json
+          echo "Downloaded data.json successfully"
+          cat data.json | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'Rows: {len(d[\"rows\"])}')"
+
+      - name: Commit and push data.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          git diff --cached --quiet && echo "No changes" || git commit -m "Auto sync data.json from SharePoint [$(date '+%d/%m/%Y %H:%M')]"
+          git push
