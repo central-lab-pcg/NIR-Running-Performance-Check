@@ -1075,6 +1075,8 @@ window.addEventListener('load',function(){
         <div class="cm-stat"><div class="sv" id="cmBeyond">—</div><div class="sl">เกิน ±3SEP</div></div>
       </div>
       <div class="cm-legend">
+        <span class="cm-leg"><span style="display:inline-block;width:18px;border-top:2px dashed #e89090;vertical-align:middle"></span> ±3SEP</span>
+        <span class="cm-leg"><span style="display:inline-block;width:18px;border-top:2px dashed #e8b06a;vertical-align:middle"></span> ±2SEP</span>
         <span class="cm-leg"><span class="cm-leg-dot" style="background:#e89090"></span>เกิน ±3SEP</span>
         <span class="cm-leg"><span class="cm-leg-dot" style="background:#b89cf0"></span>2/3 นอก ±2SEP</span>
         <span class="cm-leg"><span class="cm-leg-dot" style="background:#e8b06a"></span>≥9 จุดฝั่งเดียว</span>
@@ -1196,17 +1198,30 @@ function openChartModal(el){
   const ctx=document.getElementById('cmCanvas');
   if(_cmChart){_cmChart.destroy();_cmChart=null;}
 
+  const n=_cmAll.length;
   const datasets=[
     {label:'Diff',data:values,borderColor:'#90aee8',backgroundColor:'rgba(144,174,232,0.08)',
      pointBackgroundColor:[..._cmBaseColors],pointBorderColor:[..._cmBaseColors],
      pointBorderWidth:_cmAll.map(()=>0),
      pointRadius:[..._cmBaseRadii],pointHoverRadius:10,
      borderWidth:1.5,tension:0.15,fill:true,order:1},
-    {data:Array(_cmAll.length).fill(0),borderColor:'#c0c8e0',borderWidth:1,pointRadius:0,fill:false,order:2,label:''},
+    {data:Array(n).fill(0),borderColor:'#c0c8e0',borderWidth:1,pointRadius:0,fill:false,order:2,label:''},
   ];
   if(u3!=null){
-    datasets.push({data:Array(_cmAll.length).fill(u3),borderColor:'#e89090',borderWidth:1.5,borderDash:[4,3],pointRadius:0,fill:false,order:2,label:''});
-    datasets.push({data:Array(_cmAll.length).fill(l3??-u3),borderColor:'#e89090',borderWidth:1.5,borderDash:[4,3],pointRadius:0,fill:false,order:2,label:''});
+    // ±3SEP — แดง
+    datasets.push({data:Array(n).fill(u3),   borderColor:'#e89090',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:2,label:'+3SEP'});
+    datasets.push({data:Array(n).fill(l3??-u3),borderColor:'#e89090',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:2,label:'-3SEP'});
+  }
+  // ±2SEP — หา u2/l2 จาก record
+  const lim2=_cmAll.find(r=>r.u2!=null||r.l2!=null)||{};
+  const u2=lim2.u2??null, l2val=lim2.l2??null;
+  // ถ้าไม่มี u2 ให้คำนวณจาก u3*2/3
+  const u2val = u2!=null ? u2 : (u3!=null ? parseFloat((u3*2/3).toFixed(4)) : null);
+  const l2calc = l2val!=null ? l2val : (u3!=null ? parseFloat((-u3*2/3).toFixed(4)) : null);
+  if(u2val!=null){
+    // ±2SEP — ส้ม
+    datasets.push({data:Array(n).fill(u2val), borderColor:'#e8b06a',borderWidth:1.5,borderDash:[3,3],pointRadius:0,fill:false,order:2,label:'+2SEP'});
+    datasets.push({data:Array(n).fill(l2calc??-u2val),borderColor:'#e8b06a',borderWidth:1.5,borderDash:[3,3],pointRadius:0,fill:false,order:2,label:'-2SEP'});
   }
 
   _cmChart=new Chart(ctx,{
