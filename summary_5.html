@@ -311,14 +311,14 @@ const WIDE_MAP=[
   {par:'Ca',diff:'Ca Diff , WC-NIR6',u2:'Ca2SEPeqa',l2:'Ca-2SEPeqa2',u3:'Ca3SEPeqa',l3:'Ca-3SEPeqa3'},
   {par:'P',diff:'P Diff , WC-NIR6',u2:'P2SEPeqa',l2:'P-2SEPeqa2',u3:'P3SEPeqa',l3:'P-3SEPeqa3'},
   {par:'Aw',diff:'Aw Diff , WC-NIR6',u2:'Aw2SEPeqa',l2:'Aw-2SEPeqa2',u3:'Aw3SEPeqa',l3:'Aw-3SEPeqa3'},
-  {par:'NaCl',diff:'NaCl Diff , WC-NIR5',u2:'NaCl2SEPeqa',l2:'NaCl-2SEPeqa2',u3:'NaCl3SEPeqa3',l3:'NaCl3SEPeqa2'},
+  {par:'NaCl',diff:'NaCl Diff , WC-NIR5',u2:'NaCl2SEPeqa',l2:'NaCl-2SEPeqa3',u3:'NaCl3SEPeqa2',l3:'NaCl-3SEPeqa2'},
   {par:'PD',diff:'PD Diff , WC-NIR6',u2:'PD2SEP',l2:'PD-2SEPeqa2',u3:'PD3SEPeqa',l3:'PD-3SEPeqa3'},
   {par:'TVBN',diff:'TVBN Diff , WC-NIR6',u2:'TVBN2SEP',l2:'TVBN-2SEPeqa2',u3:'TVBN3SEPeqa',l3:'TVBN-3SEPeqa3'},
   {par:'Sand',diff:'Sand Diff , WC-NIR37',u2:'Sand2SEP',l2:'Sand-2SEPeqa23',u3:'Sand 3SEPeqa2',l3:'Sand-3SEPeqa34'},
   {par:'Starch',diff:'Starch Diff , WC-NIR47',u2:'Starch2SEP',l2:'Starch-2SEPeqa23',u3:'Starch3SEPeqa2',l3:'Starch-3SEPeqa34'},
   {par:'BHT',diff:'BHT Diff , WC-NIR6',u2:'BHT2SEP',l2:'BHT-2SEPeqa2',u3:'BHT3SEPeqa',l3:'BHT-3SEPeqa3'},
   {par:'pH',diff:'pH Diff , WC-NIR6',u2:'pH2SEP',l2:'pH-2SEPeqa2',u3:'pH3SEPeqa',l3:'pH-3SEPeqa3'},
-  {par:'Fat-C',diff:'Fat-C Diff , WC-NIR5',u2:'Fat-C2SEPeqa',l2:'Fat-C3SEPeqa2',u3:'Fat-C3SEPeqa3',l3:'Fat-C3SEPeqa2'},
+  {par:'Fat-C',diff:'Fat-C Diff , WC-NIR5',u2:'Fat-C2SEP',l2:'Fat-C-2SEPeqa3',u3:'Fat-C 3SEPeqa2',l3:'Fat-C-3SEPeqa2'},
 ];
 
 function wideToLong(rows){
@@ -486,10 +486,10 @@ function statusHTML(det,par,allPts){
 
   const detJson=JSON.stringify({
     par,n:det.n,bias:det.bias,
-    f3:(det.f3||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,sep:r.sep})),
-    f2:(det.f2||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,sep:r.sep})),
-    f9:(det.f9||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,sep:r.sep})),
-    allPts:(allPts||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,sep:r.sep,mon:r.mon}))
+    f3:(det.f3||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon})),
+    f2:(det.f2||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.u2,sep:r.sep,mon:r.mon})),
+    f9:(det.f9||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon})),
+    allPts:(allPts||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon}))
   }).replace(/"/g,"&quot;");
   // render one badge per status, all sharing the same tooltip
   const badges=det.statuses.map(s=>{
@@ -1151,21 +1151,46 @@ function openChartModal(el){
   if(!el.dataset.det)return;
   const det=JSON.parse(el.dataset.det.replace(/&quot;/g,'"'));
 
-  // ใช้ allPts ถ้ามี (ทุก sample ใน timeline) ไม่งั้น fallback เป็น f3+f2+f9
-  const f3set=new Set((det.f3||[]).map(r=>r.nm));
-  const f2set=new Set((det.f2||[]).map(r=>r.nm));
-  const f9set=new Set((det.f9||[]).map(r=>r.nm));
-
+  // ใช้ allPts ถ้ามี (ทุก sample ใน timeline)
   if(det.allPts&&det.allPts.length){
-    _cmAll=det.allPts.map(r=>({
+    const pts=det.allPts;
+    const n=pts.length;
+
+    // คำนวณ flag ใหม่จาก diff vs limit จริงๆ (ไม่ใช้ชื่อ sample match)
+    const b3=pts.map(r=>{
+      const u3=r.u3??null, l3=r.l3??null;
+      if(u3==null) return false;
+      return r.diff>u3 || r.diff<(l3??-u3);
+    });
+    const b2=pts.map(r=>{
+      const u2=r.u2??null, l2=r.l2??null;
+      if(u2==null) return false;
+      return r.diff>u2 || r.diff<(l2??-u2);
+    });
+    // Rule 9 — 9 จุดฝั่งเดียวกัน
+    const y9=new Array(n).fill(false);
+    for(let i=8;i<n;i++){
+      const w=pts.slice(i-8,i+1);
+      if(w.every(r=>r.diff>0)||w.every(r=>r.diff<0)){
+        for(let j=i-8;j<=i;j++) y9[j]=true;
+      }
+    }
+    // Rule 2/3 — 2 ใน 3 จุดนอก ±2SEP
+    const p23=new Array(n).fill(false);
+    for(let i=2;i<n;i++){
+      const w=[i-2,i-1,i];
+      if(w.filter(j=>b2[j]).length>=2) w.filter(j=>b2[j]).forEach(j=>{p23[j]=true;});
+    }
+
+    _cmAll=pts.map((r,i)=>({
       ...r,
-      flag: f3set.has(r.nm)?'f3': f2set.has(r.nm)?'f2': f9set.has(r.nm)?'f9':'ok'
+      flag: b3[i]?'f3': p23[i]?'f2': y9[i]?'f9':'ok'
     }));
   } else {
     _cmAll=[];
     (det.f3||[]).forEach(r=>_cmAll.push({...r,flag:'f3'}));
-    (det.f2||[]).forEach(r=>{if(!_cmAll.find(x=>x.nm===r.nm))_cmAll.push({...r,flag:'f2'});});
-    (det.f9||[]).forEach(r=>{if(!_cmAll.find(x=>x.nm===r.nm))_cmAll.push({...r,flag:'f9'});});
+    (det.f2||[]).forEach(r=>{if(!_cmAll.find(x=>x.nm===r.nm&&x.mon===r.mon))_cmAll.push({...r,flag:'f2'});});
+    (det.f9||[]).forEach(r=>{if(!_cmAll.find(x=>x.nm===r.nm&&x.mon===r.mon))_cmAll.push({...r,flag:'f9'});});
   }
 
   _cmSelected.clear();
