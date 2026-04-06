@@ -330,9 +330,11 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
 
 <script>
 // =====================================================
-// ⚙️ CONFIG — แก้ URL ให้ตรงกับ path จริงบน SharePoint
+// ⚙️ CONFIG — แก้ URL ให้ตรงกับ path จริง
+// DATA_URL2 = ไฟล์ที่ 2 (ถ้าไม่มีให้ใส่ "" ได้เลย)
 // =====================================================
-const DATA_URL = "https://raw.githubusercontent.com/central-lab-pcg/NIR-Running-Performance-Check/main/data.json";
+const DATA_URL  = "https://raw.githubusercontent.com/central-lab-pcg/NIR-Running-Performance-Check/main/data.json";
+const DATA_URL2 = "https://raw.githubusercontent.com/central-lab-pcg/NIR-Running-Performance-Check/main/data2.json";
 // =====================================================
 
 // แปลง Excel serial date → "MMM YY" เช่น 45658 → "Jan 25"
@@ -586,24 +588,53 @@ function wideToLong(wideRows) {
 }
 
 // =====================================================
-// Load data.json
+// Load data.json (+ data2.json ถ้ามี)
 // รองรับทั้ง 2 format:
 //   1. Wide format:  { "rows": [...] }       ← Power Automate ส่ง raw Excel rows
 //   2. Long format:  { "records": [...] }    ← format เดิม (Long)
 // =====================================================
+async function fetchJSON(url) {
+  try {
+    const res = await fetch(url, {cache:'no-cache'});
+    if (!res.ok) return null; // ไฟล์ไม่มีหรือ error → ข้ามไป
+    return await res.json();
+  } catch(e) {
+    return null;
+  }
+}
+
 async function loadData() {
   try {
+    // อัปเดต loading text
+    document.querySelector('.loading-txt').textContent = 'กำลังโหลดข้อมูล...';
+
+    // โหลดไฟล์แรก (บังคับ)
     const res = await fetch(DATA_URL, {cache:'no-cache'});
     if (!res.ok) throw new Error('HTTP '+res.status);
     const json = await res.json();
 
-    let longRecords;
+    // โหลดไฟล์ที่ 2 (ถ้ามี URL และไฟล์มีอยู่จริง)
+    let json2 = null;
+    if (DATA_URL2) {
+      document.querySelector('.loading-txt').textContent = 'กำลังโหลดข้อมูลเพิ่มเติม...';
+      json2 = await fetchJSON(DATA_URL2);
+    }
+
+    // Merge rows จากทั้งสองไฟล์
+    let allRows = [];
     if (json.rows) {
-      // Wide format จาก Power Automate → แปลงเป็น Long
-      longRecords = wideToLong(json.rows);
+      allRows = [...json.rows];
+      if (json2?.rows) allRows = [...allRows, ...json2.rows];
+    }
+
+    let longRecords;
+    if (allRows.length > 0) {
+      longRecords = wideToLong(allRows);
     } else {
       // Long format เดิม
-      longRecords = json.records || [];
+      const recs1 = json.records || [];
+      const recs2 = json2?.records || [];
+      longRecords = [...recs1, ...recs2];
     }
 
     RAW = buildLookups(longRecords, PARAMS_DEF);
@@ -612,7 +643,8 @@ async function loadData() {
     document.getElementById('loadingOverlay').style.display='none';
     document.getElementById('appContent').style.display='block';
     if (RAW.generated_at) {
-      document.getElementById('lastUpdated').textContent = 'อัปเดตล่าสุด: ' + RAW.generated_at;
+      document.getElementById('lastUpdated').textContent = 'อัปเดตล่าสุด: ' + RAW.generated_at
+        + (json2 ? '  |  รวม ' + longRecords.length.toLocaleString() + ' records' : '');
     }
     initApp();
   } catch(e) {
