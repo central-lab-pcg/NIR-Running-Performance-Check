@@ -250,6 +250,7 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
 </div>
 <script>
 const DATA_URL="https://raw.githubusercontent.com/central-lab-pcg/NIR-Running-Performance-Check/main/data.json";
+const DATA_URL2="https://raw.githubusercontent.com/central-lab-pcg/NIR-Running-Performance-Check/main/data2.json";
 
 // ── corrections (localStorage) ──────────────────────────────────────────────
 function cKey(p,m){return 'corr::'+p+'::'+m;}
@@ -313,15 +314,35 @@ let RECS=[];
 
 async function loadData(){
   try{
+    // โหลดไฟล์แรก (บังคับ)
     const res=await fetch(DATA_URL,{cache:'no-cache'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     const json=await res.json();
-    RECS=json.rows?wideToLong(json.rows):(json.records||[]);
+
+    // โหลดไฟล์ที่ 2 (ถ้ามี — ไม่มีก็ไม่ error)
+    let json2=null;
+    if(DATA_URL2){
+      try{
+        const res2=await fetch(DATA_URL2,{cache:'no-cache'});
+        if(res2.ok) json2=await res2.json();
+      }catch(e){}
+    }
+
+    // Merge rows จากทั้งสองไฟล์
+    let allRows=[];
+    if(json.rows){
+      allRows=[...json.rows];
+      if(json2?.rows) allRows=[...allRows,...json2.rows];
+      RECS=wideToLong(allRows);
+    } else {
+      RECS=[...(json.records||[]),...(json2?.records||[])];
+    }
+
     try{const _u=JSON.parse(localStorage.getItem('nir_user')||'{}');const _p=_u.plants;if(_p&&_p.length>0)RECS=RECS.filter(r=>_p.includes(r.pla));}catch(e){}
     const monSet=new Map(),pla=new Set(),typ=new Set(),eqp=new Set(),src=new Set();
     RECS.forEach(r=>{if(r.mon)monSet.set(String(r.mon),1);if(r.pla)pla.add(r.pla);if(r.typ)typ.add(r.typ);if(r.eqp)eqp.add(r.eqp);if(r.src)src.add(r.src);});
     const ms=[...monSet.keys()].sort((a,b)=>parseInt(a)-parseInt(b));
-    if(json.generated_at)document.getElementById('lastUpdated').textContent='อัปเดตล่าสุด: '+json.generated_at;
+    if(json.generated_at)document.getElementById('lastUpdated').textContent='อัปเดตล่าสุด: '+json.generated_at+(json2?' (รวม '+RECS.length.toLocaleString()+' records)':'');
     document.getElementById('loadingOverlay').style.display='none';
     document.getElementById('appContent').style.display='block';
     // init filters
