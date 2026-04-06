@@ -518,8 +518,8 @@ const WIDE_PARAM_MAP = [
   { par:'NaCl',   wc:'NaCl-WC',       nir:'NaCl-NIR',       diff:['NaCl Diff , WC-NIR5','NaCl Diff,WC-NIR5','NaCl Diff','NaCl-Diff'],                          u2:'NaCl2SEPeqa',        l2:'NaCl-2SEPeqa3',       u3:'NaCl3SEPeqa2',        l3:'NaCl-3SEPeqa2'        },
   { par:'PD',     wc:'PD-WC',         nir:'PD-NIR',         diff:['PD Diff , WC-NIR6','PD Diff,WC-NIR6','PD Diff','PD-Diff'],                                  u2:'PD2SEP',             l2:'PD-2SEPeqa2',         u3:'PD3SEPeqa',           l3:'PD-3SEPeqa3'          },
   { par:'TVBN',   wc:'TVBN-WC',       nir:'TVBN-NIR',       diff:['TVBN Diff , WC-NIR6','TVBN Diff,WC-NIR6','TVBN Diff','TVBN-Diff'],                          u2:'TVBN2SEP',           l2:'TVBN-2SEPeqa2',       u3:'TVBN3SEPeqa',         l3:'TVBN-3SEPeqa3'        },
-  { par:'Sand',   wc:'Sand-WC',       nir:'Sand-NIR',       diff:['Sand Diff , WC-NIR37','Sand Diff,WC-NIR37','Sand Diff , WC-NIR','Sand Diff','Sand-Diff'],    u2:'Sand2SEP',           l2:'Sand-2SEPeqa23',      u3:'Sand 3SEPeqa2',       l3:'Sand-3SEPeqa34'       },
-  { par:'Starch', wc:'Starch-WC',     nir:'Starch-NIR',     diff:['Starch Diff , WC-NIR47','Starch Diff,WC-NIR47','Starch Diff , WC-NIR','Starch Diff','Starch-Diff'], u2:'Starch2SEP', l2:'Starch-2SEPeqa23',    u3:'Starch3SEPeqa2',      l3:'Starch-3SEPeqa34'     },
+  { par:'Sand',   wc:['Sand-WC','Sand WC','SandWC','sand-wc','sand wc'],       nir:['Sand-NIR','Sand NIR','SandNIR','sand-nir','sand nir'],       diff:['Sand Diff , WC-NIR37','Sand Diff,WC-NIR37','Sand Diff , WC-NIR','Sand Diff','Sand-Diff','SandDiff'],    u2:'Sand2SEP',           l2:'Sand-2SEPeqa23',      u3:'Sand 3SEPeqa2',       l3:'Sand-3SEPeqa34'       },
+  { par:'Starch', wc:['Starch-WC','Starch WC','StarchWC','starch-wc','starch wc'],     nir:['Starch-NIR','Starch NIR','StarchNIR','starch-nir','starch nir'],     diff:['Starch Diff , WC-NIR47','Starch Diff,WC-NIR47','Starch Diff , WC-NIR','Starch Diff','Starch-Diff','StarchDiff'], u2:'Starch2SEP', l2:'Starch-2SEPeqa23',    u3:'Starch3SEPeqa2',      l3:'Starch-3SEPeqa34'     },
   { par:'BHT',    wc:'BHT-WC',        nir:'BHT-NIR',        diff:['BHT Diff , WC-NIR6','BHT Diff,WC-NIR6','BHT Diff','BHT-Diff'],                              u2:'BHT2SEP',            l2:'BHT-2SEPeqa2',        u3:'BHT3SEPeqa',          l3:'BHT-3SEPeqa3'         },
   { par:'pH',     wc:'pH-WC',         nir:'pH-NIR',         diff:['pH Diff , WC-NIR6','pH Diff,WC-NIR6','pH Diff','pH-Diff'],                                  u2:'pH2SEP',             l2:'pH-2SEPeqa2',         u3:'pH3SEPeqa',           l3:'pH-3SEPeqa3'          },
   { par:'Fat-C',  wc:'Fat-C-WC',      nir:'Fat-C-NIR',      diff:['Fat-C Diff , WC-NIR5','Fat-C Diff,WC-NIR5','Fat-C Diff','Fat-C-Diff'],                      u2:'Fat-C2SEP',          l2:'Fat-C-2SEPeqa3',      u3:'Fat-C 3SEPeqa2',      l3:'Fat-C-3SEPeqa2'       },
@@ -527,25 +527,27 @@ const WIDE_PARAM_MAP = [
 
 function wideToLong(wideRows) {
   if (wideRows.length > 0) {
-    console.log('📋 Column names in data.json:', Object.keys(wideRows[0]).join(', '));
+    console.log('📋 Column names in data.json:', Object.keys(wideRows[0]).join(' | '));
   }
   const long = [];
 
-  // สร้าง case-insensitive key map สำหรับแต่ละ row
+  // normalize key: lowercase, ลบ space, dash, underscore, comma ทั้งหมด
+  function norm(s){ return String(s).toLowerCase().replace(/[\s\-_,\.]+/g,''); }
+
   function getVal(row, keyOrKeys, ciMap) {
     const keys = Array.isArray(keyOrKeys) ? keyOrKeys : [keyOrKeys];
     for(const k of keys) {
-      if(row[k] !== undefined) return row[k];
-      const kl = k.toLowerCase().replace(/\s+/g,'');
-      if(ciMap[kl] !== undefined) return ciMap[kl];
+      if(row[k] !== undefined && row[k] !== null) return row[k];
+      const nk = norm(k);
+      if(ciMap[nk] !== undefined && ciMap[nk] !== null) return ciMap[nk];
     }
     return undefined;
   }
 
   wideRows.forEach(row => {
-    // สร้าง map lowercase-nospace → value สำหรับ fuzzy match
+    // normalize ทุก key ใน row
     const ciMap = {};
-    Object.keys(row).forEach(k => { ciMap[k.toLowerCase().replace(/\s+/g,'')] = row[k]; });
+    Object.keys(row).forEach(k => { ciMap[norm(k)] = row[k]; });
 
     const base = {
       no:     row['No.']       || row['no']       || '',
@@ -980,7 +982,16 @@ function buildRawWide() {
     });
     const pk = RAW.params[r[I.PAR]];
     const wc=r[I.WC], nir=r[I.NIR], diff=r[I.DIF];
-    map.get(k).params[pk] = {diff,wc,nir,u2:r[I.U2],l2:r[I.L2],u3:r[I.U3],l3:r[I.L3]};
+    const existing = map.get(k).params[pk];
+    map.get(k).params[pk] = {
+      diff: diff ?? existing?.diff,
+      wc:   wc  != null ? wc  : (existing?.wc  ?? null),
+      nir:  nir != null ? nir : (existing?.nir ?? null),
+      u2:   r[I.U2] != null ? r[I.U2] : (existing?.u2 ?? null),
+      l2:   r[I.L2] != null ? r[I.L2] : (existing?.l2 ?? null),
+      u3:   r[I.U3] != null ? r[I.U3] : (existing?.u3 ?? null),
+      l3:   r[I.L3] != null ? r[I.L3] : (existing?.l3 ?? null),
+    };
   });
   const rows = [...map.values()];
   rows.sort((a,b)=>(a.no+'').localeCompare(b.no+'',undefined,{numeric:true}));
