@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bias Adjustment Summary</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f0f6fd;--bg2:#fff;--bg3:#e8f2fc;
+  --border:#cde0f5;--border2:#b0ccec;
+  --txt:#0d1f35;--txt2:#2d4a6b;--txt3:#5a7a9a;
+  --blue:#5b9bd5;--blue-bg:#e8f2fc;--blue-light:#a8ccee;
+  --green:#1a8a50;--green-bg:#f0fdf7;--green-border:#a7f3d0;
+  --r:10px;--r-lg:16px;
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+  --shadow:0 1px 4px rgba(30,58,95,.06),0 6px 18px rgba(30,58,95,.04);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--txt);font-size:13px;line-height:1.5;padding:20px}
+body::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,#90aee8,#5b9bd5,#7dd8c8,#a8ccee,#90aee8);
+  background-size:300% 100%;animation:rb 6s linear infinite;z-index:100}
+@keyframes rb{0%{background-position:0%}100%{background-position:300%}}
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;margin-top:8px;gap:10px;flex-wrap:wrap}
+.page-title{font-size:20px;font-weight:700;letter-spacing:-.3px;display:flex;align-items:center;gap:10px}
+.chip{font-size:10px;font-weight:700;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-light);border-radius:20px;padding:3px 10px;font-family:var(--mono)}
+.nav-link{font-size:12px;color:var(--blue);text-decoration:none;font-weight:600;padding:7px 14px;border:1.5px solid var(--blue-light);border-radius:var(--r);background:var(--blue-bg);transition:all .15s;white-space:nowrap}
+.nav-link:hover{background:var(--blue);color:#fff}
+.filter-bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;box-shadow:var(--shadow);align-items:flex-end}
+.f-group{display:flex;flex-direction:column;gap:4px}
+.f-label{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px}
+select{font-size:12px;padding:7px 28px 7px 10px;border:1.5px solid var(--border);border-radius:var(--r);background:var(--bg2);color:var(--txt);font-family:var(--font);transition:all .15s;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235a7a9a' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;cursor:pointer}
+select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(91,155,213,.15)}
+.btn{font-size:12px;padding:7px 14px;border-radius:var(--r);cursor:pointer;border:1.5px solid;font-weight:700;transition:all .15s;font-family:var(--font);display:inline-flex;align-items:center;gap:5px}
+.btn-export{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}.btn-export:hover{background:var(--green);color:#fff;border-color:var(--green)}
+.stats-row{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.stat-card{flex:1;min-width:130px;background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--r-lg);padding:14px 18px;box-shadow:var(--shadow);text-align:center}
+.stat-card .sv{font-size:26px;font-weight:800;font-family:var(--mono);color:var(--blue)}
+.stat-card .sl{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px;margin-top:3px}
+.view-toggle{display:flex;gap:3px;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--r);padding:3px}
+.vtab{font-size:12px;padding:5px 14px;border-radius:7px;border:none;background:transparent;color:var(--txt2);cursor:pointer;font-weight:600;transition:all .15s;font-family:var(--font)}
+.vtab:hover{background:var(--bg2)}
+.vtab.active{background:var(--bg2);color:var(--blue);box-shadow:0 1px 4px rgba(30,58,95,.1)}
+/* Cards */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.adj-card{background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;box-shadow:var(--shadow);transition:box-shadow .2s,border-color .2s}
+.adj-card:hover{box-shadow:0 4px 20px rgba(91,155,213,.15);border-color:var(--blue-light)}
+.adj-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:8px}
+.adj-product{font-size:14px;font-weight:700;color:var(--txt)}
+.adj-date{font-size:10px;color:var(--txt3);font-family:var(--mono);white-space:nowrap}
+.adj-meta{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;border:1px solid}
+.b-plant{background:#f0f9ff;color:#0369a1;border-color:#bae6fd}
+.b-equip{background:#fdf4ff;color:#7e22ce;border-color:#e9d5ff}
+.b-src{background:#f0fdf4;color:#15803d;border-color:#bbf7d0}
+.params-wrap{display:flex;flex-wrap:wrap;gap:5px}
+.param-chip{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:4px 10px;font-size:11px;display:flex;align-items:center;gap:5px}
+.pn{font-weight:700;color:var(--blue);font-family:var(--mono)}
+.pv{font-family:var(--mono);font-weight:700}
+.pv.pos{color:#1a8a50}.pv.neg{color:#cc3333}.pv.z{color:var(--txt3)}
+.adj-user{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--txt3);font-family:var(--mono)}
+/* Table */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow);overflow:hidden}
+.card-title{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:12px 16px 10px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.card-title .bar{width:3px;height:12px;border-radius:2px;background:linear-gradient(180deg,var(--blue),#90aee8);flex-shrink:0}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:linear-gradient(180deg,#ddeeff,#c8e0f8);color:#1a3a5c;font-weight:700;padding:9px 12px;text-align:left;border-bottom:2px solid var(--border2);font-size:10px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;position:sticky;top:0;z-index:2}
+tbody td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:hover td{background:var(--blue-bg)}
+tbody tr:last-child td{border-bottom:none}
+.no-data{text-align:center;padding:60px 20px;color:var(--txt3);font-size:13px}
+#loadingOverlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:14px}
+.spinner{width:36px;height:36px;border:3px solid var(--blue-light);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-txt{font-size:13px;color:var(--txt3);font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div id="loadingOverlay"><div class="spinner"></div><div class="loading-txt">กำลังโหลดข้อมูล...</div></div>
+
+<div id="appContent" style="display:none">
+<div class="page-header">
+  <div>
+    <div class="page-title">📋 Bias Adjustment Summary <span class="chip">Install &amp; Adjust</span></div>
+    <div style="font-size:11px;color:var(--txt3);font-family:var(--mono);margin-top:3px" id="lastUpdated"></div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <div class="view-toggle">
+      <button class="vtab active" id="vtab-card" onclick="switchView('card')">🃏 Cards</button>
+      <button class="vtab" id="vtab-table" onclick="switchView('table')">📋 Table</button>
+    </div>
+    <button class="btn btn-export" onclick="exportExcel()">📊 Excel</button>
+    <button class="btn btn-export" onclick="exportCSV()">⬇ CSV</button>
+    <a href="summary_5.html" class="nav-link">← Summary</a>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <div class="f-group"><span class="f-label">เดือน</span><select id="fMonth"></select></div>
+  <div class="f-group"><span class="f-label">Plant</span><select id="fPlant"><option value="">All</option></select></div>
+  <div class="f-group"><span class="f-label">Equipment</span><select id="fEquip"><option value="">All</option></select></div>
+  <div class="f-group"><span class="f-label">Source</span><select id="fSource"><option value="">All</option></select></div>
+  <div class="f-group"><span class="f-label">Product</span><select id="fProduct"><option value="">All</option></select></div>
+  <div class="f-group"><span class="f-label">Parameter</span><select id="fParam"><option value="">All</option></select></div>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card"><div class="sv" id="sTotal">—</div><div class="sl">รายการ</div></div>
+  <div class="stat-card"><div class="sv" id="sProd">—</div><div class="sl">Product</div></div>
+  <div class="stat-card"><div class="sv" id="sParam">—</div><div class="sl">Parameter</div></div>
+  <div class="stat-card"><div class="sv" id="sPlant">—</div><div class="sl">Plant</div></div>
+</div>
+
+<div id="cardView"><div class="cards-grid" id="cardsGrid"></div></div>
+<div id="tableView" style="display:none">
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>รายการ Bias Adjustment<span id="tCount" style="margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--txt3)"></span></div>
+    <div class="tbl-wrap"><table><thead><tr><th>#</th><th>วันที่</th><th>Product</th><th>Plant</th><th>Equipment</th><th>Source</th><th>Parameters & ค่าที่ปรับ</th><th>ผู้ปรับ</th></tr></thead><tbody id="tBody"></tbody></table></div>
+  </div>
+</div>
+</div>
+
+<script>
+let ALL=[], view='card';
+
+async function loadData(){
+  try{
+    const res=await fetch('bias_adjustments.json',{cache:'no-cache'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const json=await res.json();
+    ALL=json.records||[];
+    if(json.generated_at)document.getElementById('lastUpdated').textContent='อัปเดตล่าสุด: '+json.generated_at;
+    initFilters();
+    document.getElementById('loadingOverlay').style.display='none';
+    document.getElementById('appContent').style.display='block';
+    render();
+  }catch(e){
+    document.getElementById('loadingOverlay').innerHTML=`<div style="color:#cc3333;text-align:center;padding:20px">❌ โหลดไม่ได้: ${e.message}<br><small style="color:#888">ตรวจสอบว่า bias_adjustments.json อยู่ใน GitHub repo เดียวกัน</small></div>`;
+  }
+}
+
+function fill(id,vals){const s=document.getElementById(id);vals.forEach(v=>s.appendChild(new Option(v,v)));}
+
+function initFilters(){
+  const months=[...new Set(ALL.map(r=>r.month))].sort().reverse();
+  const fM=document.getElementById('fMonth');
+  months.forEach(m=>{const d=new Date(m+'-01');fM.appendChild(new Option(d.toLocaleDateString('en-GB',{month:'short',year:'numeric'}),m));});
+  fM.value=months[0]||'';
+  fill('fPlant',[...new Set(ALL.map(r=>r.plant))].filter(Boolean).sort());
+  fill('fEquip',[...new Set(ALL.map(r=>r.equipment))].filter(Boolean).sort());
+  fill('fSource',[...new Set(ALL.map(r=>r.source))].filter(Boolean).sort());
+  fill('fProduct',[...new Set(ALL.map(r=>r.product))].filter(Boolean).sort());
+  fill('fParam',[...new Set(ALL.flatMap(r=>Object.keys(r.params)))].sort());
+  ['fMonth','fPlant','fEquip','fSource','fProduct','fParam'].forEach(id=>document.getElementById(id).addEventListener('change',render));
+}
+
+function getFiltered(){
+  const mon=document.getElementById('fMonth').value,pla=document.getElementById('fPlant').value,
+    eqp=document.getElementById('fEquip').value,src=document.getElementById('fSource').value,
+    prd=document.getElementById('fProduct').value,par=document.getElementById('fParam').value;
+  return ALL.filter(r=>{
+    if(mon&&r.month!==mon)return false;
+    if(pla&&r.plant!==pla)return false;
+    if(eqp&&r.equipment!==eqp)return false;
+    if(src&&r.source!==src)return false;
+    if(prd&&r.product!==prd)return false;
+    if(par&&!Object.keys(r.params).includes(par))return false;
+    return true;
+  }).sort((a,b)=>b.date.localeCompare(a.date)||a.product.localeCompare(b.product));
+}
+
+function fv(v){const c=v>0?'pos':v<0?'neg':'z';return`<span class="pv ${c}">${v>0?'+':''}${v}</span>`;}
+function badge(v,cls){return v?`<span class="badge ${cls}">${v}</span>`:'';} 
+function dateTH(d){return new Date(d).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'});}
+
+function render(){
+  const rows=getFiltered();
+  document.getElementById('sTotal').textContent=rows.length;
+  document.getElementById('sProd').textContent=new Set(rows.map(r=>r.product)).size;
+  document.getElementById('sParam').textContent=new Set(rows.flatMap(r=>Object.keys(r.params))).size;
+  document.getElementById('sPlant').textContent=new Set(rows.map(r=>r.plant)).size;
+  if(view==='card')renderCards(rows);
+  else renderTable(rows);
+}
+
+function renderCards(rows){
+  const g=document.getElementById('cardsGrid');
+  if(!rows.length){g.innerHTML='<div class="no-data" style="grid-column:1/-1">📭 ไม่พบข้อมูลการปรับ Bias</div>';return;}
+  g.innerHTML=rows.map(r=>{
+    const params=Object.entries(r.params).map(([p,v])=>`<div class="param-chip"><span class="pn">${p}</span>${fv(v)}</div>`).join('');
+    return`<div class="adj-card">
+      <div class="adj-header"><div class="adj-product">${r.product}</div><div class="adj-date">📅 ${dateTH(r.date)}</div></div>
+      <div class="adj-meta">${badge(r.plant,'b-plant')}${badge(r.equipment,'b-equip')}${badge(r.source,'b-src')}</div>
+      <div class="params-wrap">${params}</div>
+      ${r.adjuster?`<div class="adj-user">👤 ${r.adjuster}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function renderTable(rows){
+  document.getElementById('tCount').textContent=rows.length+' รายการ';
+  const tb=document.getElementById('tBody');
+  if(!rows.length){tb.innerHTML='<tr><td colspan="8"><div class="no-data">📭 ไม่พบข้อมูล</div></td></tr>';return;}
+  tb.innerHTML=rows.map((r,i)=>{
+    const ps=Object.entries(r.params).map(([p,v])=>
+      `<span style="display:inline-flex;gap:4px;align-items:center;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:2px 8px;margin:1px;font-size:11px"><b style="color:var(--blue);font-family:var(--mono)">${p}</b><span style="font-family:var(--mono);font-weight:700;color:${v>0?'#1a8a50':v<0?'#cc3333':'var(--txt3)'}">${v>0?'+':''}${v}</span></span>`
+    ).join('');
+    return`<tr>
+      <td style="color:var(--txt3);font-family:var(--mono);font-size:11px">${i+1}</td>
+      <td style="white-space:nowrap;font-family:var(--mono);font-size:11px">${dateTH(r.date)}</td>
+      <td style="font-weight:700">${r.product}</td>
+      <td>${badge(r.plant,'badge b-plant')}</td>
+      <td>${badge(r.equipment,'badge b-equip')}</td>
+      <td>${badge(r.source,'badge b-src')}</td>
+      <td>${ps}</td>
+      <td style="color:var(--txt3);font-size:11px">${r.adjuster||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function switchView(v){
+  view=v;
+  document.getElementById('vtab-card').classList.toggle('active',v==='card');
+  document.getElementById('vtab-table').classList.toggle('active',v==='table');
+  document.getElementById('cardView').style.display=v==='card'?'':'none';
+  document.getElementById('tableView').style.display=v==='table'?'':'none';
+  render();
+}
+
+function exportCSV(){
+  const rows=getFiltered(),mon=document.getElementById('fMonth').value;
+  const lines=['Date,Product,Plant,Equipment,Source,Parameter,Value,Adjuster'];
+  rows.forEach(r=>Object.entries(r.params).forEach(([p,v])=>lines.push([r.date,'"'+r.product+'"',r.plant,r.equipment,r.source,p,v,r.adjuster||''].join(','))));
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'}));
+  a.download='BiasAdjustment_'+mon+'.csv';a.click();
+}
+
+function exportExcel(){
+  const rows=getFiltered(),mon=document.getElementById('fMonth').value;
+  const data=[['Date','Product','Plant','Equipment','Source','Parameter','Value','Adjuster']];
+  rows.forEach(r=>Object.entries(r.params).forEach(([p,v])=>data.push([r.date,r.product,r.plant,r.equipment,r.source,p,v,r.adjuster||''])));
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[12,20,8,12,10,10,10,15].map(w=>({wch:w}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Bias Adjustment');
+  XLSX.writeFile(wb,'BiasAdjustment_'+mon+'.xlsx');
+}
+
+loadData();
+</script>
+</body>
+</html>
