@@ -281,8 +281,25 @@ async function loadData() {
 function getAllEvents() {
   const events = [];
 
-  // Excel records
-  RAW_BIAS.forEach(r => events.push({...r, _src:'excel'}));
+  // Excel records — รองรับทั้ง full format และ slim format
+  RAW_BIAS.forEach(r => {
+    // slim format: d=date, p=product, l=label, pa=params, i=is_install, a=adjuster
+    const isFull = r.date !== undefined;
+    events.push({
+      date:       isFull ? r.date       : r.d,
+      month:      isFull ? r.month      : (r.d||'').slice(0,7),
+      product:    isFull ? r.product    : r.p,
+      label:      isFull ? r.label      : r.l,
+      plant:      isFull ? (r.plant||'')    : '',
+      equipment:  isFull ? (r.equipment||'') : '',
+      source:     isFull ? (r.source||'')   : '',
+      params:     isFull ? r.params     : r.pa,
+      is_install: isFull ? r.is_install : (r.i === 1),
+      adjuster:   isFull ? (r.adjuster||'') : (r.a||''),
+      note:       r.note||'',
+      _src: 'excel'
+    });
+  });
   // Manual records
   RAW_MANUAL.forEach(r => events.push({...r, _src:'manual'}));
 
