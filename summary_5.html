@@ -255,7 +255,7 @@ const DATA_URL2="https://raw.githubusercontent.com/central-lab-pcg/NIR-Running-P
 // ── Shared Correction Storage (JSONBin.io) ────────────────────────────────────
 const JSONBIN_ID  = '69d5c4f4856a6821890d184e';
 const JSONBIN_KEY = '$2a$10$Ohq6FsEj2BnQUMGq5NYPqO4WWFJL/vbLidCxvHtrUGA3aRdQIS.zq';
-const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_ID}`;
+const JSONBIN_URL = 'https://api.jsonbin.io/v3/b/' + JSONBIN_ID;
 
 // ไม่ cache — ดึงสดทุกครั้งเพื่อให้ทุกเครื่องเห็นข้อมูลล่าสุด
 async function corrGetAll() {
