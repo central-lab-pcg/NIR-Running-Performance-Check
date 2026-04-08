@@ -1,0 +1,4036 @@
+{
+  "records": [
+    {
+      "date": "2025-07-03",
+      "month": "2025-07",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.45,
+        "EE": 0.225,
+        "Ash": -1.2,
+        "Aw": 0.06
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "EE": 0.85
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "EE": -0.298
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-07-23",
+      "month": "2025-07",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.211,
+        "EE": -0.329
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-09-11",
+      "month": "2025-09",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "Fib": 0.98
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-01-12",
+      "month": "2026-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.31
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-04-21",
+      "month": "2025-04",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "EE": -0.222,
+        "P": -0.032,
+        "PD": 0.901
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-06-16",
+      "month": "2025-06",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 1.499,
+        "Ca": -0.297
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-08-14",
+      "month": "2025-08",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.125
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-09-11",
+      "month": "2025-09",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.394,
+        "Ash": 0.213,
+        "PD": 1.05
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.105,
+        "Ash": -0.227,
+        "Ca": 0.23
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "EE": 0.578
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-03-11",
+      "month": "2025-03",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.651,
+        "BHT": 26.37
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-05-09",
+      "month": "2025-05",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "EE": 0.915
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.401,
+        "BHT": -19.67
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.12,
+        "TVBN": -7.32
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-12-08",
+      "month": "2025-12",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "TVBN": -1.407
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-01-12",
+      "month": "2026-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.0,
+        "EE": 0.48
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-02-13",
+      "month": "2026-02",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "BHT": -88.55
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-03-18",
+      "month": "2026-03",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "TVBN": 5.96
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 3.523
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-03-11",
+      "month": "2025-03",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.017
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-08-01",
+      "month": "2025-08",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -1.06
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.257
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-12-08",
+      "month": "2025-12",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 1.436
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-02-12",
+      "month": "2026-02",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.311
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.227,
+        "Fib": 0.893
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-04-21",
+      "month": "2025-04",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "EE": -0.403,
+        "Fib": 0.557
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-06-16",
+      "month": "2025-06",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.164,
+        "Fib": 0.031
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-06-30",
+      "month": "2025-06",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "EE": -0.126
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-08-14",
+      "month": "2025-08",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.41,
+        "Fib": 1.025
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-09-11",
+      "month": "2025-09",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "EE": 0.299,
+        "Ash": 0.3
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.02,
+        "Fib": 0.125
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2024-12-27",
+      "month": "2024-12",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.071
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-02-17",
+      "month": "2025-02",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.357
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-04-21",
+      "month": "2025-04",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.226
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-09-11",
+      "month": "2025-09",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.127
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.394
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-01-12",
+      "month": "2026-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.184,
+        "CP": -0.476
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-03-18",
+      "month": "2026-03",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.178
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 5.05
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-04-21",
+      "month": "2025-04",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "NaCl": -2.555
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 3.8
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-08-14",
+      "month": "2025-08",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.94,
+        "Fib": 2.177,
+        "Ash": 5.03,
+        "PD": 4.263
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.151,
+        "CP": 0.623
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-09-11",
+      "month": "2025-09",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.192,
+        "CP": 0.62
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-11-07",
+      "month": "2025-11",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.057
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-01-12",
+      "month": "2026-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.108
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.125
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-09-11",
+      "month": "2025-09",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "EE": 0.45
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-04-21",
+      "month": "2025-04",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.233
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-05-09",
+      "month": "2025-05",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.347,
+        "Ash": 0.04
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-08-14",
+      "month": "2025-08",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.381
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-12-08",
+      "month": "2025-12",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.151,
+        "CP": -0.105
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-03-18",
+      "month": "2026-03",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.528
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-02-17",
+      "month": "2025-02",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.462,
+        "CP": -0.646
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.166,
+        "CP": -0.096
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.036
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-03-11",
+      "month": "2025-03",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.153
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-04-21",
+      "month": "2025-04",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.0,
+        "Fib": 0.476
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.489
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-08-14",
+      "month": "2025-08",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.176
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-10-02",
+      "month": "2025-10",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.065
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.46
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-11-07",
+      "month": "2025-11",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.055
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-01-12",
+      "month": "2026-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.151,
+        "Fib": 0.386
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.528
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-03-11",
+      "month": "2025-03",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "EE": 0.307
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-04-21",
+      "month": "2025-04",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.149
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.695
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-09-11",
+      "month": "2025-09",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "Fib": 0.155
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-11-07",
+      "month": "2025-11",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "EE": 0.56
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-02-13",
+      "month": "2026-02",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "EE": 0.02
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "Starch": -4.325
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-03-11",
+      "month": "2025-03",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "Fib": -0.652,
+        "Starch": -0.841
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-04-21",
+      "month": "2025-04",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "Ash": -0.422
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-05-09",
+      "month": "2025-05",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "Starch": -2.546
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "Starch": -2.22
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-11-07",
+      "month": "2025-11",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "Ash": -1.0
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.164
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-03-11",
+      "month": "2025-03",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "Ash": 0.3
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-04-21",
+      "month": "2025-04",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.275,
+        "Ash": 0.68
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-05-09",
+      "month": "2025-05",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.151,
+        "EE": 0.347
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-06-16",
+      "month": "2025-06",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "Ash": 0.25
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.182
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-08-14",
+      "month": "2025-08",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.054
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-11-07",
+      "month": "2025-11",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.183,
+        "Ash": 0.03
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-01-12",
+      "month": "2026-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.154,
+        "Fib": -0.654
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-01-14",
+      "month": "2026-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.069
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-03-18",
+      "month": "2026-03",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "Fib": -0.78
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-03-11",
+      "month": "2025-03",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.52
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-05-09",
+      "month": "2025-05",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.032
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-08-14",
+      "month": "2025-08",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "Ash": 0.2
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-05-11",
+      "month": "2025-05",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "Fib": 0.79
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.12
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-11-07",
+      "month": "2025-11",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "Ash": 0.0
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-12-08",
+      "month": "2025-12",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.0283,
+        "Fib": 0.075
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-02-13",
+      "month": "2026-02",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.527
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-01-22",
+      "month": "2025-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 1.248
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-02-17",
+      "month": "2025-02",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.246
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-04-21",
+      "month": "2025-04",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.044
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.724
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": 0.074
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-01-06",
+      "month": "2026-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.131
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-01-08",
+      "month": "2026-01",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 1.048
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-03-11",
+      "month": "2025-03",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.18
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-05-09",
+      "month": "2025-05",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.051
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-08-14",
+      "month": "2025-08",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.156,
+        "CP": -0.622
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.372
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-10-15",
+      "month": "2025-10",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "EE": -0.541,
+        "Fib": -0.135
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-12-08",
+      "month": "2025-12",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "CP": -0.244,
+        "Fib": 0.257
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-03-18",
+      "month": "2026-03",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "Fib": -0.401
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-02-17",
+      "month": "2025-02",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.034
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-05-09",
+      "month": "2025-05",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.008
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-08-14",
+      "month": "2025-08",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.034
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2025-12-08",
+      "month": "2025-12",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": 0.025
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-03-18",
+      "month": "2026-03",
+      "product": "Rodent Mix2",
+      "plant": "169",
+      "equipment": "DS2500",
+      "source": "QC",
+      "params": {
+        "M": -0.015
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias 169 QC-DS2500"
+    },
+    {
+      "date": "2026-01-21",
+      "month": "2026-01",
+      "product": "Horse Kibble",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "Aw": 0.012
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-02-06",
+      "month": "2026-02",
+      "product": "Horse Kibble",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "Fib": 0.401
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-02-11",
+      "month": "2026-02",
+      "product": "Horse Kibble",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 0.93
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-03-31",
+      "month": "2026-03",
+      "product": "Horse Kibble",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "EE": 1.39
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-03-18",
+      "month": "2026-03",
+      "product": "Aqua FG&Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "Aw": -0.04
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-02-11",
+      "month": "2026-02",
+      "product": "Dog Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.122,
+        "CP": 0.221
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-02-11",
+      "month": "2026-02",
+      "product": "Cat Mix2 and Pocket",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.196,
+        "CP": 0.573,
+        "Fib": -0.616,
+        "Ash": 0.25,
+        "Ca": -0.131,
+        "P": -0.084,
+        "Aw": 0.029
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-03-31",
+      "month": "2026-03",
+      "product": "Cat Mix2 and Pocket",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 0.194,
+        "Fib": 0.152,
+        "P": -0.051,
+        "NaCl": -0.07,
+        "Aw": 0.015
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": 0.107,
+        "Fib": 0.624
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-03-06",
+      "month": "2025-03",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": -1.559,
+        "Fib": -0.233,
+        "Ca": -0.293,
+        "P": -0.159
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-05-12",
+      "month": "2025-05",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 0.0,
+        "P": 0.18
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-11-10",
+      "month": "2025-11",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": -0.79
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-02-12",
+      "month": "2026-02",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": -1.499,
+        "Fib": -0.343
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": 0.071
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-04-21",
+      "month": "2025-04",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 0.574
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": -0.092
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-08-08",
+      "month": "2025-08",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.141
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-11-10",
+      "month": "2025-11",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": 0.099
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-02-11",
+      "month": "2026-02",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": -0.28
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-02-12",
+      "month": "2026-02",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": 0.16
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "Ash": -1.04,
+        "Sand": -1.1,
+        "Starch": 2.46
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-04-21",
+      "month": "2025-04",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "Ash": -1.602
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-05-12",
+      "month": "2025-05",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "Fib": -0.815
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "Fib": 0.733
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-08-08",
+      "month": "2025-08",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.358,
+        "Ash": 0.218,
+        "Sand": 0.49
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-09-12",
+      "month": "2025-09",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "Fib": -0.055
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.218,
+        "Starch": -1.03
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-12-08",
+      "month": "2025-12",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "Ash": -0.419,
+        "Sand": -0.344
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-02-12",
+      "month": "2026-02",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "Fib": -0.875
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-03-06",
+      "month": "2025-03",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 0.668,
+        "EE": -0.288
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 0.348
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.43,
+        "Fib": -0.17
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-12-08",
+      "month": "2025-12",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": 0.228
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-11-10",
+      "month": "2025-11",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": 0.033
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-03-18",
+      "month": "2026-03",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.017
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-04-21",
+      "month": "2025-04",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "EE": 0.538
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-05-12",
+      "month": "2025-05",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 0.765
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.066
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "EE": 0.64,
+        "Ash": 0.45,
+        "TVBN": 5.8
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-12-08",
+      "month": "2025-12",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 0.342,
+        "Ash": -0.336
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-02-12",
+      "month": "2026-02",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": -0.204,
+        "BHT": -83.73
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-03-18",
+      "month": "2026-03",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "Ash": 0.064
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 1.304
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-06-16",
+      "month": "2025-06",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 2.618
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-02-12",
+      "month": "2026-02",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": -0.842
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-02-12",
+      "month": "2026-02",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 0.577
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 0.164
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-03-06",
+      "month": "2025-03",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "Fib": -0.934,
+        "Ash": -0.45
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-05-12",
+      "month": "2025-05",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "Ash": 0.37
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-06-16",
+      "month": "2025-06",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "Fib": 0.0
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.13,
+        "CP": -0.306,
+        "Ash": -0.04
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-09-12",
+      "month": "2025-09",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 0.072
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-12-08",
+      "month": "2025-12",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": 0.251,
+        "Fib": -0.728,
+        "Ash": -0.324
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-01-14",
+      "month": "2026-01",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.069
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-09-12",
+      "month": "2025-09",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 1.027
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.065
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-02-12",
+      "month": "2026-02",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": 0.235
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-03-06",
+      "month": "2025-03",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "EE": 0.0
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-06-16",
+      "month": "2025-06",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "EE": -0.553
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.451,
+        "Fib": -0.51
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-08-08",
+      "month": "2025-08",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "EE": -0.178
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.141,
+        "Fib": -0.09
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-10-31",
+      "month": "2025-10",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "EE": -0.541,
+        "Fib": -0.135
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-02-12",
+      "month": "2026-02",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": 0.31
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-03-06",
+      "month": "2025-03",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.316
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-04-21",
+      "month": "2025-04",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "EE": 0.403,
+        "Fib": -0.304
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-08-08",
+      "month": "2025-08",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.408,
+        "CP": 0.71,
+        "EE": 0.423
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 0.0
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-11-10",
+      "month": "2025-11",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": 0.042,
+        "Ash": -0.163
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-12-08",
+      "month": "2025-12",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 0.38,
+        "Fib": 0.565
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-03-18",
+      "month": "2026-03",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "Fib": -0.06
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-04-21",
+      "month": "2025-04",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 0.365
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-11-10",
+      "month": "2025-11",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.154
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-02-12",
+      "month": "2026-02",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": 0.416
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-08-08",
+      "month": "2025-08",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": 0.411
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-01-12",
+      "month": "2026-01",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "AH": 0.14
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-08-08",
+      "month": "2025-08",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": -0.858
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-09-10",
+      "month": "2025-09",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": 0.858
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-11-10",
+      "month": "2025-11",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": -0.134
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-01-06",
+      "month": "2026-01",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "CP": -0.131
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-05-12",
+      "month": "2025-05",
+      "product": "Horse Mix2",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": -0.093,
+        "AH": 0.53
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-02-12",
+      "month": "2026-02",
+      "product": "MBM",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "M": 0.273
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-06-30",
+      "month": "2025-06",
+      "product": "MBM",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "EE": -0.126
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2026-03-18",
+      "month": "2026-03",
+      "product": "MBM",
+      "plant": "169",
+      "equipment": "DS3",
+      "source": "QC",
+      "params": {
+        "EE": 0.124
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  169 QC-DS3"
+    },
+    {
+      "date": "2025-06-30",
+      "month": "2025-06",
+      "product": "SB.G",
+      "plant": "RY",
+      "equipment": "DS3F",
+      "source": "",
+      "params": {
+        "EE": -0.126
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias  RY"
+    },
+    {
+      "date": "2025-06-18",
+      "month": "2025-06",
+      "product": "Dog Mix2",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Fib": 0.146,
+        "Ash": -0.57,
+        "Ca": -0.1314,
+        "P": -0.0836,
+        "Aw": 0.015
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2025-10-15",
+      "month": "2025-10",
+      "product": "Dog Mix2",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": -0.17,
+        "Aw": 0.005
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2026-04-02",
+      "month": "2026-04",
+      "product": "Dog Mix2",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": 0.194,
+        "Fib": 0.152,
+        "P": -0.051,
+        "NaCl": -0.07,
+        "Aw": 0.015
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2025-05-13",
+      "month": "2025-05",
+      "product": "Rodent Mix2",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.362,
+        "CP": -0.724,
+        "EE": 0.092,
+        "Ash": 0.958,
+        "Ca": 0.607,
+        "PD": 1.714
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2025-05-13",
+      "month": "2025-05",
+      "product": "Rodent Mix2",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": 1.856
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2025-02-03",
+      "month": "2025-02",
+      "product": "MBM",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "EE": -0.75
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2025-05-13",
+      "month": "2025-05",
+      "product": "MBM",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.203,
+        "CP": 0.477,
+        "EE": 0.26,
+        "Fib": -0.303
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2025-05-13",
+      "month": "2025-05",
+      "product": "SBH",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": -0.26,
+        "EE": 0.97,
+        "Fib": 0.676
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2026-04-02",
+      "month": "2026-04",
+      "product": "Wheat Gain",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "EE": -0.092,
+        "Fib": -0.197
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2025-02-03",
+      "month": "2025-02",
+      "product": "Wheat Gain",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "EE": 1.065
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2025-05-13",
+      "month": "2025-05",
+      "product": "Wheat Gain",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "EE": 0.3
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2025-05-13",
+      "month": "2025-05",
+      "product": "Wheat Gain",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": -0.027
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2025-02-03",
+      "month": "2025-02",
+      "product": "Casava",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": 0.164
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2025-02-03",
+      "month": "2025-02",
+      "product": "RB ext , F",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 1.145
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2026-01-08",
+      "month": "2026-01",
+      "product": "RB ext , F",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 1.048,
+        "CP": -0.131
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2025-05-13",
+      "month": "2025-05",
+      "product": "Chicken oil",
+      "plant": "Indo",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": -0.38
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS2500"
+    },
+    {
+      "date": "2025-10-15",
+      "month": "2025-10",
+      "product": "MBM",
+      "plant": "Indo",
+      "equipment": "DS3F",
+      "source": "",
+      "params": {
+        "EE": -0.541,
+        "Fib": -0.135
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS3F"
+    },
+    {
+      "date": "2025-10-15",
+      "month": "2025-10",
+      "product": "SB.G",
+      "plant": "Indo",
+      "equipment": "DS3F",
+      "source": "",
+      "params": {
+        "M": -0.065
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS3F"
+    },
+    {
+      "date": "2026-01-08",
+      "month": "2026-01",
+      "product": "YC",
+      "plant": "Indo",
+      "equipment": "DS3F",
+      "source": "",
+      "params": {
+        "M": 1.048,
+        "CP": -0.131
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias Indo DS3F"
+    },
+    {
+      "date": "2025-05-13",
+      "month": "2025-05",
+      "product": "HFEM",
+      "plant": "MM",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": -1.725,
+        "CP": -7.015,
+        "EE": -5.445,
+        "NaCl": 10.92
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias MM"
+    },
+    {
+      "date": "2026-01-23",
+      "month": "2026-01",
+      "product": "HFEM",
+      "plant": "MM",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": 3.64,
+        "NaCl": -4.07
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias MM"
+    },
+    {
+      "date": "2025-05-13",
+      "month": "2025-05",
+      "product": "HFEM",
+      "plant": "MM",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": -1.2,
+        "CP": -10.615,
+        "Ash": 12.225
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias MM"
+    },
+    {
+      "date": "2025-05-13",
+      "month": "2025-05",
+      "product": "HFEM",
+      "plant": "MM",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "EE": -1.493
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias MM"
+    },
+    {
+      "date": "2026-01-23",
+      "month": "2026-01",
+      "product": "HFEM",
+      "plant": "MM",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": -1.687
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias MM"
+    },
+    {
+      "date": "2025-01-23",
+      "month": "2025-01",
+      "product": "HFEM",
+      "plant": "MM",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.06,
+        "CP": 2.919,
+        "EE": 1.57
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias MM"
+    },
+    {
+      "date": "2025-10-09",
+      "month": "2025-10",
+      "product": "SB.G",
+      "plant": "MM",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": -0.065
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias MM"
+    },
+    {
+      "date": "2026-01-23",
+      "month": "2026-01",
+      "product": "SB.G",
+      "plant": "MM",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": -0.657,
+        "CP": -1.102,
+        "Fib": 6.863
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias MM"
+    },
+    {
+      "date": "2025-07-23",
+      "month": "2025-07",
+      "product": "Wheat Gain",
+      "plant": "MM",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "EE": -0.126
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias MM"
+    },
+    {
+      "date": "2025-01-23",
+      "month": "2025-01",
+      "product": "CGM",
+      "plant": "MM",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.071
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias MM"
+    },
+    {
+      "date": "2026-01-23",
+      "month": "2026-01",
+      "product": "Casava",
+      "plant": "MM",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": -0.069
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias MM"
+    },
+    {
+      "date": "2026-01-08",
+      "month": "2026-01",
+      "product": "RB ext , F",
+      "plant": "MM",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 1.048,
+        "CP": -0.131
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias MM"
+    },
+    {
+      "date": "2025-02-07",
+      "month": "2025-02",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.0,
+        "CP": 1.782,
+        "AH": 0.271,
+        "Ash": -4.802
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-02-19",
+      "month": "2025-02",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "AH": 0.118
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-04-22",
+      "month": "2025-04",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": -0.35,
+        "Ash": 1.144
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Ash": -0.183
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-08-08",
+      "month": "2025-08",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": 0.135
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-09-11",
+      "month": "2025-09",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": -0.416
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-10-10",
+      "month": "2025-10",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Ash": 0.957
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2026-02-13",
+      "month": "2026-02",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": -0.124,
+        "Ash": -0.063
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Aw": 0.022,
+        "pH": -0.105
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-03-06",
+      "month": "2025-03",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.183,
+        "CP": -0.622,
+        "AH": 0.164,
+        "Ash": -0.631
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-03-25",
+      "month": "2025-03",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Ash": -0.152
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-05-09",
+      "month": "2025-05",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": -0.093
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": 0.494
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-08-08",
+      "month": "2025-08",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.183,
+        "Ash": -0.292
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2024-09-11",
+      "month": "2024-09",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.207
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-10-10",
+      "month": "2025-10",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": 0.054
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-12-09",
+      "month": "2025-12",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.024
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2026-01-12",
+      "month": "2026-01",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": -0.204,
+        "Ash": -0.02
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2026-03-12",
+      "month": "2026-03",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": 0.214,
+        "Ash": -0.473
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-05-09",
+      "month": "2025-05",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "AH": -0.332,
+        "pH": 0.048
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "AH": 0.0,
+        "pH": -0.107
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-08-08",
+      "month": "2025-08",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.298
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-10-10",
+      "month": "2025-10",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": -0.96
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-11-06",
+      "month": "2025-11",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "AH": -0.42,
+        "pH": 0.023
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-12-03",
+      "month": "2025-12",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "AH": 0.456
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-04-22",
+      "month": "2025-04",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.399,
+        "Ash": -0.251
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-05-09",
+      "month": "2025-05",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Fat-C": -0.206
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Fat-C": 0.05,
+        "pH": 0.07
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2026-02-13",
+      "month": "2026-02",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Fat-C": -0.15
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-03-06",
+      "month": "2025-03",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": 0.677
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-06-16",
+      "month": "2025-06",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Fat-C": -0.344,
+        "Ash": -1.063
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": 0.685
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-08-08",
+      "month": "2025-08",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Ash": -1.787,
+        "pH": 0.096
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-10-10",
+      "month": "2025-10",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Fat-C": -0.034
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-11-06",
+      "month": "2025-11",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": 0.305,
+        "Ash": -0.747,
+        "pH": 0.016
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-12-01",
+      "month": "2025-12",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Fat-C": 0.12
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2026-02-13",
+      "month": "2026-02",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.422,
+        "CP": -0.48
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2026-03-12",
+      "month": "2026-03",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Fat-C": -0.27
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.178,
+        "CP": 0.386
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-09-11",
+      "month": "2025-09",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "pH": 0.174
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-11-06",
+      "month": "2025-11",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Fat-C": -0.19
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-12-16",
+      "month": "2025-12",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": 0.103
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2026-01-12",
+      "month": "2026-01",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.405,
+        "CP": -0.277,
+        "Fat-C": 0.072,
+        "pH": -0.136
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2026-02-13",
+      "month": "2026-02",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Fat-C": -0.275,
+        "Ash": -0.879,
+        "pH": 0.032
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-01-15",
+      "month": "2025-01",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": -4.055,
+        "CP": 1.32,
+        "Fat-C": 0.545
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-05-09",
+      "month": "2025-05",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": -3.44,
+        "pH": -1.135
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-06-16",
+      "month": "2025-06",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": 0.845
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-06-16",
+      "month": "2025-06",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": -1.316,
+        "Fat-C": -1.133
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 1.943,
+        "CP": 1.779,
+        "Ash": 0.657
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-08-08",
+      "month": "2025-08",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Fat-C": -0.013
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-09-11",
+      "month": "2025-09",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.425,
+        "CP": 3.601,
+        "pH": -0.538
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-11-06",
+      "month": "2025-11",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": -3.601
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-12-09",
+      "month": "2025-12",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Ash": -0.022
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2026-01-12",
+      "month": "2026-01",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "pH": 0.0
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2026-02-13",
+      "month": "2026-02",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": -0.537,
+        "Fat-C": -0.695
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-04-03",
+      "month": "2025-04",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Aw": -0.009
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-08-08",
+      "month": "2025-08",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": -0.153
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-11-06",
+      "month": "2025-11",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": 0.753
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2026-01-12",
+      "month": "2026-01",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Aw": 0.005
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2026-03-12",
+      "month": "2026-03",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Ash": -1.588,
+        "pH": 0.094
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-06-16",
+      "month": "2025-06",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": -3.733
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-08-08",
+      "month": "2025-08",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "Ash": 1.81
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-04-30",
+      "month": "2025-04",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": -0.167
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-09-11",
+      "month": "2025-09",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "M": -0.522
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    },
+    {
+      "date": "2025-07-14",
+      "month": "2025-07",
+      "product": "*6/2/2026",
+      "plant": "POC",
+      "equipment": "DS2500",
+      "source": "",
+      "params": {
+        "CP": 0.32
+      },
+      "adjuster": "",
+      "sheet": "Adjust Bias POC"
+    }
+  ],
+  "generated_at": "08/04/2026 03:52"
+}
