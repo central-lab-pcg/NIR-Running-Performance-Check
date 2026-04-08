@@ -154,8 +154,19 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,
 <div class="filter-bar">
   <span class="f-label">เดือน</span>
   <select id="fMonth"></select>
-  <span class="f-label" style="margin-left:8px">Plant</span>
-  <select id="fLabel"><option value="">All Plants</option></select>
+  <span class="f-label" style="margin-left:8px">Plant / Machine</span>
+  <select id="fLabel">
+    <option value="">All Plants</option>
+    <option value="169 LAB-DS2500">169 LAB-DS2500</option>
+    <option value="169 QC-DS2500">169 QC-DS2500</option>
+    <option value="169 QC-DS3">169 QC-DS3</option>
+    <option value="Rayong">Rayong DS3F</option>
+    <option value="Indo DS2500">Indo DS2500</option>
+    <option value="Indo DS3F">Indo DS3F</option>
+    <option value="Myanmar">Myanmar DS2500</option>
+    <option value="Wet Food">Wet Food DS2500</option>
+    <option value="POC">POC DS2500</option>
+  </select>
   <span class="f-label" style="margin-left:8px">Product</span>
   <select id="fProduct"><option value="">All Products</option></select>
 </div>
@@ -189,24 +200,81 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,
       <div class="form-grid">
         <div><label class="flabel">วันที่ *</label><input class="finput" type="date" id="inDate"></div>
         <div>
-          <label class="flabel">Plant / Machine *</label>
-          <select class="finput" id="inLabel">
-            <option value="">— เลือก Plant —</option>
-            <option value="169 LAB-DS2500">169 LAB-DS2500</option>
-            <option value="169 QC-DS2500">169 QC-DS2500</option>
-            <option value="169 QC-DS3">169 QC-DS3</option>
-            <option value="Rayong">Rayong (DS3F)</option>
-            <option value="Indo DS2500">Indo DS2500</option>
-            <option value="Indo DS3F">Indo DS3F</option>
-            <option value="Myanmar">Myanmar (DS2500)</option>
-            <option value="Wet Food">Wet Food (DS2500)</option>
-            <option value="POC">POC (DS2500)</option>
+          <label class="flabel">Product *</label>
+          <select class="finput" id="inProduct">
+            <option value="">— เลือก Product —</option>
+            <optgroup label="── FG ──">
+              <option>Dog Kibble</option><option>Cat Kibble</option><option>Bird Kibble</option>
+              <option>Horse Kibble</option><option>Rodent Kibble</option>
+              <option>Dog Mix2</option><option>Cat Mix2</option><option>Bird Mix2</option>
+              <option>Horse Mix2</option><option>Rodent Mix2</option>
+              <option>Aqua FG&amp;Mix2</option><option>Cat Mix2 and Pocket</option>
+            </optgroup>
+            <optgroup label="── RM ──">
+              <option>FM</option><option>HFEM</option><option>AP1</option><option>SHM</option>
+              <option>MBM</option><option>SBM, SBC</option><option>SBH</option>
+              <option>CGM</option><option>CKO</option><option>BP PL</option><option>Br,P</option>
+              <option>RB S</option><option>RB ext , F</option><option>YC</option><option>FFS</option>
+              <option>Wheat Gain</option><option>Wheat Bran</option><option>Wheat Product</option>
+              <option>SB.G</option><option>Casava</option><option>Chicken oil</option>
+              <option>Wheat flour</option><option>Mix1</option><option>SDF I01</option>
+              <option>1R06901N , 1R06221N , 1R10221N</option>
+            </optgroup>
+            <optgroup label="── Wet Food ──">
+              <option>Paste,Gravy,Jelly,Soup,Stick</option><option>Stick + Miniroll</option>
+              <option>Goat Milk</option>
+            </optgroup>
+            <optgroup label="── POC ──">
+              <option>MF01</option><option>FP01</option><option>FP02 04 05 + Mix P</option>
+              <option>PEC+LH+SDF</option><option>PE C06</option><option>PED+LH02</option>
+              <option>Egg PU</option><option>Egg LU</option><option>FPB01</option>
+              <option>HPB03 04 09</option><option>FEC01 03 05</option><option>FEC06</option>
+              <option>FED01</option><option>FED03</option><option>FED04 07 08</option>
+              <option>FED05 09</option><option>FED06</option><option>CP01 03 04</option>
+              <option>CP02</option><option>CPB01</option><option>CPB02</option><option>CPB03</option>
+              <option>IPB01</option><option>HPB02</option><option>CK LIV, Lamb Liver</option>
+              <option>Coli</option><option>กากยีสต์</option>
+            </optgroup>
           </select>
         </div>
-        <div><label class="flabel">Product *</label><input class="finput" type="text" id="inProduct" list="productList" placeholder="เช่น Dog Kibble"><datalist id="productList"></datalist></div>
+        <div>
+          <label class="flabel">Plant *</label>
+          <select class="finput" id="inPlant" onchange="updateEquipSource()">
+            <option value="">— เลือก Plant —</option>
+            <option value="169">169 (Rayong)</option>
+            <option value="RY">RY (Rayong DS3F)</option>
+            <option value="Indo">Indonesia</option>
+            <option value="MM">Myanmar</option>
+            <option value="POC">POC</option>
+          </select>
+        </div>
+        <div>
+          <label class="flabel">Equipment *</label>
+          <select class="finput" id="inEquip" onchange="updateLabel()">
+            <option value="">— เลือก Equipment —</option>
+            <option value="DS2500">DS2500</option>
+            <option value="DS3F">DS3F</option>
+            <option value="DS3">DS3</option>
+          </select>
+        </div>
+        <div>
+          <label class="flabel">Source</label>
+          <select class="finput" id="inSource" onchange="updateLabel()">
+            <option value="">— เลือก Source —</option>
+            <option value="LAB">LAB</option>
+            <option value="QC">QC</option>
+            <option value="Wet Food">Wet Food</option>
+            <option value="Portal">Portal</option>
+            <option value="Import">Import</option>
+          </select>
+        </div>
+        <div>
+          <label class="flabel">Plant / Machine (Auto)</label>
+          <input class="finput" type="text" id="inLabel" readonly style="background:#f1f5f9;color:var(--txt3)" placeholder="จะ auto-fill จาก Plant+Equipment+Source">
+        </div>
         <div><label class="flabel">ผู้บันทึก</label><input class="finput" type="text" id="inAdjuster" placeholder="ชื่อผู้บันทึก"></div>
         <div><label class="flabel">ผู้ตรวจสอบ</label><input class="finput" type="text" id="inReviewer" placeholder="ชื่อผู้ตรวจสอบ"></div>
-        <div><label class="flabel">หมายเหตุ</label><input class="finput" type="text" id="inNote" placeholder="หมายเหตุ"></div>
+        <div class="form-full"><label class="flabel">หมายเหตุ</label><input class="finput" type="text" id="inNote" placeholder="หมายเหตุ"></div>
       </div>
       <div>
         <label class="flabel">Parameters ที่ปรับ *</label>
@@ -300,13 +368,47 @@ function getAllEvents(){
     const eqp=parts[2]==='all'?'':(parts[2]||'');
     const src=parts[3]==='all'?'':(parts[3]||'');
     if(!prd||!serial)return;
+    // ใช้วันที่จาก savedAt ถ้ามี ไม่งั้นใช้ serial → date
     let date='';
     try{date=new Date((serial-25569)*86400*1000).toISOString().slice(0,10);}catch{return;}
+    // savedAt format: "dd/mm/yy HH:MM" → แปลงเป็น date string
+    if(v.savedAt){
+      try{
+        const parts=v.savedAt.split(' ')[0].split('/'); // dd/mm/yy
+        if(parts.length===3){
+          const dd=parts[0],mm=parts[1],yy=parts[2];
+          const yyyy=parseInt(yy)<100?(2000+parseInt(yy)).toString():yy;
+          date=`${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+        }
+      }catch{}
+    }
+
+    // derive label: ใช้ plant+equip+source_val ที่บันทึกไว้ก่อน ถ้าไม่มีค่อย fallback จาก key
+    const vPlant=v.plant||'', vEquip=v.equip||'', vSrc=v.source_val||'';
     let label='';
-    if(src==='LAB')label='169 LAB-DS2500';
-    else if(src==='QC'&&eqp==='DS3')label='169 QC-DS3';
-    else if(src==='QC')label='169 QC-DS2500';
-    else if(src==='Wet Food')label='Wet Food';
+    // ลอง match จาก LMAP โดยใช้ค่าที่กรอกมา
+    for(const [lbl,cfg] of Object.entries(LMAP)){
+      if(vPlant&&vEquip&&(vPlant===cfg.plant&&vEquip===cfg.equipment&&(vSrc===cfg.source||(!vSrc&&!cfg.source)))){
+        label=lbl; break;
+      }
+    }
+    // fallback: derive จาก eqp+src ใน key
+    if(!label){
+      if(src==='LAB') label='169 LAB-DS2500';
+      else if(src==='QC'&&eqp==='DS3') label='169 QC-DS3';
+      else if(src==='QC') label='169 QC-DS2500';
+      else if(src==='Wet Food') label='Wet Food';
+      else if(vPlant==='169'&&vEquip==='DS2500'&&vSrc==='LAB') label='169 LAB-DS2500';
+      else if(vPlant==='169'&&vEquip==='DS2500'&&vSrc==='QC') label='169 QC-DS2500';
+      else if(vPlant==='169'&&vEquip==='DS3'&&vSrc==='QC') label='169 QC-DS3';
+      else if(vPlant==='169'&&vSrc==='Wet Food') label='Wet Food';
+      else if(vPlant==='RY') label='Rayong';
+      else if(vPlant==='Indo'&&vEquip==='DS3F') label='Indo DS3F';
+      else if(vPlant==='Indo') label='Indo DS2500';
+      else if(vPlant==='MM') label='Myanmar';
+      else if(vPlant==='POC') label='POC';
+    }
+
     const params={}, text=v.text||'';
     PARAMS_DEF.forEach(p=>{
       const esc=p.replace(/[.*+?^=!:{}()|[\]/\\]/g,'\\$&').replace(/-/g,'[-]');
@@ -316,12 +418,12 @@ function getAllEvents(){
     evts.push({
       date, month:date.slice(0,7), product:prd, label,
       params, is_install:false,
-      adjuster: v.user||'',
-      note:     v.text||'',
-      plant:    v.plant||'',
-      type_val: v.type_val||'',
-      equip:    v.equip||'',
-      source_val: v.source_val||'',
+      adjuster:   v.user||'',
+      note:       v.text||'',
+      plant:      vPlant,
+      type_val:   v.type_val||'',
+      equip:      vEquip,
+      source_val: vSrc,
       _src:'correction'
     });
   });
@@ -371,15 +473,17 @@ function calcBias(evts){
 // ── Filters ───────────────────────────────────────────────────────────────────
 function initFilters(){
   const all=getAllEvents();
-  // months
+  // months — ใช้ en-GB เพื่อได้ปี ค.ศ. ไม่ใช่ พ.ศ.
   const months=[...new Set(all.map(r=>r.month))].sort().reverse();
   const fM=document.getElementById('fMonth');
-  months.forEach(m=>{const d=new Date(m+'-01');fM.appendChild(new Option(d.toLocaleDateString('th-TH',{month:'long',year:'numeric'}),m));});
+  months.forEach(m=>{
+    const d=new Date(m+'-15'); // ใช้วันกลางเดือนเพื่อ avoid timezone shift
+    const label=d.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+    fM.appendChild(new Option(label,m));
+  });
   fM.value=months[0]||'';
-  // labels
-  const labels=LABEL_ORDER.filter(l=>all.some(r=>r.label===l));
-  const fL=document.getElementById('fLabel');
-  labels.forEach(l=>fL.appendChild(new Option(l,l)));
+  // labels hardcoded แล้วใน HTML ไม่ต้อง populate
+  // แค่ listen event
   // products
   const prods=[...new Set(all.map(r=>r.product))].filter(Boolean).sort();
   const fP=document.getElementById('fProduct');
@@ -534,10 +638,44 @@ function toggleHist(id){
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
+// auto-derive label จาก plant+equip+source
+function updateLabel(){
+  const plant=document.getElementById('inPlant').value;
+  const equip=document.getElementById('inEquip').value;
+  const src=document.getElementById('inSource').value;
+  let label='';
+  if(plant==='169'&&equip==='DS2500'&&src==='LAB')       label='169 LAB-DS2500';
+  else if(plant==='169'&&equip==='DS2500'&&src==='QC')   label='169 QC-DS2500';
+  else if(plant==='169'&&equip==='DS3'&&src==='QC')      label='169 QC-DS3';
+  else if(plant==='169'&&src==='Wet Food')               label='Wet Food';
+  else if(plant==='RY')                                  label='Rayong';
+  else if(plant==='Indo'&&equip==='DS3F')                label='Indo DS3F';
+  else if(plant==='Indo')                                label='Indo DS2500';
+  else if(plant==='MM')                                  label='Myanmar';
+  else if(plant==='POC')                                 label='POC';
+  document.getElementById('inLabel').value=label||'(กรุณาเลือก Plant+Equipment+Source)';
+  document.getElementById('inLabel')._label=label;
+}
+function updateEquipSource(){
+  // auto-fill Equipment ที่น่าจะใช้
+  const plant=document.getElementById('inPlant').value;
+  const eqp=document.getElementById('inEquip');
+  if(plant==='RY'){ eqp.value='DS3F'; }
+  else if(plant==='Indo'){ eqp.value=''; } // มีทั้ง DS2500 และ DS3F
+  else if(plant==='169'){ eqp.value='DS2500'; }
+  else if(plant==='MM'||plant==='POC'){ eqp.value='DS2500'; }
+  updateLabel();
+}
+
 function openModal(){
   document.getElementById('inDate').value=new Date().toISOString().slice(0,10);
-  ['inProduct','inAdjuster','inReviewer','inNote'].forEach(id=>document.getElementById(id).value='');
+  ['inAdjuster','inReviewer','inNote'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('inProduct').value='';
+  document.getElementById('inPlant').value='';
+  document.getElementById('inEquip').value='';
+  document.getElementById('inSource').value='';
   document.getElementById('inLabel').value='';
+  document.getElementById('inLabel')._label='';
   document.getElementById('isInstall').checked=false;
   document.getElementById('installHint').style.display='none';
   document.getElementById('paramsWrap').innerHTML='';
@@ -562,9 +700,13 @@ function addParam(){
 
 async function saveRecord(){
   const date=document.getElementById('inDate').value;
-  const label=document.getElementById('inLabel').value;
-  const product=document.getElementById('inProduct').value.trim();
-  if(!date||!label||!product){alert('กรุณากรอก วันที่, Plant และ Product');return;}
+  const label=document.getElementById('inLabel')._label||document.getElementById('inLabel').value;
+  const product=document.getElementById('inProduct').value;
+  const plant=document.getElementById('inPlant').value;
+  const equip=document.getElementById('inEquip').value;
+  const src=document.getElementById('inSource').value;
+  if(!date||!plant||!product){alert('กรุณาเลือก วันที่, Plant และ Product');return;}
+  if(!label||label.startsWith('(')){ alert('กรุณาเลือก Plant + Equipment + Source ให้ครบ'); return; }
   const params={};
   document.querySelectorAll('#paramsWrap .param-row').forEach(row=>{
     const s=row.querySelector('select'),inp=row.querySelector('input[type=number]');
@@ -577,11 +719,10 @@ async function saveRecord(){
   try{
     const data=await jbGet();
     const manual=data.manual_records||[];
-    const cfg=LMAP[label]||{};
     manual.push({
       _id:Date.now().toString(),_src:'manual',
       date,month:date.slice(0,7),product,label,
-      plant:cfg.plant||'',equipment:cfg.equipment||'',source:cfg.source||'',
+      plant, equipment:equip, source:src,
       params,is_install:isInstall,
       adjuster:document.getElementById('inAdjuster').value.trim(),
       reviewer:document.getElementById('inReviewer').value.trim(),
