@@ -3,110 +3,131 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Bias Adjustment Summary</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Bias Summary</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg:#f0f6fd;--bg2:#fff;--bg3:#e8f2fc;
-  --border:#cde0f5;--border2:#b0ccec;
-  --txt:#0d1f35;--txt2:#2d4a6b;--txt3:#5a7a9a;
-  --blue:#5b9bd5;--blue-bg:#e8f2fc;--blue-light:#a8ccee;
-  --green:#1a8a50;--green-bg:#f0fdf7;--green-border:#a7f3d0;
-  --purple:#7c3aed;--purple-bg:#f5f3ff;--purple-border:#ddd6fe;
-  --r:10px;--r-lg:16px;
-  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
-  --shadow:0 1px 4px rgba(30,58,95,.06),0 6px 18px rgba(30,58,95,.04);
+:root {
+  --bg:#f1f5f9; --bg2:#fff; --border:#e2e8f0; --border2:#cbd5e1;
+  --txt:#1e293b; --txt2:#475569; --txt3:#94a3b8;
+  --blue:#3b82f6; --blue-bg:#eff6ff; --blue-light:#bfdbfe;
+  --purple:#7c3aed; --purple-bg:#f5f3ff; --purple-light:#ede9fe;
+  --green:#16a34a; --green-bg:#f0fdf4;
+  --red:#dc2626; --red-bg:#fef2f2;
+  --amber:#d97706; --amber-bg:#fffbeb;
+  --font:'IBM Plex Sans Thai',sans-serif; --mono:'IBM Plex Mono',monospace;
+  --r:10px; --r-lg:14px;
+  --shadow:0 1px 3px rgba(0,0,0,.07),0 4px 12px rgba(0,0,0,.04);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--font);background:var(--bg);color:var(--txt);font-size:13px;line-height:1.5;padding:20px}
-body::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;
-  background:linear-gradient(90deg,#90aee8,#5b9bd5,#7dd8c8,#a8ccee,#90aee8);
-  background-size:300%;animation:rb 6s linear infinite;z-index:100}
-@keyframes rb{0%{background-position:0%}100%{background-position:300%}}
+body{font-family:var(--font);background:var(--bg);color:var(--txt);font-size:13px}
 
-.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;margin-top:8px;gap:10px;flex-wrap:wrap}
-.page-title{font-size:20px;font-weight:700;letter-spacing:-.3px;display:flex;align-items:center;gap:10px}
-.chip{font-size:10px;font-weight:700;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-light);border-radius:20px;padding:3px 10px;font-family:var(--mono)}
-.nav-link{font-size:12px;color:var(--blue);text-decoration:none;font-weight:600;padding:7px 14px;border:1.5px solid var(--blue-light);border-radius:var(--r);background:var(--blue-bg);transition:all .15s;white-space:nowrap}
-.nav-link:hover{background:var(--blue);color:#fff}
+/* Top bar */
+.topbar{background:#1e293b;color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.topbar-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.topbar-sub{font-size:11px;color:#94a3b8;font-family:var(--mono)}
+.topbar-actions{display:flex;gap:8px;align-items:center}
+.nav-link{font-size:12px;color:#94a3b8;text-decoration:none;font-weight:500}
+.nav-link:hover{color:#fff}
+.btn{font-size:12px;padding:7px 14px;border-radius:var(--r);cursor:pointer;border:1px solid;font-weight:600;transition:all .15s;font-family:var(--font);display:inline-flex;align-items:center;gap:5px}
+.btn-add{background:var(--purple);color:#fff;border-color:var(--purple)}.btn-add:hover{background:#6d28d9}
+.btn-light{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2)}.btn-light:hover{background:rgba(255,255,255,.2)}
 
-/* Filter */
-.filter-bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;box-shadow:var(--shadow);align-items:flex-end}
-.f-group{display:flex;flex-direction:column;gap:4px}
-.f-label{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px}
-select,input[type=text],input[type=date],input[type=number]{font-size:12px;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--r);background:var(--bg2);color:var(--txt);font-family:var(--font);transition:all .15s}
-select{padding-right:28px;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235a7a9a' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;cursor:pointer}
-select:focus,input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(91,155,213,.15)}
-.btn{font-size:12px;padding:7px 14px;border-radius:var(--r);cursor:pointer;border:1.5px solid;font-weight:700;transition:all .15s;font-family:var(--font);display:inline-flex;align-items:center;gap:6px}
-.btn-blue{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-light)}.btn-blue:hover{background:var(--blue);color:#fff}
-.btn-green{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}.btn-green:hover{background:var(--green);color:#fff}
-.btn-purple{background:var(--purple-bg);color:var(--purple);border-color:var(--purple-border)}.btn-purple:hover{background:var(--purple);color:#fff}
+/* Filter bar */
+.filter-bar{background:#fff;border-bottom:1px solid var(--border);padding:12px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:sticky;top:49px;z-index:90}
+.f-label{font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-right:4px}
+select{font-size:12px;padding:6px 28px 6px 10px;border:1px solid var(--border2);border-radius:var(--r);background:#fff;color:var(--txt);font-family:var(--font);cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.12)}
 
-/* Pivot Table */
-.tbl-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
-.tbl-card-title{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:12px 16px 10px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);flex-wrap:wrap}
-.tbl-card-title .bar{width:3px;height:12px;border-radius:2px;background:linear-gradient(180deg,var(--blue),#90aee8);flex-shrink:0}
-.tbl-wrap{overflow:auto;max-height:70vh}
+/* Stats row */
+.stats-row{display:flex;gap:10px;padding:16px 20px 8px;flex-wrap:wrap}
+.stat{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 16px;min-width:120px;flex:1;box-shadow:var(--shadow);text-align:center}
+.stat-val{font-size:22px;font-weight:800;font-family:var(--mono)}
+.stat-val.blue{color:var(--blue)}
+.stat-val.purple{color:var(--purple)}
+.stat-val.green{color:var(--green)}
+.stat-lbl{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
 
-table{border-collapse:collapse;font-size:11px;white-space:nowrap}
-/* Sticky headers */
-thead th{background:#ddeeff;color:#1a3a5c;font-weight:700;padding:7px 10px;border:1px solid var(--border2);text-align:center;position:sticky;top:0;z-index:10}
-thead tr:first-child th{z-index:12}
-/* Product header (col 0) */
-th.th-date{position:sticky;left:0;z-index:13;background:#c8e0f8;min-width:100px;text-align:left}
-th.th-prod{background:#4a6fa5;color:#fff;font-size:12px;padding:8px 12px}
-th.th-param{background:#ddeeff;font-size:10px;min-width:70px}
-/* Body */
-tbody td{padding:5px 10px;border:1px solid var(--border);text-align:center;font-family:var(--mono);font-size:11px;transition:background .1s}
-tbody td.td-date{position:sticky;left:0;background:var(--bg2);font-weight:600;color:var(--txt2);text-align:left;font-family:var(--font);z-index:5;border-right:2px solid var(--border2);min-width:100px}
-tbody tr:hover td{background:var(--blue-bg)}
-tbody tr:hover td.td-date{background:#ddeeff}
-/* Value colors */
-.val-pos{color:#1a8a50;font-weight:700}
-.val-neg{color:#cc3333;font-weight:700}
-.val-zero{color:var(--txt3)}
-.val-empty{color:var(--border2)}
-/* Install row */
-tr.tr-install td{background:var(--purple-bg)!important}
-tr.tr-install td.td-date{background:#ede9ff!important;color:var(--purple);font-weight:800}
-.install-cell{color:var(--purple);font-weight:700;font-size:10px}
-/* Delta tooltip */
-.delta-cell{position:relative;cursor:default}
-.delta-cell:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:rgba(30,40,80,.92);color:#fff;font-size:10px;padding:4px 8px;border-radius:6px;white-space:nowrap;z-index:100;pointer-events:none}
+/* Plant sections */
+.content{padding:8px 20px 20px}
+.plant-section{margin-bottom:24px}
+.plant-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--border)}
+.plant-name{font-size:15px;font-weight:700;color:var(--txt)}
+.plant-badge{font-size:10px;font-family:var(--mono);background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-light);border-radius:20px;padding:2px 8px}
+.plant-count{font-size:11px;color:var(--txt3);margin-left:auto}
 
-/* Legend */
-.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--txt3);margin-bottom:12px}
-.leg{display:flex;align-items:center;gap:5px}
-.leg-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+/* Product groups */
+.prod-group{margin-bottom:16px}
+.prod-header{font-size:12px;font-weight:700;color:var(--txt2);background:var(--bg);border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;padding:7px 12px;display:flex;align-items:center;gap:8px}
+.prod-icon{width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0;border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);overflow:hidden}
+
+/* Param card */
+.param-card{padding:12px 14px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:#fff;transition:background .1s;position:relative}
+.param-card:hover{background:var(--blue-bg)}
+.param-card:last-child{border-right:none}
+.param-name{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.bias-val{font-size:20px;font-weight:800;font-family:var(--mono);line-height:1}
+.bias-val.pos{color:var(--green)}
+.bias-val.neg{color:var(--red)}
+.bias-val.zero{color:var(--txt3)}
+.bias-val.null{color:var(--border2);font-size:16px}
+.param-meta{margin-top:6px;font-size:10px;color:var(--txt3);line-height:1.5}
+.param-date{font-family:var(--mono)}
+
+/* Install badge on card */
+.install-ribbon{position:absolute;top:0;right:0;background:var(--purple);color:#fff;font-size:8px;font-weight:700;padding:2px 6px;border-bottom-left-radius:6px;letter-spacing:.3px}
+.card-install{background:var(--purple-light)!important;border-color:var(--purple-light)!important}
+.card-install:hover{background:var(--purple-bg)!important}
+
+/* History timeline (expandable) */
+.history-btn{font-size:10px;color:var(--blue);cursor:pointer;margin-top:6px;display:inline-block;font-weight:600}
+.history-btn:hover{text-decoration:underline}
+.history-list{display:none;margin-top:8px;border-top:1px dashed var(--border);padding-top:8px}
+.history-list.open{display:block}
+.hist-row{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:10px;font-family:var(--mono)}
+.hist-date{color:var(--txt3);min-width:55px}
+.hist-delta{font-weight:700}
+.hist-delta.pos{color:var(--green)}
+.hist-delta.neg{color:var(--red)}
+.hist-bias{color:var(--txt2)}
+.hist-install{color:var(--purple);font-weight:700}
+
+/* No data */
+.no-data{text-align:center;padding:60px 20px;color:var(--txt3)}
+.no-data .icon{font-size:36px;margin-bottom:12px}
 
 /* Modal */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(30,40,80,.5);backdrop-filter:blur(3px);z-index:1000;align-items:center;justify-content:center}
-.modal-overlay.open{display:flex}
-.modal{background:var(--bg2);border-radius:var(--r-lg);width:min(580px,96vw);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(30,40,80,.2)}
-.modal-header{background:linear-gradient(135deg,#4a6fa5,#7097d4);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-radius:var(--r-lg) var(--r-lg) 0 0}
-.modal-title{font-size:15px;font-weight:700}
-.modal-close{background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
-.modal-close:hover{background:rgba(255,255,255,.35)}
-.modal-body{padding:20px;display:flex;flex-direction:column;gap:12px}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.form-col{display:flex;flex-direction:column;gap:4px}
-.form-col.full{grid-column:1/-1}
-.form-label{font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px}
-.form-check{display:flex;align-items:center;gap:8px}
-.form-check input[type=checkbox]{width:16px;height:16px;cursor:pointer}
-.install-note{background:var(--purple-bg);border:1px solid var(--purple-border);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--purple)}
-.params-editor{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto}
-.param-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center}
-.param-row select,.param-row input{padding:5px 8px;font-size:12px}
-.btn-add-param{font-size:11px;padding:5px 12px;background:var(--green-bg);color:var(--green);border:1.5px solid var(--green-border);border-radius:7px;cursor:pointer;font-weight:600;width:fit-content}
-.btn-add-param:hover{background:var(--green);color:#fff}
-.btn-rem{background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;font-weight:700}
-.btn-rem:hover{background:#dc2626;color:#fff}
-.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+.overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:14px;width:min(520px,96vw);max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px rgba(0,0,0,.2)}
+.modal-hdr{background:#1e293b;color:#fff;padding:15px 20px;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between}
+.modal-hdr-title{font-size:14px;font-weight:700}
+.modal-x{background:rgba(255,255,255,.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
+.modal-x:hover{background:rgba(255,255,255,.3)}
+.modal-body{padding:18px;display:flex;flex-direction:column;gap:12px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-full{grid-column:1/-1}
+.flabel{font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px}
+.finput{width:100%;font-size:13px;padding:8px 10px;border:1.5px solid var(--border2);border-radius:var(--r);background:#fff;color:var(--txt);font-family:var(--font)}
+.finput:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+.check-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--purple-bg);border:1.5px solid var(--purple-light);border-radius:var(--r);cursor:pointer}
+.check-row input{width:15px;height:15px;accent-color:var(--purple);cursor:pointer}
+.check-row label{font-weight:600;color:var(--purple);cursor:pointer;font-size:13px}
+.install-hint{background:#faf5ff;border:1px solid var(--purple-light);border-radius:var(--r);padding:8px 12px;font-size:11px;color:var(--purple);display:none}
+.params-wrap{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto}
+.param-row{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:center}
+.btn-add-p{font-size:11px;padding:5px 12px;background:var(--green-bg);color:var(--green);border:1.5px solid #bbf7d0;border-radius:var(--r);cursor:pointer;font-weight:600;width:fit-content;margin-top:4px}
+.btn-add-p:hover{background:var(--green);color:#fff}
+.btn-rem{background:var(--red-bg);border:1px solid #fca5a5;color:var(--red);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;font-weight:700}
+.btn-rem:hover{background:var(--red);color:#fff}
+.modal-ftr{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+.btn-cancel{background:var(--bg);color:var(--txt2);border:1px solid var(--border2);padding:7px 16px;border-radius:var(--r);cursor:pointer;font-weight:600;font-family:var(--font);font-size:13px}
+.btn-save{background:var(--purple);color:#fff;border:none;padding:7px 18px;border-radius:var(--r);cursor:pointer;font-weight:700;font-family:var(--font);font-size:13px;display:flex;align-items:center;gap:5px}
+.btn-save:hover{background:#6d28d9}.btn-save:disabled{background:#a0aec0;cursor:not-allowed}
 
 /* Loading */
 #loadingOverlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:14px}
-.spinner{width:36px;height:36px;border:3px solid var(--blue-light);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+.spinner{width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-txt{font-size:13px;color:var(--txt3);font-family:var(--mono)}
 </style>
@@ -115,481 +136,438 @@ tr.tr-install td.td-date{background:#ede9ff!important;color:var(--purple);font-w
 
 <div id="loadingOverlay"><div class="spinner"></div><div class="loading-txt">กำลังโหลดข้อมูล...</div></div>
 
-<div id="appContent" style="display:none">
+<div id="app" style="display:none">
 
-<div class="page-header">
-  <div>
-    <div class="page-title">📊 Bias Tracking <span class="chip">Cumulative</span></div>
-    <div style="font-size:11px;color:var(--txt3);font-family:var(--mono);margin-top:3px" id="lastUpdated"></div>
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="topbar-title">
+    📊 Bias Summary
+    <span class="topbar-sub" id="lastUpdated"></span>
   </div>
-  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-    <button class="btn btn-purple" onclick="openModal()">➕ บันทึก Install / Adjust</button>
-    <a href="summary_5.html" class="nav-link">← Summary</a>
+  <div class="topbar-actions">
+    <button class="btn btn-add" onclick="openModal()">➕ บันทึก Install / Adjust</button>
+    <a href="summary_5.html" class="nav-link">← กลับ Summary</a>
   </div>
 </div>
 
-<!-- Filter -->
+<!-- Filter Bar -->
 <div class="filter-bar">
-  <div class="f-group"><span class="f-label">Plant / Machine</span><select id="fLabel"><option value="">All</option></select></div>
-  <div class="f-group"><span class="f-label">Product</span><select id="fProduct"><option value="">All</option></select></div>
-  <div class="f-group"><span class="f-label">Parameter</span><select id="fParam"><option value="">All</option></select></div>
+  <span class="f-label">เดือน</span>
+  <select id="fMonth"></select>
+  <span class="f-label" style="margin-left:8px">Plant</span>
+  <select id="fLabel"><option value="">All Plants</option></select>
+  <span class="f-label" style="margin-left:8px">Product</span>
+  <select id="fProduct"><option value="">All Products</option></select>
 </div>
 
-<!-- Legend -->
-<div class="legend">
-  <span class="leg"><span class="leg-dot" style="background:var(--purple-bg);border:1.5px solid var(--purple-border)"></span>🔄 Install สมการใหม่ (Bias = 0 แล้วเริ่มนับใหม่)</span>
-  <span class="leg"><span class="leg-dot" style="background:#f0fdf4;border:1.5px solid #bbf7d0"></span><span style="color:#1a8a50;font-weight:700">+ค่า</span> Bias บวก</span>
-  <span class="leg"><span class="leg-dot" style="background:#fef2f2;border:1.5px solid #fca5a5"></span><span style="color:#cc3333;font-weight:700">−ค่า</span> Bias ลบ</span>
-  <span class="leg" style="font-size:10px;color:var(--txt3)">💡 hover เซลเพื่อดู delta ที่ปรับในครั้งนั้น</span>
+<!-- Stats -->
+<div class="stats-row">
+  <div class="stat"><div class="stat-val blue" id="sTotal">—</div><div class="stat-lbl">รายการปรับ</div></div>
+  <div class="stat"><div class="stat-val purple" id="sInstall">—</div><div class="stat-lbl">🔄 Install ใหม่</div></div>
+  <div class="stat"><div class="stat-val green" id="sProd">—</div><div class="stat-lbl">Product</div></div>
+  <div class="stat"><div class="stat-val" id="sPlant">—</div><div class="stat-lbl">Plant</div></div>
 </div>
 
-<!-- Pivot Table -->
-<div class="tbl-card">
-  <div class="tbl-card-title">
-    <span class="bar"></span>
-    Bias Tracking — สะสมตามวันที่ (เก่า→ใหม่)
-    <span id="tableInfo" style="margin-left:auto;font-size:11px;color:var(--txt3);font-family:var(--mono)"></span>
-  </div>
-  <div class="tbl-wrap" id="tableWrap">
-    <div style="padding:40px;text-align:center;color:var(--txt3)">กำลังโหลด...</div>
-  </div>
-</div>
+<!-- Content -->
+<div class="content" id="content"></div>
 
 </div>
 
 <!-- Modal -->
-<div class="modal-overlay" id="addModal">
+<div class="overlay" id="modal">
   <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">➕ บันทึก Install / Adjust Bias</div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-hdr">
+      <div class="modal-hdr-title">➕ บันทึก Install / Adjust Bias</div>
+      <button class="modal-x" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-check">
-        <input type="checkbox" id="isInstall" onchange="toggleInstall()">
-        <label for="isInstall" style="font-weight:700;color:var(--purple);cursor:pointer">🔄 ติดตั้งสมการใหม่ (Bias รีเซ็ต = 0)</label>
+      <div class="check-row" onclick="toggleInstall()">
+        <input type="checkbox" id="isInstall">
+        <label for="isInstall">🔄 ติดตั้งสมการใหม่ — Bias รีเซ็ตเป็น 0</label>
       </div>
-      <div class="install-note" id="installNote" style="display:none">
-        ⚠️ เมื่อติดตั้งสมการใหม่ Bias จะรีเซ็ตเป็น 0 ทันที<br>
-        ถ้ามีค่า Bias เริ่มต้นหลัง install ให้กรอกในช่อง Parameter ด้านล่าง
-      </div>
-      <div class="form-row">
-        <div class="form-col">
-          <span class="form-label">วันที่ *</span>
-          <input type="date" id="inDate">
-        </div>
-        <div class="form-col">
-          <span class="form-label">Plant / Machine *</span>
-          <select id="inLabel">
-            <option value="">—เลือก—</option>
+      <div class="install-hint" id="installHint">⚠️ Bias จะรีเซ็ต = 0 ถ้ามีค่า Bias เริ่มต้นหลัง install ให้กรอกใน Parameter</div>
+      <div class="form-grid">
+        <div><label class="flabel">วันที่ *</label><input class="finput" type="date" id="inDate"></div>
+        <div>
+          <label class="flabel">Plant / Machine *</label>
+          <select class="finput" id="inLabel">
+            <option value="">— เลือก Plant —</option>
             <option value="169 LAB-DS2500">169 LAB-DS2500</option>
             <option value="169 QC-DS2500">169 QC-DS2500</option>
             <option value="169 QC-DS3">169 QC-DS3</option>
-            <option value="Rayong">Rayong (RY DS3F)</option>
+            <option value="Rayong">Rayong (DS3F)</option>
             <option value="Indo DS2500">Indo DS2500</option>
             <option value="Indo DS3F">Indo DS3F</option>
-            <option value="Myanmar">Myanmar (MM DS2500)</option>
-            <option value="Wet Food">Wet Food (WF DS2500)</option>
-            <option value="POC">POC DS2500</option>
+            <option value="Myanmar">Myanmar (DS2500)</option>
+            <option value="Wet Food">Wet Food (DS2500)</option>
+            <option value="POC">POC (DS2500)</option>
           </select>
         </div>
+        <div><label class="flabel">Product *</label><input class="finput" type="text" id="inProduct" list="productList" placeholder="เช่น Dog Kibble"><datalist id="productList"></datalist></div>
+        <div><label class="flabel">ผู้บันทึก</label><input class="finput" type="text" id="inAdjuster" placeholder="ชื่อผู้บันทึก"></div>
+        <div><label class="flabel">ผู้ตรวจสอบ</label><input class="finput" type="text" id="inReviewer" placeholder="ชื่อผู้ตรวจสอบ"></div>
+        <div><label class="flabel">หมายเหตุ</label><input class="finput" type="text" id="inNote" placeholder="หมายเหตุ"></div>
       </div>
-      <div class="form-row">
-        <div class="form-col">
-          <span class="form-label">Product *</span>
-          <input type="text" id="inProduct" list="productList" placeholder="เช่น Dog Kibble">
-          <datalist id="productList"></datalist>
-        </div>
-        <div class="form-col">
-          <span class="form-label">ผู้บันทึก</span>
-          <input type="text" id="inAdjuster" placeholder="ชื่อผู้บันทึก">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-col">
-          <span class="form-label">ผู้ตรวจสอบ</span>
-          <input type="text" id="inReviewer" placeholder="ชื่อผู้ตรวจสอบ">
-        </div>
-        <div class="form-col">
-          <span class="form-label">หมายเหตุ</span>
-          <input type="text" id="inNote" placeholder="หมายเหตุ (ถ้ามี)">
-        </div>
-      </div>
-      <div class="form-col full">
-        <span class="form-label">Parameter ที่ปรับ (ค่า delta บวก/ลบ) *</span>
-        <div class="params-editor" id="paramsEditor"></div>
-        <button class="btn-add-param" onclick="addParamRow()">+ เพิ่ม Parameter</button>
+      <div>
+        <label class="flabel">Parameters ที่ปรับ *</label>
+        <div class="params-wrap" id="paramsWrap"></div>
+        <button class="btn-add-p" onclick="addParam()">+ เพิ่ม Parameter</button>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-blue" onclick="closeModal()">ยกเลิก</button>
-      <button class="btn btn-purple" id="saveBtn" onclick="saveRecord()">💾 บันทึก & Sync</button>
+    <div class="modal-ftr">
+      <button class="btn-cancel" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn-save" id="saveBtn" onclick="saveRecord()">💾 บันทึก & Sync</button>
     </div>
   </div>
 </div>
 
 <script>
-const JSONBIN_ID     = '69d5c4f4856a6821890d184e';
-const JSONBIN_MASTER = '$2a$10$oCl17sk5FL69HRjvcyDZPefF/QkDJbfVDS.qpBYNwiFnb2ufVSMdi';
-const JSONBIN_ACCESS = '$2a$10$KUCt03lbeTKyErlWNAdVheQ0dGdoVzYq5y.hnbhTnnWgT3oLxKk5e';
-const JSONBIN_URL    = 'https://api.jsonbin.io/v3/b/' + JSONBIN_ID;
-const PARAMS_DEF = ['M','CP','EE','AH','FIB','ASH','Ca','P','Aw','NaCl','PD','TVBN','Sand','Starch','BHT','pH','Fat-C'];
+const JB_ID  = '69d5c4f4856a6821890d184e';
+const JB_MK  = '$2a$10$oCl17sk5FL69HRjvcyDZPefF/QkDJbfVDS.qpBYNwiFnb2ufVSMdi';
+const JB_AK  = '$2a$10$KUCt03lbeTKyErlWNAdVheQ0dGdoVzYq5y.hnbhTnnWgT3oLxKk5e';
+const JB_URL = 'https://api.jsonbin.io/v3/b/'+JB_ID;
 
-let RAW_BIAS = [];    // จาก Excel bias_records
-let RAW_MANUAL = [];  // กรอกเองในเว็บ
-let RAW_CORR = {};    // corrections จาก Summary
+const LABEL_ORDER = ['169 LAB-DS2500','169 QC-DS2500','169 QC-DS3','Rayong','Indo DS2500','Indo DS3F','Myanmar','Wet Food','POC'];
+const PARAMS_DEF  = ['M','CP','EE','AH','FIB','ASH','Ca','P','Aw','NaCl','PD','TVBN','Sand','Starch','BHT','pH','Fat-C'];
+const LMAP = {
+  '169 LAB-DS2500':{plant:'169',equipment:'DS2500',source:'LAB'},
+  '169 QC-DS2500' :{plant:'169',equipment:'DS2500',source:'QC'},
+  '169 QC-DS3'    :{plant:'169',equipment:'DS3',   source:'QC'},
+  'Rayong'        :{plant:'RY', equipment:'DS3F',  source:''},
+  'Indo DS2500'   :{plant:'Indo',equipment:'DS2500',source:''},
+  'Indo DS3F'     :{plant:'Indo',equipment:'DS3F', source:''},
+  'Myanmar'       :{plant:'MM', equipment:'DS2500',source:''},
+  'Wet Food'      :{plant:'169',equipment:'DS2500',source:'Wet Food'},
+  'POC'           :{plant:'POC',equipment:'DS2500',source:''},
+};
 
-// ── JSONBin ──────────────────────────────────────────────────────────────────
-async function jbGet() {
-  const res = await fetch(JSONBIN_URL + '/latest', {
-    cache:'no-store',
-    headers:{'X-Master-Key':JSONBIN_MASTER,'X-Bin-Meta':'false'}
-  });
-  if (!res.ok) throw new Error('HTTP '+res.status);
-  const j = await res.json();
-  return j.record || j;
+let RAW_BIAS=[], RAW_MANUAL=[], RAW_CORR={}, JB_DATA={};
+
+// ── JSONBin ───────────────────────────────────────────────────────────────────
+async function jbGet(){
+  const r=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const j=await r.json();
+  return j.record||j;
 }
-async function jbPut(data) {
-  const res = await fetch(JSONBIN_URL, {
-    method:'PUT',
-    headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_MASTER,'X-Access-Key':JSONBIN_ACCESS},
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) throw new Error('HTTP '+res.status);
-  return res.json();
+async function jbPut(data){
+  const r=await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify(data)});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+}
+
+// ── Normalize ─────────────────────────────────────────────────────────────────
+function norm(r,src){
+  const isFull=r.date!==undefined;
+  return {
+    date:       isFull?r.date:r.d,
+    month:      isFull?(r.month||(r.date||'').slice(0,7)):(r.d||'').slice(0,7),
+    product:    isFull?r.product:r.p,
+    label:      isFull?(r.label||''):(r.l||''),
+    params:     isFull?(r.params||{}):(r.pa||{}),
+    is_install: isFull?!!r.is_install:(r.i===1),
+    adjuster:   r.adjuster||r.a||'',
+    note:       r.note||'',
+    reviewer:   r.reviewer||'',
+    _src:       src||r._src||'excel',
+    _id:        r._id||'',
+  };
 }
 
 // ── Load ──────────────────────────────────────────────────────────────────────
-async function loadData() {
-  try {
-    const data = await jbGet();
-    RAW_BIAS   = data.bias_records   || [];
-    RAW_MANUAL = data.manual_records || [];
-    RAW_CORR   = data.corrections    || {};
-    if (data.generated_at) document.getElementById('lastUpdated').textContent = 'อัปเดตล่าสุด: ' + data.generated_at;
+async function loadData(){
+  try{
+    JB_DATA = await jbGet();
+    RAW_BIAS   = (JB_DATA.bias_records  ||[]).map(r=>norm(r,'excel'));
+    RAW_MANUAL = (JB_DATA.manual_records||[]).map(r=>norm(r,'manual'));
+    RAW_CORR   = JB_DATA.corrections||{};
+    if(JB_DATA.generated_at) document.getElementById('lastUpdated').textContent=JB_DATA.generated_at;
     initFilters();
     document.getElementById('loadingOverlay').style.display='none';
-    document.getElementById('appContent').style.display='block';
-    buildTable();
-  } catch(e) {
-    document.getElementById('loadingOverlay').innerHTML =
-      `<div style="color:#cc3333;text-align:center;padding:20px">❌ โหลดไม่ได้: ${e.message}</div>`;
+    document.getElementById('app').style.display='block';
+    render();
+  }catch(e){
+    document.getElementById('loadingOverlay').innerHTML=`<div style="color:#dc2626;text-align:center;padding:20px"><b>❌ โหลดไม่ได้</b><br><small>${e.message}</small></div>`;
   }
 }
 
-// ── รวม records ทั้งหมด แปลง correction key → records ──────────────────────
-function getAllEvents() {
-  const events = [];
-
-  // Excel records — รองรับทั้ง full format และ slim format
-  RAW_BIAS.forEach(r => {
-    // slim format: d=date, p=product, l=label, pa=params, i=is_install, a=adjuster
-    const isFull = r.date !== undefined;
-    events.push({
-      date:       isFull ? r.date       : r.d,
-      month:      isFull ? r.month      : (r.d||'').slice(0,7),
-      product:    isFull ? r.product    : r.p,
-      label:      isFull ? r.label      : r.l,
-      plant:      isFull ? (r.plant||'')    : '',
-      equipment:  isFull ? (r.equipment||'') : '',
-      source:     isFull ? (r.source||'')   : '',
-      params:     isFull ? r.params     : r.pa,
-      is_install: isFull ? r.is_install : (r.i === 1),
-      adjuster:   isFull ? (r.adjuster||'') : (r.a||''),
-      note:       r.note||'',
-      _src: 'excel'
+// ── All Events ────────────────────────────────────────────────────────────────
+function getAllEvents(){
+  const evts=[...RAW_BIAS,...RAW_MANUAL];
+  // corrections from Summary
+  Object.entries(RAW_CORR).forEach(([k,v])=>{
+    const parts=k.split('::');
+    const prd=parts[0]||'', serial=parseInt(parts[1]||0);
+    const eqp=parts[2]==='all'?'':(parts[2]||'');
+    const src=parts[3]==='all'?'':(parts[3]||'');
+    if(!prd||!serial)return;
+    let date='';
+    try{date=new Date((serial-25569)*86400*1000).toISOString().slice(0,10);}catch{return;}
+    let label='';
+    if(src==='LAB')label='169 LAB-DS2500';
+    else if(src==='QC'&&eqp==='DS3')label='169 QC-DS3';
+    else if(src==='QC')label='169 QC-DS2500';
+    else if(src==='Wet Food')label='Wet Food';
+    const params={}, text=v.text||'';
+    PARAMS_DEF.forEach(p=>{
+      const esc=p.replace(/[.*+?^=!:{}()|[\]/\\]/g,'\\$&').replace(/-/g,'[-]');
+      const m=text.match(new RegExp('(?<![A-Za-z\\d])'+esc+'[\\s=:]*([+-]?\\d+\\.?\\d*)','i'));
+      if(m)params[p]=parseFloat(m[1]);
     });
+    evts.push({date,month:date.slice(0,7),product:prd,label,params,is_install:false,adjuster:v.user||'',note:v.text||'',_src:'correction'});
   });
-  // Manual records
-  RAW_MANUAL.forEach(r => events.push({...r, _src:'manual'}));
-
-  // Corrections จาก Summary — key: "product::serial::eqp::src"
-  Object.entries(RAW_CORR).forEach(([k, v]) => {
-    const parts = k.split('::');
-    const prd = parts[0]||'', serial = parseInt(parts[1]||0);
-    const eqp = (parts[2]==='all')?'':(parts[2]||'');
-    const src = (parts[3]==='all')?'':(parts[3]||'');
-    if (!prd || !serial) return;
-    let date = '';
-    try {
-      const d = new Date((serial - 25569) * 86400 * 1000);
-      date = d.toISOString().slice(0,10);
-    } catch { return; }
-
-    // map eqp+src → label
-    let label = '';
-    if (src==='LAB') label='169 LAB-DS2500';
-    else if (src==='QC'&&eqp==='DS3') label='169 QC-DS3';
-    else if (src==='QC') label='169 QC-DS2500';
-    else if (src==='Wet Food') label='Wet Food';
-    else if (eqp==='DS3F'&&!src) label='Rayong'; // fallback
-
-    // parse ค่า Bias จาก text เช่น "Adjust Bias M -0.185, CP -0.230"
-    // ใช้ negative lookbehind เพื่อไม่ให้ P match ใน CP, PD ใน TVBN ฯลฯ
-    const params = {};
-    const text = v.text || '';
-    PARAMS_DEF.forEach(p => {
-      const escaped = p.replace(/[.*+?^=!:{}()|[\]/\\]/g,'\\$&').replace(/-/g,'[-]');
-      const re = new RegExp('(?<![A-Za-z\\d])' + escaped + '[\\s=:]*([+-]?\\d+\\.?\\d*)', 'i');
-      const m = text.match(re);
-      if (m) params[p] = parseFloat(m[1]);
-    });
-    events.push({
-      date, month: date.slice(0,7),
-      product: prd, plant: '', equipment: eqp, source: src,
-      label,
-      params, is_install: false,
-      adjuster: v.user||'', note: v.text||'',
-      _src: 'correction', _key: k
-    });
-  });
-
-  return events.sort((a,b) => a.date.localeCompare(b.date));
+  return evts.sort((a,b)=>a.date.localeCompare(b.date));
 }
 
-// ── Filter ────────────────────────────────────────────────────────────────────
-const LABEL_ORDER = ['169 LAB-DS2500','169 QC-DS2500','169 QC-DS3','Rayong','Indo DS2500','Indo DS3F','Myanmar','Wet Food','POC'];
+// ── Cumulative Bias per label+product+param ───────────────────────────────────
+function calcBias(evts){
+  // returns Map: "label|product|param" → [{date,bias,delta,install,adjuster,note,_src}]
+  const history=new Map();
+  const state={}; // "label|product|param" → current bias
+  evts.forEach(evt=>{
+    const doRec=(p,delta,isInstall)=>{
+      const k=`${evt.label}|${evt.product}|${p}`;
+      if(isInstall){
+        state[k]=delta!==null?delta:0;
+      }else{
+        if(state[k]===undefined)state[k]=0;
+        state[k]=Math.round((state[k]+(delta||0))*100000)/100000;
+      }
+      if(!history.has(k))history.set(k,[]);
+      history.get(k).push({date:evt.date,bias:state[k],delta,install:isInstall,adjuster:evt.adjuster,note:evt.note,_src:evt._src});
+    };
+    if(evt.is_install){
+      // reset all params for this product+label, then apply delta if any
+      // First find all known params for this product
+      const knownParams=new Set([...Object.keys(state)].filter(k=>k.startsWith(`${evt.label}|${evt.product}|`)).map(k=>k.split('|')[2]));
+      Object.keys(evt.params).forEach(p=>knownParams.add(p));
+      knownParams.forEach(p=>{
+        const delta=evt.params[p]??null;
+        doRec(p,delta,true);
+      });
+    }else{
+      Object.entries(evt.params).forEach(([p,delta])=>doRec(p,delta,false));
+    }
+  });
+  return{history,state};
+}
 
-function getFilters() {
-  return {
+// ── Filters ───────────────────────────────────────────────────────────────────
+function initFilters(){
+  const all=getAllEvents();
+  // months
+  const months=[...new Set(all.map(r=>r.month))].sort().reverse();
+  const fM=document.getElementById('fMonth');
+  months.forEach(m=>{const d=new Date(m+'-01');fM.appendChild(new Option(d.toLocaleDateString('th-TH',{month:'long',year:'numeric'}),m));});
+  fM.value=months[0]||'';
+  // labels
+  const labels=LABEL_ORDER.filter(l=>all.some(r=>r.label===l));
+  const fL=document.getElementById('fLabel');
+  labels.forEach(l=>fL.appendChild(new Option(l,l)));
+  // products
+  const prods=[...new Set(all.map(r=>r.product))].filter(Boolean).sort();
+  const fP=document.getElementById('fProduct');
+  prods.forEach(p=>fP.appendChild(new Option(p,p)));
+  const dl=document.getElementById('productList');
+  prods.forEach(p=>{const o=document.createElement('option');o.value=p;dl.appendChild(o);});
+  ['fMonth','fLabel','fProduct'].forEach(id=>document.getElementById(id).addEventListener('change',render));
+}
+
+function getFilters(){
+  return{
+    month:   document.getElementById('fMonth').value,
     label:   document.getElementById('fLabel').value,
     product: document.getElementById('fProduct').value,
-    param:   document.getElementById('fParam').value,
   };
 }
-function fillSel(id, vals) {
-  const s = document.getElementById(id);
-  [...vals].filter(Boolean).sort().forEach(v => s.appendChild(new Option(v,v)));
-}
-function initFilters() {
-  const all = getAllEvents();
-  const labels = [...new Set(all.map(r=>r.label||'').filter(Boolean))];
-  const sortedLabels = LABEL_ORDER.filter(l=>labels.includes(l));
-  labels.filter(l=>!LABEL_ORDER.includes(l)).sort().forEach(l=>sortedLabels.push(l));
-  const fL = document.getElementById('fLabel');
-  sortedLabels.forEach(l => fL.appendChild(new Option(l,l)));
-  fillSel('fProduct', new Set(all.map(r=>r.product)));
-  fillSel('fParam',   new Set(all.flatMap(r=>Object.keys(r.params))));
-  const dl = document.getElementById('productList');
-  [...new Set(all.map(r=>r.product))].filter(Boolean).sort().forEach(p => {
-    const o = document.createElement('option'); o.value=p; dl.appendChild(o);
-  });
-  ['fLabel','fProduct','fParam'].forEach(id =>
-    document.getElementById(id).addEventListener('change', buildTable));
-}
 
-// ── Build Pivot Table ─────────────────────────────────────────────────────────
-function buildTable() {
-  const f = getFilters();
-  let events = getAllEvents().filter(r => {
-    if (f.label   && (r.label||'') !== f.label)  return false;
-    if (f.product && r.product !== f.product)     return false;
-    if (f.param   && !Object.keys(r.params).includes(f.param)) return false;
+// ── Render ────────────────────────────────────────────────────────────────────
+function render(){
+  const f=getFilters();
+  const allEvts=getAllEvents();
+  const {history,state}=calcBias(allEvts);
+
+  // กรองเฉพาะ events ที่อยู่ใน selMon หรือก่อนหน้า (เพื่อ Bias สะสม)
+  // แต่แสดงเฉพาะที่มีการเปลี่ยนแปลงในเดือน selMon
+  const selMon=f.month;
+
+  // หา entries ที่มีการเปลี่ยนแปลงใน selMon
+  const activeKeys=new Set();
+  history.forEach((hlist,k)=>{
+    if(hlist.some(h=>h.date.slice(0,7)===selMon)){
+      activeKeys.add(k);
+    }
+  });
+
+  // กรอง keys ตาม label/product filter
+  const filteredKeys=[...activeKeys].filter(k=>{
+    const [lbl,prd]=k.split('|');
+    if(f.label&&lbl!==f.label)return false;
+    if(f.product&&prd!==f.product)return false;
     return true;
   });
 
-  if (!events.length) {
-    document.getElementById('tableWrap').innerHTML = '<div style="padding:40px;text-align:center;color:var(--txt3)">📭 ไม่พบข้อมูล</div>';
+  // stats
+  const evtsInMon=allEvts.filter(r=>r.month===selMon&&(!f.label||r.label===f.label)&&(!f.product||r.product===f.product));
+  document.getElementById('sTotal').textContent=evtsInMon.length;
+  document.getElementById('sInstall').textContent=evtsInMon.filter(r=>r.is_install).length;
+  document.getElementById('sProd').textContent=new Set(filteredKeys.map(k=>k.split('|')[1])).size;
+  document.getElementById('sPlant').textContent=new Set(filteredKeys.map(k=>k.split('|')[0])).size;
+
+  if(!filteredKeys.length){
+    document.getElementById('content').innerHTML='<div class="no-data"><div class="icon">📭</div>ไม่พบข้อมูลในเดือนนี้</div>';
     return;
   }
 
-  // รวบรวม product-param columns
-  const colSet = new Map(); // "product|param" → {product, param}
-  events.forEach(r => {
-    Object.keys(r.params).forEach(p => {
-      const key = r.product+'|'+p;
-      if (!colSet.has(key)) colSet.set(key, {product:r.product, param:p});
+  // จัดกลุ่ม: label → product → [param cards]
+  const byLabel=new Map();
+  filteredKeys.forEach(k=>{
+    const [lbl,prd,param]=k.split('|');
+    if(!byLabel.has(lbl))byLabel.set(lbl,new Map());
+    const byProd=byLabel.get(lbl);
+    if(!byProd.has(prd))byProd.set(prd,[]);
+    // หา Bias ปัจจุบัน (state)
+    const hlist=history.get(k)||[];
+    const lastEntry=hlist.length?hlist[hlist.length-1]:null;
+    // หา events ใน selMon สำหรับ param นี้
+    const monEntries=hlist.filter(h=>h.date.slice(0,7)===selMon);
+    const lastInstall=monEntries.find(h=>h.install);
+    byProd.get(prd).push({param,k,lastEntry,monEntries,lastInstall,hlist});
+  });
+
+  // sort label by LABEL_ORDER
+  const sortedLabels=[...byLabel.keys()].sort((a,b)=>LABEL_ORDER.indexOf(a)-LABEL_ORDER.indexOf(b));
+
+  let html='';
+  sortedLabels.forEach(lbl=>{
+    const byProd=byLabel.get(lbl);
+    const totalCards=[...byProd.values()].reduce((s,a)=>s+a.length,0);
+    html+=`<div class="plant-section">
+      <div class="plant-header">
+        <div class="plant-name">🏭 ${lbl}</div>
+        <span class="plant-badge">${lbl.includes('169')?'Rayong 169':lbl.includes('Indo')?'Indonesia':lbl.includes('MM')||lbl==='Myanmar'?'Myanmar':lbl}</span>
+        <span class="plant-count">${byProd.size} Product · ${totalCards} Parameter</span>
+      </div>`;
+
+    // sort products
+    const sortedProds=[...byProd.keys()].sort();
+    sortedProds.forEach(prd=>{
+      const params=byProd.get(prd);
+      // sort params by PARAMS_DEF order
+      params.sort((a,b)=>PARAMS_DEF.indexOf(a.param)-PARAMS_DEF.indexOf(b.param));
+      html+=`<div class="prod-group">
+        <div class="prod-header"><span class="prod-icon"></span>${prd}</div>
+        <div class="cards-grid">`;
+
+      params.forEach(({param,lastEntry,monEntries,lastInstall,hlist})=>{
+        const bias=lastEntry?lastEntry.bias:null;
+        const biasStr=bias===null?'—':(bias>=0?'+':'')+bias;
+        const biasCls=bias===null?'null':bias>0?'pos':bias<0?'neg':'zero';
+        const lastDate=lastEntry?lastEntry.date.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>`${d}/${m}/${y.slice(2)}`):'';
+        const hasInstall=!!lastInstall;
+
+        // history lines for this month
+        const histLines=monEntries.map(h=>{
+          const dStr=h.date.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>`${d}/${m}`);
+          const dVal=h.delta!==null&&h.delta!==undefined?(h.delta>=0?'+':'')+h.delta:'';
+          const bStr=(h.bias>=0?'+':'')+h.bias;
+          if(h.install)return`<div class="hist-row"><span class="hist-date">${dStr}</span><span class="hist-install">🔄 reset→${bStr}</span></div>`;
+          return`<div class="hist-row"><span class="hist-date">${dStr}</span><span class="hist-delta ${h.delta>0?'pos':h.delta<0?'neg':''}">${dVal}</span><span class="hist-bias">→${bStr}</span>${h.adjuster?`<span style="color:var(--txt3);margin-left:4px">${h.adjuster}</span>`:''}</div>`;
+        }).join('');
+
+        const uid='h'+Math.random().toString(36).slice(2,8);
+        html+=`<div class="param-card${hasInstall?' card-install':''}">
+          ${hasInstall?'<span class="install-ribbon">🔄 Install</span>':''}
+          <div class="param-name">${param}</div>
+          <div class="bias-val ${biasCls}">${biasStr}</div>
+          <div class="param-meta">
+            ${lastDate?`<span class="param-date">${lastDate}</span>`:''}
+            ${lastEntry&&lastEntry.adjuster?`<br>${lastEntry.adjuster}`:''}
+          </div>
+          ${monEntries.length>0?`<span class="history-btn" onclick="toggleHist('${uid}')">ประวัติเดือนนี้ (${monEntries.length})</span>
+          <div class="history-list" id="${uid}">${histLines}</div>`:''}
+        </div>`;
+      });
+
+      html+=`</div></div>`; // cards-grid, prod-group
     });
-    if (r.is_install) {
-      // install: reset ทุก param ของ product นี้ (ถ้ายังไม่มี col ก็สร้าง placeholder)
-    }
+
+    html+=`</div>`; // plant-section
   });
 
-  // sort cols: by product then by PARAMS_DEF order
-  const cols = [...colSet.values()].sort((a,b) => {
-    if (a.product !== b.product) return a.product.localeCompare(b.product);
-    return PARAMS_DEF.indexOf(a.param) - PARAMS_DEF.indexOf(b.param);
-  });
+  document.getElementById('content').innerHTML=html;
+}
 
-  // group products for spanning
-  const prodGroups = [];
-  let lastProd = null, span = 0;
-  cols.forEach((c,i) => {
-    if (c.product !== lastProd) {
-      if (lastProd !== null) prodGroups.push({product:lastProd, span});
-      lastProd = c.product; span = 1;
-    } else span++;
-    if (i===cols.length-1) prodGroups.push({product:lastProd, span});
-  });
-
-  // คำนวณ cumulative bias per col
-  // state: colKey → { bias: number }
-  const state = {}; // colKey → current cumulative bias
-  cols.forEach(c => state[c.product+'|'+c.param] = null); // null = ยังไม่มีข้อมูล
-
-  // collect rows: [{date, is_install, product, cells: {colKey: {bias, delta, src}}}]
-  const tableRows = [];
-
-  events.forEach(evt => {
-    const cells = {};
-
-    if (evt.is_install) {
-      // reset ทุก param ของ product นี้
-      cols.filter(c => c.product === evt.product).forEach(c => {
-        const key = c.product+'|'+c.param;
-        // ถ้ามีค่า delta ใน event นี้ด้วย → bias เริ่มต้น = delta
-        const delta = evt.params[c.param] ?? null;
-        state[key] = delta !== null ? delta : 0;
-        cells[key] = { bias: state[key], delta, install: true, src: evt._src };
-      });
-    } else {
-      // adjust: บวก/ลบ delta
-      Object.entries(evt.params).forEach(([p, delta]) => {
-        const key = evt.product+'|'+p;
-        if (!(key in state)) return; // col ไม่อยู่ใน filter
-        if (state[key] === null) state[key] = 0; // เริ่มต้นที่ 0 ถ้ายังไม่มี
-        state[key] = Math.round((state[key] + delta) * 10000) / 10000;
-        cells[key] = { bias: state[key], delta, install: false, src: evt._src };
-      });
-    }
-
-    if (Object.keys(cells).length) {
-      tableRows.push({
-        date: evt.date, is_install: evt.is_install,
-        product: evt.product, adjuster: evt.adjuster||'',
-        note: evt.note||'', src: evt._src, cells
-      });
-    }
-  });
-
-  // ── Render HTML ──────────────────────────────────────────────────────────
-  document.getElementById('tableInfo').textContent = `${tableRows.length} rows · ${cols.length} cols`;
-
-  // Header row 1: product names (merged)
-  let h1 = '<tr><th class="th-date" rowspan="2">วันที่</th>';
-  prodGroups.forEach(g => h1 += `<th class="th-prod" colspan="${g.span}">${g.product}</th>`);
-  h1 += '</tr>';
-
-  // Header row 2: param names
-  let h2 = '<tr>';
-  cols.forEach(c => h2 += `<th class="th-param">${c.param}</th>`);
-  h2 += '</tr>';
-
-  // Body rows
-  const bodyRows = tableRows.map(row => {
-    const installClass = row.is_install ? ' tr-install' : '';
-    const srcIcon = row.src==='manual'?'✏️':row.src==='correction'?'💬':'';
-    const dateLabel = row.date.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>`${d}/${m}/${y.slice(2)}`);
-    const userInfo = [row.adjuster, row.note].filter(Boolean).join(' · ');
-    let td = `<td class="td-date" title="${userInfo}">${srcIcon} ${dateLabel}${userInfo?`<br><span style="font-size:9px;color:var(--txt3);font-weight:400">${userInfo.slice(0,30)}${userInfo.length>30?'…':''}</span>`:''}</td>`;
-    cols.forEach(c => {
-      const key = c.product+'|'+c.param;
-      const cell = row.cells[key];
-      if (!cell) { td += `<td class="val-empty">—</td>`; return; }
-      if (cell.install) {
-        const biasStr = cell.bias ? (cell.bias>0?'+':'')+cell.bias : '0';
-        td += `<td class="install-cell delta-cell" data-tip="🔄 Install ใหม่ | Bias reset → ${biasStr}">🔄 ${biasStr}</td>`;
-      } else {
-        const b = cell.bias, d = cell.delta;
-        const cls = b > 0 ? 'val-pos' : b < 0 ? 'val-neg' : 'val-zero';
-        const bStr = (b >= 0 ? '+' : '') + b;
-        const dStr = (d >= 0 ? '+' : '') + d;
-        td += `<td class="${cls} delta-cell" data-tip="Bias: ${bStr} | delta: ${dStr}">${bStr}</td>`;
-      }
-    });
-    return `<tr class="${installClass}">${td}</tr>`;
-  });
-
-  document.getElementById('tableWrap').innerHTML =
-    `<table><thead>${h1}${h2}</thead><tbody>${bodyRows.join('')}</tbody></table>`;
+function toggleHist(id){
+  const el=document.getElementById(id);
+  el.classList.toggle('open');
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
-function openModal() {
-  document.getElementById('inDate').value = new Date().toISOString().slice(0,10);
-  ['inProduct','inAdjuster','inReviewer','inNote'].forEach(id => document.getElementById(id).value='');
-  document.getElementById('inLabel').value = '';
-  document.getElementById('isInstall').checked = false;
-  document.getElementById('installNote').style.display = 'none';
-  document.getElementById('paramsEditor').innerHTML = '';
-  addParamRow();
-  document.getElementById('addModal').classList.add('open');
+function openModal(){
+  document.getElementById('inDate').value=new Date().toISOString().slice(0,10);
+  ['inProduct','inAdjuster','inReviewer','inNote'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('inLabel').value='';
+  document.getElementById('isInstall').checked=false;
+  document.getElementById('installHint').style.display='none';
+  document.getElementById('paramsWrap').innerHTML='';
+  addParam();
+  document.getElementById('modal').classList.add('open');
 }
-function closeModal() { document.getElementById('addModal').classList.remove('open'); }
-function toggleInstall() {
-  document.getElementById('installNote').style.display = document.getElementById('isInstall').checked ? '' : 'none';
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+function toggleInstall(){
+  const cb=document.getElementById('isInstall');
+  cb.checked=!cb.checked;
+  document.getElementById('installHint').style.display=cb.checked?'':'none';
 }
-function addParamRow() {
-  const ed = document.getElementById('paramsEditor');
-  const row = document.createElement('div');
-  row.className = 'param-row';
-  row.innerHTML = `<select style="padding:5px 8px;font-size:12px"><option value="">—Parameter—</option>
-    ${PARAMS_DEF.map(p=>`<option value="${p}">${p}</option>`).join('')}</select>
-    <input type="number" step="any" placeholder="delta เช่น -0.185">
+function addParam(){
+  const wrap=document.getElementById('paramsWrap');
+  const row=document.createElement('div');
+  row.className='param-row';
+  row.innerHTML=`<select class="finput" style="padding:6px 8px"><option value="">— Parameter —</option>${PARAMS_DEF.map(p=>`<option value="${p}">${p}</option>`).join('')}</select>
+    <input class="finput" type="number" step="any" placeholder="delta เช่น -0.185">
     <button class="btn-rem" onclick="this.parentElement.remove()">✕</button>`;
-  ed.appendChild(row);
+  wrap.appendChild(row);
 }
 
-async function saveRecord() {
-  const date = document.getElementById('inDate').value;
-  const product = document.getElementById('inProduct').value.trim();
-  const label = document.getElementById('inLabel').value;
-  if (!date||!product||!label) { alert('กรุณากรอก วันที่, Plant/Machine และ Product'); return; }
-
-  // map label → plant/equipment/source
-  const LMAP = {
-    '169 LAB-DS2500': {plant:'169',equipment:'DS2500',source:'LAB'},
-    '169 QC-DS2500':  {plant:'169',equipment:'DS2500',source:'QC'},
-    '169 QC-DS3':     {plant:'169',equipment:'DS3',   source:'QC'},
-    'Rayong':         {plant:'RY', equipment:'DS3F',  source:''},
-    'Indo DS2500':    {plant:'Indo',equipment:'DS2500',source:''},
-    'Indo DS3F':      {plant:'Indo',equipment:'DS3F', source:''},
-    'Myanmar':        {plant:'MM', equipment:'DS2500',source:''},
-    'Wet Food':       {plant:'169',equipment:'DS2500',source:'Wet Food'},
-    'POC':            {plant:'POC',equipment:'DS2500',source:''},
-  };
-  const cfg = LMAP[label] || {plant:'',equipment:'',source:''};
-  const params = {};
-  document.querySelectorAll('#paramsEditor .param-row').forEach(row => {
-    const sel = row.querySelector('select'), inp = row.querySelector('input');
-    if (sel.value && inp.value!=='') params[sel.value] = parseFloat(inp.value);
+async function saveRecord(){
+  const date=document.getElementById('inDate').value;
+  const label=document.getElementById('inLabel').value;
+  const product=document.getElementById('inProduct').value.trim();
+  if(!date||!label||!product){alert('กรุณากรอก วันที่, Plant และ Product');return;}
+  const params={};
+  document.querySelectorAll('#paramsWrap .param-row').forEach(row=>{
+    const s=row.querySelector('select'),inp=row.querySelector('input[type=number]');
+    if(s.value&&inp.value!=='')params[s.value]=parseFloat(inp.value);
   });
-  if (!Object.keys(params).length && !document.getElementById('isInstall').checked) {
-    alert('กรุณากรอกอย่างน้อย 1 Parameter'); return;
-  }
-  const btn = document.getElementById('saveBtn');
-  btn.textContent='⏳ กำลัง Sync...'; btn.disabled=true;
-  try {
-    const data = await jbGet();
-    const manualRecs = data.manual_records || [];
-    const newRec = {
-      _id: Date.now().toString(),
-      date, month: date.slice(0,7),
-      product,
-      plant:     cfg.plant,
-      equipment: cfg.equipment,
-      source:    cfg.source,
-      label,
-      params,
-      is_install: document.getElementById('isInstall').checked,
-      adjuster:  document.getElementById('inAdjuster').value.trim(),
-      reviewer:  document.getElementById('inReviewer').value.trim(),
-      note:      document.getElementById('inNote').value.trim(),
-      created_at: new Date().toLocaleString('th-TH'),
-    };
-    manualRecs.push(newRec);
-    await jbPut({...data, manual_records: manualRecs});
-    RAW_MANUAL = manualRecs;
+  const isInstall=document.getElementById('isInstall').checked;
+  if(!Object.keys(params).length&&!isInstall){alert('กรุณากรอกอย่างน้อย 1 Parameter');return;}
+  const btn=document.getElementById('saveBtn');
+  btn.disabled=true;btn.innerHTML='⏳ กำลัง Sync...';
+  try{
+    const data=await jbGet();
+    const manual=data.manual_records||[];
+    const cfg=LMAP[label]||{};
+    manual.push({
+      _id:Date.now().toString(),_src:'manual',
+      date,month:date.slice(0,7),product,label,
+      plant:cfg.plant||'',equipment:cfg.equipment||'',source:cfg.source||'',
+      params,is_install:isInstall,
+      adjuster:document.getElementById('inAdjuster').value.trim(),
+      reviewer:document.getElementById('inReviewer').value.trim(),
+      note:document.getElementById('inNote').value.trim(),
+      created_at:new Date().toLocaleString('th-TH'),
+    });
+    await jbPut({...data,manual_records:manual});
+    RAW_MANUAL=manual.map(r=>norm(r,'manual'));
+    JB_DATA={...data,manual_records:manual};
     closeModal();
-    buildTable();
+    render();
     alert('✅ บันทึกและ Sync สำเร็จ!');
-  } catch(e) {
-    alert('❌ ไม่สำเร็จ: '+e.message);
-  }
-  btn.textContent='💾 บันทึก & Sync'; btn.disabled=false;
+  }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
+  btn.disabled=false;btn.innerHTML='💾 บันทึก & Sync';
 }
 
-document.getElementById('addModal').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 loadData();
 </script>
 </body>
