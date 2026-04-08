@@ -1110,41 +1110,7 @@ async function doSave2(id){
 }
 
 // Override corrHTML เดิม ให้ใช้ shared version + eqp/src จาก filter ปัจจุบัน
-const _origCorrHTML=corrHTML;
-async function corrHTMLShared(prd,mon){
-  const eqp=document.getElementById('fEquip')?.value||'';
-  const src=document.getElementById('fSource')?.value||'';
-  return corrHTML2(prd,mon,eqp,src);
-}
-</script>
 
-<!-- ── Patch render() to use shared correction ── -->
-<script>
-// Patch: หลัง render เสร็จ ให้ replace correction cells ด้วย shared version
-const _origRenderFn=render;
-async function render(){
-  // เรียก render เดิม (sync)
-  if(typeof _origRenderFn==='function') _origRenderFn();
-
-  // โหลด correction แบบ async แทน
-  const selMon=document.getElementById('fMonth').value;
-  const selEqp=document.getElementById('fEquip')?.value||'';
-  const selSrc=document.getElementById('fSource')?.value||'';
-  const rows=document.querySelectorAll('#summaryBody tr');
-  for(const row of rows){
-    const corrCell=row.querySelector('.td-corr');
-    if(!corrCell)continue;
-    const inner=corrCell.querySelector('.corr-inner');
-    if(!inner)continue;
-    // ดึงชื่อ product จาก td-product
-    const prdCell=row.querySelector('.td-product');
-    if(!prdCell)continue;
-    const prd=prdCell.textContent.trim();
-    const html=await corrHTML2(prd,selMon,selEqp,selSrc);
-    corrCell.innerHTML=html;
-  }
-}
-</script>
 
 <!-- ── Chart Modal CSS ── -->
 <style>
