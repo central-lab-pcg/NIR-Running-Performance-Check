@@ -117,38 +117,8 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
 .btn-save{font-size:10px;padding:4px 10px;border-radius:5px;cursor:pointer;border:none;background:#5b8ef0;color:#fff;font-weight:700;font-family:var(--font);white-space:nowrap}
 .btn-save:hover{background:#4475d8}
 .btn-cancel{font-size:10px;padding:4px 8px;border-radius:5px;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--txt2);font-weight:600;font-family:var(--font)}
-/* Chart Modal */
-#chartModal{display:none;position:fixed;inset:0;z-index:20000;background:rgba(30,40,80,0.55);backdrop-filter:blur(3px);align-items:center;justify-content:center}
-#chartModal.open{display:flex}
-.cm-box{background:#fff;border-radius:18px;box-shadow:0 16px 56px rgba(30,40,80,0.22);width:min(720px,96vw);max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
-.cm-header{background:linear-gradient(135deg,#4a6fa5,#7097d4);color:#fff;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px}
-.cm-title{font-size:15px;font-weight:800;font-family:var(--mono)}
-.cm-sub{font-size:10px;opacity:.7;margin-top:2px}
-.cm-close{background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.cm-close:hover{background:rgba(255,255,255,0.35)}
-.cm-body{padding:16px 18px;overflow-y:auto;flex:1}
-.cm-stats{display:flex;gap:10px;margin-bottom:14px}
-.cm-stat{flex:1;background:#f0f4ff;border-radius:10px;padding:10px 14px;text-align:center}
-.cm-stat .sv{font-size:20px;font-weight:800;font-family:var(--mono);color:#4a6fa5}
-.cm-stat .sl{font-size:10px;color:#8a96c0;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
-.cm-canvas-wrap{position:relative;height:300px;margin-bottom:10px}
-/* Selection panel in chart modal */
-.cm-sel-panel{display:none;margin-top:12px;border-top:1.5px solid #e3e7f0;padding-top:12px}
-.cm-sel-panel.open{display:block}
-.cm-sel-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-.cm-sel-count{font-size:11px;color:#a0a9c8;font-family:var(--mono)}
-.cm-sel-bias{background:#eef3ff;border:1.5px solid #c8d9fa;border-radius:8px;padding:5px 14px;font-size:13px;font-weight:800;color:#4a6fa5;font-family:var(--mono)}
-.cm-sel-clear{font-size:11px;padding:4px 10px;border-radius:7px;cursor:pointer;border:1.5px solid #f5b3ad;background:transparent;color:#c0392b;font-weight:600;font-family:var(--font)}
-.cm-sel-clear:hover{background:#fdecea}
-.cm-sel-tbl{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)}
-.cm-sel-tbl th{background:#f0f4ff;color:#6370a0;font-weight:700;padding:5px 10px;text-align:left;border:1px solid #e3e7f0;font-size:10px;text-transform:uppercase;letter-spacing:.4px}
-.cm-sel-tbl td{padding:5px 10px;border:1px solid #e3e7f0;color:#2d3552}
-.cm-sel-tbl tr:hover td{background:#f8f9ff}
-.cm-sel-tbl .td-diff-pos{color:#1a8a50;font-weight:700}
-.cm-sel-tbl .td-diff-neg{color:#c0392b;font-weight:700}
-.cm-legend{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:#6370a0;justify-content:center;margin-bottom:4px}
-.cm-leg{display:flex;align-items:center;gap:4px}
-.cm-leg-dot{width:8px;height:8px;border-radius:50%}{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:14px}
+/* Loading */
+#loadingOverlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:14px}
 .spinner{width:36px;height:36px;border:3px solid #c8d9fa;border-top-color:#5b8ef0;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-txt{font-size:13px;color:var(--txt3);font-family:var(--mono)}
@@ -344,30 +314,14 @@ let RECS=[];
 
 async function loadData(){
   try{
-    // โหลดไฟล์แรก (บังคับ)
     const res=await fetch(DATA_URL,{cache:'no-cache'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     const json=await res.json();
-
-    // โหลดไฟล์ที่ 2 (ถ้ามี — ไม่มีก็ไม่ error)
     let json2=null;
-    if(DATA_URL2){
-      try{
-        const res2=await fetch(DATA_URL2,{cache:'no-cache'});
-        if(res2.ok) json2=await res2.json();
-      }catch(e){}
-    }
-
-    // Merge rows จากทั้งสองไฟล์
+    if(DATA_URL2){try{const r2=await fetch(DATA_URL2,{cache:'no-cache'});if(r2.ok)json2=await r2.json();}catch(e){}}
     let allRows=[];
-    if(json.rows){
-      allRows=[...json.rows];
-      if(json2?.rows) allRows=[...allRows,...json2.rows];
-      RECS=wideToLong(allRows);
-    } else {
-      RECS=[...(json.records||[]),...(json2?.records||[])];
-    }
-
+    if(json.rows){allRows=[...json.rows];if(json2?.rows)allRows=[...allRows,...json2.rows];RECS=wideToLong(allRows);}
+    else{RECS=[...(json.records||[]),...(json2?.records||[])];}
     try{const _u=JSON.parse(localStorage.getItem('nir_user')||'{}');const _p=_u.plants;if(_p&&_p.length>0)RECS=RECS.filter(r=>_p.includes(r.pla));}catch(e){}
     const monSet=new Map(),pla=new Set(),typ=new Set(),eqp=new Set(),src=new Set();
     RECS.forEach(r=>{if(r.mon)monSet.set(String(r.mon),1);if(r.pla)pla.add(r.pla);if(r.typ)typ.add(r.typ);if(r.eqp)eqp.add(r.eqp);if(r.src)src.add(r.src);});
@@ -375,13 +329,10 @@ async function loadData(){
     if(json.generated_at)document.getElementById('lastUpdated').textContent='อัปเดตล่าสุด: '+json.generated_at+(json2?' (รวม '+RECS.length.toLocaleString()+' records)':'');
     document.getElementById('loadingOverlay').style.display='none';
     document.getElementById('appContent').style.display='block';
-    // init filters
     const fM=document.getElementById('fMonth');
     ms.forEach(m=>fM.appendChild(new Option(serial2label(m),m)));
     fM.value=ms[ms.length-1]||'';
-    // filter options are refreshed dynamically in render() per selected month
     document.getElementById('fMonth').addEventListener('change',render);
-    // for non-month filters: refresh other dropdowns first (cross-filter), then render
     ['fPlant','fType','fEquip','fSource'].forEach(id=>{
       document.getElementById(id).addEventListener('change',()=>{
         const mon=document.getElementById('fMonth').value;
@@ -401,36 +352,57 @@ async function loadData(){
 function calcDetail(pts,selMon){
   if(!pts||!pts.length)return{status:'none'};
   const n=pts.length;
-  const lims={};pts.forEach(r=>{if(!lims[r.sep])lims[r.sep]={u2:r.u2,l2:r.l2,u3:r.u3,l3:r.l3};});
+
+  // limits per SEP
+  const lims={};
+  pts.forEach(r=>{if(!lims[r.sep])lims[r.sep]={u2:r.u2,l2:r.l2,u3:r.u3,l3:r.l3};});
+
+  // ตรวจแต่ละจุด: เกิน ±3SEP / ±2SEP
   const b3=pts.map(r=>{const l=lims[r.sep];return l&&l.u3!=null&&(r.diff>l.u3||r.diff<l.l3);});
   const b2=pts.map(r=>{const l=lims[r.sep];return l&&l.u2!=null&&(r.diff>l.u2||r.diff<l.l2);});
+
+  // Rule 9: 9 จุดต่อเนื่องฝั่งเดียวกัน (cross-month ได้)
   const y9=new Array(n).fill(false);
-  for(let i=8;i<n;i++){const w=pts.slice(i-8,i+1);if(w.every(r=>r.diff>0)||w.every(r=>r.diff<0)){for(let j=i-8;j<=i;j++)y9[j]=true;}}
+  for(let i=8;i<n;i++){
+    const w=pts.slice(i-8,i+1);
+    if(w.every(r=>r.diff>0)||w.every(r=>r.diff<0)){
+      for(let j=i-8;j<=i;j++)y9[j]=true;
+    }
+  }
+
+  // Rule 2/3: ใน 3 จุดต่อเนื่องใดๆ มี 2 จุดเกิน ±2SEP
   const p23=new Array(n).fill(false);
-  for(let i=2;i<n;i++){const w=[i-2,i-1,i];if(w.filter(j=>b2[j]).length>=2)w.filter(j=>b2[j]).forEach(j=>p23[j]=true);}
+  for(let i=2;i<n;i++){
+    const w=[i-2,i-1,i];
+    if(w.filter(j=>b2[j]).length>=2) w.filter(j=>b2[j]).forEach(j=>{p23[j]=true;});
+  }
 
   const thisPts=pts.filter(r=>String(r.mon)===String(selMon));
   const bias=thisPts.length?thisPts.reduce((a,r)=>a+r.diff,0)/thisPts.length:0;
-
-  // failing samples in this month only — keep full records
   const idxOf=r=>pts.indexOf(r);
+
+  // Rule 3SEP: จุดใน selMon ที่เกิน ±3SEP
   const f3=thisPts.filter(r=>b3[idxOf(r)]);
-  const f2=thisPts.filter(r=>p23[idxOf(r)]);
-  // Rule9: any completed 9-point window (cross-month) that contains at least one point
-  // from this month → flag. Mirrors chart view: count consecutive points regardless of month.
+
+  // Rule 2/3: จุดใน selMon ที่ถูก flag p23 AND ตัวเองเกิน ±2SEP ด้วย
+  // (กรณีตัวเองไม่เกิน ±2SEP แต่ถูก flag เพราะ 2 จุดก่อนเกิน ไม่นับ)
+  const f2=thisPts.filter(r=>{
+    const i=idxOf(r);
+    return p23[i] && b2[i]; // ต้องเกิน ±2SEP ด้วยตัวเอง
+  });
+
+  // Rule 9: จุดใน selMon ที่อยู่ใน 9-point window
   const thisIdxSet=new Set(thisPts.map(r=>idxOf(r)));
   let f9Idxs=new Set();
   for(let i=8;i<n;i++){
     const w=pts.slice(i-8,i+1);
     if(w.every(r=>r.diff>0)||w.every(r=>r.diff<0)){
-      // include this window if ANY of its 9 points belongs to the selected month
       const touchesThisMon=w.some((_,k)=>thisIdxSet.has(i-8+k));
       if(touchesThisMon)for(let j=i-8;j<=i;j++)f9Idxs.add(j);
     }
   }
-  const f9=[...f9Idxs].map(i=>pts[i]).filter(r=>r);
+  const f9=[...f9Idxs].map(i=>pts[i]).filter(r=>r&&String(r.mon)===String(selMon));
 
-  // collect ALL active statuses (can have multiple)
   const statuses=[];
   if(f3.length)statuses.push('fail3');
   if(f2.length)statuses.push('fail2');
@@ -454,7 +426,6 @@ function statusHTML(det,par,allPts){
   let sampleSections='';
   function detailRows(recs,color,title){
     if(!recs||!recs.length)return'';
-    // deduplicate by sample+no key
     const seen=new Set();
     const rows=recs.filter(r=>{const k=(r.sample||r.no||'?');if(seen.has(k))return false;seen.add(k);return true;});
     const rowsHTML=rows.map(r=>{
@@ -487,14 +458,14 @@ function statusHTML(det,par,allPts){
   const detJson=JSON.stringify({
     par,n:det.n,bias:det.bias,
     f3:(det.f3||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon})),
-    f2:(det.f2||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.u2,sep:r.sep,mon:r.mon})),
+    f2:(det.f2||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon})),
     f9:(det.f9||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon})),
     allPts:(allPts||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon}))
   }).replace(/"/g,"&quot;");
-  // render one badge per status, all sharing the same tooltip
+
   const badges=det.statuses.map(s=>{
     const{cls,lbl}=cfg[s];
-    return `<span class="status ${cls}" onmouseenter="ttShow(this,event);dpShow(this)" onmouseleave="ttHide();dpHoverEnd()" onclick="ttClick(this,event);dpClick(this)" data-tt="${ttAttr}" data-det="${detJson}" style="cursor:pointer">${lbl}</span>`;
+    return `<span class="status ${cls}" onmouseenter="ttShow(this,event)" onmouseleave="ttHide()" onclick="openChartModal(this)" data-tt="${ttAttr}" data-det="${detJson}" style="cursor:pointer">${lbl}</span>`;
   });
   return badges.length===1?badges[0]:`<div class="cell-badges">${badges.join('')}</div>`;
 }
@@ -633,26 +604,38 @@ function render(){
     `<tr><th class="th-product">Products</th>${sortedP.map(k=>`<th>${k}</th>`).join('')}<th class="th-correction">Correction</th></tr>`;
 
   let body='';
+  const corrSlots=[];
   products.forEach(prd=>{
     const aliases=[...(prdAliases.get(prd)||new Set([prd]))];
     body+=`<tr><td class="td-product"><span style="margin-right:5px">${getPrdIcon(prd)}</span>${prd}</td>`;
     sortedP.forEach(pk=>{
-      // รวม records จากทุก alias — เฉพาะ 3 เดือนล่าสุด (นับจาก selMon ย้อนหลัง)
       const allPts=RECS.filter(r=>aliases.includes(r.prd)&&r.par===pk&&fBase(r)&&parseInt(r.mon)<=parseInt(selMon))
         .sort((a,b)=>parseInt(a.mon)-parseInt(b.mon));
       const hasMon=allPts.some(r=>String(r.mon)===String(selMon));
       if(!hasMon){body+=`<td><span class="status none">—</span></td>`;return;}
-      // ดึงเฉพาะ 3 เดือนล่าสุด
+      // เฉพาะ 3 เดือนล่าสุดสำหรับกราฟ
       const months3=[...new Set(allPts.map(r=>String(r.mon)))].slice(-3);
       const pts=allPts.filter(r=>months3.includes(String(r.mon)));
       const det=calcDetail(pts,selMon);
       body+=`<td>${statusHTML(det,pk,pts)}</td>`;
     });
-    body+=`<td class="td-corr">${corrHTML(prd,selMon)}</td>`;
+    const cSlotId='cslot_'+Math.random().toString(36).slice(2,8);
+    body+=`<td class="td-corr" id="${cSlotId}"><span style="color:#ccc;font-size:10px">⏳</span></td>`;
+    corrSlots.push({cSlotId,prd,selMon,eqp:selEqp,src:selSrc});
     body+='</tr>';
   });
   document.getElementById('summaryBody').innerHTML=body;
   renderConclude();
+
+  // โหลด correction แบบ async หลัง render เสร็จ
+  (async()=>{
+    for(const {cSlotId,prd,selMon,eqp,src} of corrSlots){
+      const slot=document.getElementById(cSlotId);
+      if(!slot)continue;
+      const html=await corrHTML2(prd,selMon,eqp,src);
+      slot.outerHTML=`<td class="td-corr">${html}</td>`;
+    }
+  })();
 }
 
 // ── clear filters ─────────────────────────────────────────────────────────────
@@ -1043,29 +1026,164 @@ function ttHide(){
 }
 function ttClick(el,e){
   e.stopPropagation();
-  // เปิด chart modal แทน locked tooltip
-  openChartModal(el);
+  const locked=document.getElementById('ttLocked');
+  const hover=document.getElementById('ttHover');
+  if(locked._el===el){
+    // unlock — clicking same badge again
+    locked._el=null;
+    locked.style.opacity='0';
+    locked.classList.remove('tt-locked');
+    el.classList.remove('tt-active');
+  } else {
+    // lock new badge
+    if(locked._el)locked._el.classList.remove('tt-active');
+    locked._el=el;
+    locked.innerHTML=el.dataset.tt||'';
+    locked.classList.add('tt-locked');
+    locked.style.opacity='1';
+    el.classList.add('tt-active');
+    hover.style.opacity='0'; // hide hover while locked on this
+    ttPos(el,locked);
+  }
 }
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<!-- ── Shared Correction Storage ── -->
 <script>
-window.addEventListener('load',function(){
-  try{var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');var _p=_u.plants;
-    if(!_p||_p.length===0)return;
-    if(_p.length===1){var s=document.getElementById('fPlant');if(!s)return;
-      var c=function(){for(var i=1;i<s.options.length;i++){if(s.options[i].value===_p[0]){
-        s.value=_p[0];s.disabled=true;s.style.opacity='0.6';s.style.cursor='not-allowed';
-        s.dispatchEvent(new Event('change',{bubbles:true}));return;}}setTimeout(c,200);};
-      setTimeout(c,500);}
-  }catch(e){}
-});
+// แทน localStorage → Shared Storage (ทุกคนเห็น)
+function cKey(p,m,eqp,src){
+  const e=eqp||'all',s=src||'all';
+  return 'corr::'+p+'::'+m+'::'+e+'::'+s;
+}
+async function cLoad(p,m,eqp,src){
+  try{const k=cKey(p,m,eqp,src);const res=await window.storage.get(k,true);return res?JSON.parse(res.value):null;}catch{return null;}
+}
+async function cSaveShared(p,m,eqp,src,text,user){
+  const obj={text,user,savedAt:new Date().toLocaleString('th-TH',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})};
+  try{await window.storage.set(cKey(p,m,eqp,src),JSON.stringify(obj),true);}catch{}
+  return obj;
+}
+
+function eid2(prd,mon,eqp,src){return 'c'+btoa(encodeURIComponent(prd+'|'+mon+'|'+(eqp||'')+'|'+(src||''))).replace(/[^a-zA-Z0-9]/g,'');}
+
+async function corrHTML2(prd,mon,eqp,src){
+  const id=eid2(prd,mon,eqp,src);
+  const d=await cLoad(prd,mon,eqp,src);
+  const viewH=d
+    ?`<div class="corr-view" id="${id}v">
+        <div style="flex:1"><div class="corr-text">${d.text.replace(/</g,'&lt;')}</div><div class="corr-meta">💾 ${d.savedAt} · ${d.user}</div></div>
+        <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">✏️ แก้ไข</button></div></div>`
+    :`<div class="corr-view" id="${id}v">
+        <span class="corr-empty">— ยังไม่มีบันทึก</span>
+        <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">+ บันทึก</button></div></div>`;
+  return `<div class="corr-inner" id="${id}" data-prd="${prd.replace(/"/g,'&quot;')}" data-mon="${mon}" data-eqp="${(eqp||'').replace(/"/g,'&quot;')}" data-src="${(src||'').replace(/"/g,'&quot;')}">
+    ${viewH}
+    <div class="corr-edit" id="${id}e">
+      <textarea class="corr-textarea" id="${id}t" placeholder="บันทึก Correction...">${d?d.text.replace(/</g,'&lt;'):''}</textarea>
+      <div class="corr-row">
+        <input type="text" class="corr-user" id="${id}u" placeholder="ชื่อผู้บันทึก" value="${d?d.user:''}">
+        <button class="btn-save" onclick="doSave2('${id}')">💾 Save</button>
+        <button class="btn-cancel" onclick="cancelE('${id}')">ยกเลิก</button>
+      </div>
+    </div></div>`;
+}
+function startE2(id){
+  document.getElementById(id+'v').style.display='none';
+  const ed=document.getElementById(id+'e');ed.style.display='flex';
+  document.getElementById(id+'t').focus();
+}
+async function doSave2(id){
+  const el=document.getElementById(id);
+  const prd=el.dataset.prd,mon=el.dataset.mon,eqp=el.dataset.eqp,src=el.dataset.src;
+  const text=document.getElementById(id+'t').value.trim();
+  const user=document.getElementById(id+'u').value.trim()||'ไม่ระบุชื่อ';
+  if(!text){alert('กรุณากรอกข้อความก่อน Save');return;}
+  const btn=el.querySelector('.btn-save');
+  if(btn){btn.textContent='⏳ บันทึก...';btn.disabled=true;}
+  const saved=await cSaveShared(prd,mon,eqp,src,text,user);
+  document.getElementById(id+'v').innerHTML=
+    `<div style="flex:1"><div class="corr-text">${saved.text.replace(/</g,'&lt;')}</div><div class="corr-meta">💾 ${saved.savedAt} · ${saved.user}</div></div>
+     <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">✏️ แก้ไข</button></div>`;
+  cancelE(id);
+}
+
+// Override corrHTML เดิม ให้ใช้ shared version + eqp/src จาก filter ปัจจุบัน
+const _origCorrHTML=corrHTML;
+async function corrHTMLShared(prd,mon){
+  const eqp=document.getElementById('fEquip')?.value||'';
+  const src=document.getElementById('fSource')?.value||'';
+  return corrHTML2(prd,mon,eqp,src);
+}
 </script>
+
+<!-- ── Patch render() to use shared correction ── -->
+<script>
+// Patch: หลัง render เสร็จ ให้ replace correction cells ด้วย shared version
+const _origRenderFn=render;
+async function render(){
+  // เรียก render เดิม (sync)
+  if(typeof _origRenderFn==='function') _origRenderFn();
+
+  // โหลด correction แบบ async แทน
+  const selMon=document.getElementById('fMonth').value;
+  const selEqp=document.getElementById('fEquip')?.value||'';
+  const selSrc=document.getElementById('fSource')?.value||'';
+  const rows=document.querySelectorAll('#summaryBody tr');
+  for(const row of rows){
+    const corrCell=row.querySelector('.td-corr');
+    if(!corrCell)continue;
+    const inner=corrCell.querySelector('.corr-inner');
+    if(!inner)continue;
+    // ดึงชื่อ product จาก td-product
+    const prdCell=row.querySelector('.td-product');
+    if(!prdCell)continue;
+    const prd=prdCell.textContent.trim();
+    const html=await corrHTML2(prd,selMon,selEqp,selSrc);
+    corrCell.innerHTML=html;
+  }
+}
+</script>
+
+<!-- ── Chart Modal CSS ── -->
+<style>
+#chartModal{display:none;position:fixed;inset:0;z-index:20000;background:rgba(30,40,80,0.55);backdrop-filter:blur(3px);align-items:center;justify-content:center}
+#chartModal.open{display:flex}
+.cm-box{background:#fff;border-radius:18px;box-shadow:0 16px 56px rgba(30,40,80,0.22);width:min(720px,96vw);max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+.cm-header{background:linear-gradient(135deg,#4a6fa5,#7097d4);color:#fff;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cm-title{font-size:15px;font-weight:800;font-family:var(--mono)}
+.cm-sub{font-size:10px;opacity:.7;margin-top:2px}
+.cm-close{background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cm-close:hover{background:rgba(255,255,255,0.35)}
+.cm-body{padding:16px 18px;overflow-y:auto;flex:1}
+.cm-stats{display:flex;gap:10px;margin-bottom:14px}
+.cm-stat{flex:1;background:#f0f4ff;border-radius:10px;padding:10px 14px;text-align:center}
+.cm-stat .sv{font-size:20px;font-weight:800;font-family:var(--mono);color:#4a6fa5}
+.cm-stat .sl{font-size:10px;color:#8a96c0;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.cm-canvas-wrap{position:relative;height:300px;margin-bottom:10px}
+.cm-legend{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:#6370a0;justify-content:center;margin-bottom:8px}
+.cm-leg{display:flex;align-items:center;gap:4px}
+.cm-leg-dot{width:8px;height:8px;border-radius:50%}
+.cm-sel-panel{display:none;margin-top:12px;border-top:1.5px solid #e3e7f0;padding-top:12px}
+.cm-sel-panel.open{display:block}
+.cm-sel-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.cm-sel-count{font-size:11px;color:#a0a9c8;font-family:var(--mono)}
+.cm-sel-bias{background:#eef3ff;border:1.5px solid #c8d9fa;border-radius:8px;padding:5px 14px;font-size:13px;font-weight:800;color:#4a6fa5;font-family:var(--mono)}
+.cm-sel-clear{font-size:11px;padding:4px 10px;border-radius:7px;cursor:pointer;border:1.5px solid #f5b3ad;background:transparent;color:#c0392b;font-weight:600}
+.cm-sel-clear:hover{background:#fdecea}
+.cm-sel-tbl{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)}
+.cm-sel-tbl th{background:#f0f4ff;color:#6370a0;font-weight:700;padding:5px 10px;text-align:left;border:1px solid #e3e7f0;font-size:10px;text-transform:uppercase;letter-spacing:.4px}
+.cm-sel-tbl td{padding:5px 10px;border:1px solid #e3e7f0;color:#2d3552}
+.cm-sel-tbl .td-diff-pos{color:#1a8a50;font-weight:700}
+.cm-sel-tbl .td-diff-neg{color:#c0392b;font-weight:700}
+</style>
+
+<!-- ── Chart Modal HTML ── -->
 <div id="chartModal">
   <div class="cm-box">
     <div class="cm-header">
-      <div>
-        <div class="cm-title" id="cmTitle"></div>
-        <div class="cm-sub" id="cmSub"></div>
-      </div>
+      <div><div class="cm-title" id="cmTitle"></div><div class="cm-sub" id="cmSub"></div></div>
       <button class="cm-close" onclick="closeChartModal()">✕</button>
     </div>
     <div class="cm-body">
@@ -1090,127 +1208,73 @@ window.addEventListener('load',function(){
           <button class="cm-sel-clear" onclick="cmClearSel()">✕ ล้างการเลือก</button>
         </div>
         <div style="overflow-x:auto;max-height:160px;overflow-y:auto">
-          <table class="cm-sel-tbl">
-            <thead><tr><th>Sample</th><th>Diff</th><th>SEP</th><th>Flag</th></tr></thead>
-            <tbody id="cmSelBody"></tbody>
-          </table>
+          <table class="cm-sel-tbl"><thead><tr><th>Sample</th><th>Diff</th><th>SEP</th><th>Flag</th></tr></thead><tbody id="cmSelBody"></tbody></table>
         </div>
       </div>
     </div>
   </div>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
 <script>
-let _cmChart=null;
-let _cmAll=[];         // ข้อมูลทุก sample ใน modal
-let _cmSelected=new Set(); // index ที่เลือก
-let _cmBaseColors=[];
-let _cmBaseRadii=[];
+let _cmChart=null,_cmAll=[],_cmSelected=new Set(),_cmBaseColors=[],_cmBaseRadii=[];
 
-function cmClearSel(){
-  _cmSelected.clear();
-  cmUpdateSel();
-  cmUpdateColors();
-}
-
+function cmClearSel(){_cmSelected.clear();cmUpdateSel();cmUpdateColors();}
 function cmUpdateSel(){
   const panel=document.getElementById('cmSelPanel');
-  const count=_cmSelected.size;
-  if(count===0){panel.classList.remove('open');return;}
+  if(!_cmSelected.size){panel.classList.remove('open');return;}
   panel.classList.add('open');
-  document.getElementById('cmSelCount').textContent=count+' จุด';
+  document.getElementById('cmSelCount').textContent=_cmSelected.size+' จุด';
   const vals=[..._cmSelected].map(i=>_cmAll[i].diff);
   const bias=vals.reduce((a,b)=>a+b,0)/vals.length;
   const bEl=document.getElementById('cmSelBias');
   bEl.textContent='Bias: '+(bias>=0?'+':'')+bias.toFixed(3);
   bEl.style.color=bias>0.05?'#e89090':bias<-0.05?'#5b9bd5':'#4a6fa5';
-  const flagLabel={f3:'⚠ ±3SEP',f2:'◉ 2/3',f9:'◆ 9จุด',ok:'✓ ปกติ'};
+  const flagLabel={f3:'⚠ ±3SEP',f2:'◉ 2/3',f9:'◆ 9จุด',ok:'✓ Pass'};
   document.getElementById('cmSelBody').innerHTML=[..._cmSelected].sort((a,b)=>a-b).map(i=>{
-    const r=_cmAll[i];
-    const dCls=r.diff>0?'td-diff-pos':'td-diff-neg';
-    const dStr=(r.diff>=0?'+':'')+r.diff.toFixed(3);
-    return`<tr><td>${r.nm}</td><td class="${dCls}">${dStr}</td><td>${r.sep||'—'}</td><td>${flagLabel[r.flag]||''}</td></tr>`;
+    const r=_cmAll[i];const dCls=r.diff>0?'td-diff-pos':'td-diff-neg';
+    return`<tr><td>${r.nm}</td><td class="${dCls}">${(r.diff>=0?'+':'')+r.diff.toFixed(3)}</td><td>${r.sep||'—'}</td><td>${flagLabel[r.flag]||''}</td></tr>`;
   }).join('');
 }
-
 function cmUpdateColors(){
   if(!_cmChart)return;
   const SEL='#00c896';
-  const newColors=_cmAll.map((_,i)=>_cmSelected.has(i)?SEL:_cmBaseColors[i]);
-  const newRadii=_cmAll.map((_,i)=>_cmSelected.has(i)?9:_cmBaseRadii[i]);
-  const newBorder=_cmAll.map((_,i)=>_cmSelected.has(i)?'#fff':newColors[i]);
-  const newBW=_cmAll.map((_,i)=>_cmSelected.has(i)?2:0);
-  _cmChart.data.datasets[0].pointBackgroundColor=newColors;
-  _cmChart.data.datasets[0].pointBorderColor=newBorder;
-  _cmChart.data.datasets[0].pointBorderWidth=newBW;
-  _cmChart.data.datasets[0].pointRadius=newRadii;
+  _cmChart.data.datasets[0].pointBackgroundColor=_cmAll.map((_,i)=>_cmSelected.has(i)?SEL:_cmBaseColors[i]);
+  _cmChart.data.datasets[0].pointBorderColor=_cmAll.map((_,i)=>_cmSelected.has(i)?'#fff':_cmBaseColors[i]);
+  _cmChart.data.datasets[0].pointBorderWidth=_cmAll.map((_,i)=>_cmSelected.has(i)?2:0);
+  _cmChart.data.datasets[0].pointRadius=_cmAll.map((_,i)=>_cmSelected.has(i)?9:_cmBaseRadii[i]);
   _cmChart.update('none');
 }
 
 function openChartModal(el){
   if(!el.dataset.det)return;
   const det=JSON.parse(el.dataset.det.replace(/&quot;/g,'"'));
+  const pts=det.allPts&&det.allPts.length?det.allPts:
+    [...(det.f3||[]).map(r=>({...r,flag:'f3'})),...(det.f2||[]).map(r=>({...r,flag:'f2'})),...(det.f9||[]).map(r=>({...r,flag:'f9'}))];
 
-  // ใช้ allPts ถ้ามี (ทุก sample ใน timeline)
-  if(det.allPts&&det.allPts.length){
-    const pts=det.allPts;
-    const n=pts.length;
-
-    // คำนวณ flag ใหม่จาก diff vs limit จริงๆ (ไม่ใช้ชื่อ sample match)
-    const b3=pts.map(r=>{
-      const u3=r.u3??null, l3=r.l3??null;
-      if(u3==null) return false;
-      return r.diff>u3 || r.diff<(l3??-u3);
-    });
-    const b2=pts.map(r=>{
-      const u2=r.u2??null, l2=r.l2??null;
-      if(u2==null) return false;
-      return r.diff>u2 || r.diff<(l2??-u2);
-    });
-    // Rule 9 — 9 จุดฝั่งเดียวกัน
-    const y9=new Array(n).fill(false);
-    for(let i=8;i<n;i++){
-      const w=pts.slice(i-8,i+1);
-      if(w.every(r=>r.diff>0)||w.every(r=>r.diff<0)){
-        for(let j=i-8;j<=i;j++) y9[j]=true;
-      }
-    }
-    // Rule 2/3 — 2 ใน 3 จุดนอก ±2SEP
-    const p23=new Array(n).fill(false);
-    for(let i=2;i<n;i++){
-      const w=[i-2,i-1,i];
-      if(w.filter(j=>b2[j]).length>=2) w.filter(j=>b2[j]).forEach(j=>{p23[j]=true;});
-    }
-
-    _cmAll=pts.map((r,i)=>({
-      ...r,
-      flag: b3[i]?'f3': p23[i]?'f2': y9[i]?'f9':'ok'
-    }));
-  } else {
-    _cmAll=[];
-    (det.f3||[]).forEach(r=>_cmAll.push({...r,flag:'f3'}));
-    (det.f2||[]).forEach(r=>{if(!_cmAll.find(x=>x.nm===r.nm&&x.mon===r.mon))_cmAll.push({...r,flag:'f2'});});
-    (det.f9||[]).forEach(r=>{if(!_cmAll.find(x=>x.nm===r.nm&&x.mon===r.mon))_cmAll.push({...r,flag:'f9'});});
-  }
+  // คำนวณ flag ใหม่จาก diff vs limit จริงๆ
+  const n=pts.length;
+  const b3=pts.map(r=>{const u3=r.u3??null,l3=r.l3??null;if(u3==null)return false;return r.diff>u3||r.diff<(l3??-u3);});
+  const b2=pts.map(r=>{const u2=r.u2??null,l2=r.l2??null;if(u2==null)return false;return r.diff>u2||r.diff<(l2??-u2);});
+  const y9=new Array(n).fill(false);
+  for(let i=8;i<n;i++){const w=pts.slice(i-8,i+1);if(w.every(r=>r.diff>0)||w.every(r=>r.diff<0)){for(let j=i-8;j<=i;j++)y9[j]=true;}}
+  const p23=new Array(n).fill(false);
+  for(let i=2;i<n;i++){const w=[i-2,i-1,i];if(w.filter(j=>b2[j]).length>=2)w.filter(j=>b2[j]).forEach(j=>{p23[j]=true;});}
+  _cmAll=pts.map((r,i)=>({...r,flag:b3[i]?'f3':(p23[i]&&b2[i])?'f2':y9[i]?'f9':'ok'}));
 
   _cmSelected.clear();
   document.getElementById('cmSelPanel').classList.remove('open');
 
   const lim=_cmAll.find(r=>r.u3!=null||r.l3!=null)||{};
-  const u3=lim.u3??null, l3=lim.l3??null;
+  const u3=lim.u3??null,l3=lim.l3??null;
+  const u2v=lim.u2??null,l2v=lim.l2??null;
+  const u2calc=u2v!=null?u2v:(u3!=null?parseFloat((u3*2/3).toFixed(4)):null);
+  const l2calc=l2v!=null?l2v:(u3!=null?parseFloat((-u3*2/3).toFixed(4)):null);
 
   const values=_cmAll.map(r=>r.diff);
   _cmBaseColors=_cmAll.map(r=>r.flag==='f3'?'#e89090':r.flag==='f2'?'#b89cf0':r.flag==='f9'?'#e8b06a':'#5b9bd5');
   _cmBaseRadii=_cmAll.map(r=>r.flag==='f3'?7:r.flag==='f2'?6:r.flag==='f9'?6:4);
 
-  // label แกน X = ชื่อเดือน
-  const monLabels=_cmAll.map(r=>{
-    if(!r.mon) return '';
-    const d=new Date((parseInt(r.mon)-25569)*86400*1000);
-    return d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'});
-  });
-
-  // บอกช่วงเดือนใน subtitle
+  const monLabels=_cmAll.map(r=>{if(!r.mon)return'';const d=new Date((parseInt(r.mon)-25569)*86400*1000);return d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'});});
   const uniqMons=[...new Set(monLabels)];
   document.getElementById('cmTitle').textContent='📊 '+det.par;
   document.getElementById('cmSub').textContent='ช่วง: '+uniqMons.join(' → ')+' (3 เดือนล่าสุด)  |  คลิกจุดเพื่อเลือก Bias';
@@ -1218,101 +1282,65 @@ function openChartModal(el){
   const b=det.bias;
   document.getElementById('cmBias').textContent=(b>=0?'+':'')+b.toFixed(3);
   document.getElementById('cmBias').style.color=b>0.05?'#e89090':b<-0.05?'#5b9bd5':'#4a6fa5';
-  document.getElementById('cmBeyond').textContent=(det.f3||[]).length;
+  document.getElementById('cmBeyond').textContent=_cmAll.filter(r=>r.flag==='f3').length;
 
   const ctx=document.getElementById('cmCanvas');
   if(_cmChart){_cmChart.destroy();_cmChart=null;}
-
-  const n=_cmAll.length;
+  const nm=_cmAll.length;
   const datasets=[
     {label:'Diff',data:values,borderColor:'#90aee8',backgroundColor:'rgba(144,174,232,0.08)',
      pointBackgroundColor:[..._cmBaseColors],pointBorderColor:[..._cmBaseColors],
-     pointBorderWidth:_cmAll.map(()=>0),
-     pointRadius:[..._cmBaseRadii],pointHoverRadius:10,
+     pointBorderWidth:_cmAll.map(()=>0),pointRadius:[..._cmBaseRadii],pointHoverRadius:10,
      borderWidth:1.5,tension:0.15,fill:true,order:1},
-    {data:Array(n).fill(0),borderColor:'#c0c8e0',borderWidth:1,pointRadius:0,fill:false,order:2,label:''},
+    {data:Array(nm).fill(0),borderColor:'#c0c8e0',borderWidth:1,pointRadius:0,fill:false,order:2,label:''},
   ];
   if(u3!=null){
-    // ±3SEP — แดง
-    datasets.push({data:Array(n).fill(u3),   borderColor:'#e89090',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:2,label:'+3SEP'});
-    datasets.push({data:Array(n).fill(l3??-u3),borderColor:'#e89090',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:2,label:'-3SEP'});
+    datasets.push({data:Array(nm).fill(u3),borderColor:'#e89090',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:2,label:'+3SEP'});
+    datasets.push({data:Array(nm).fill(l3??-u3),borderColor:'#e89090',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:2,label:'-3SEP'});
   }
-  // ±2SEP — หา u2/l2 จาก record
-  const lim2=_cmAll.find(r=>r.u2!=null||r.l2!=null)||{};
-  const u2=lim2.u2??null, l2val=lim2.l2??null;
-  // ถ้าไม่มี u2 ให้คำนวณจาก u3*2/3
-  const u2val = u2!=null ? u2 : (u3!=null ? parseFloat((u3*2/3).toFixed(4)) : null);
-  const l2calc = l2val!=null ? l2val : (u3!=null ? parseFloat((-u3*2/3).toFixed(4)) : null);
-  if(u2val!=null){
-    // ±2SEP — ส้ม
-    datasets.push({data:Array(n).fill(u2val), borderColor:'#e8b06a',borderWidth:1.5,borderDash:[3,3],pointRadius:0,fill:false,order:2,label:'+2SEP'});
-    datasets.push({data:Array(n).fill(l2calc??-u2val),borderColor:'#e8b06a',borderWidth:1.5,borderDash:[3,3],pointRadius:0,fill:false,order:2,label:'-2SEP'});
+  if(u2calc!=null){
+    datasets.push({data:Array(nm).fill(u2calc),borderColor:'#e8b06a',borderWidth:1.5,borderDash:[3,3],pointRadius:0,fill:false,order:2,label:'+2SEP'});
+    datasets.push({data:Array(nm).fill(l2calc??-u2calc),borderColor:'#e8b06a',borderWidth:1.5,borderDash:[3,3],pointRadius:0,fill:false,order:2,label:'-2SEP'});
   }
-
   _cmChart=new Chart(ctx,{
-    type:'line',
-    data:{labels:monLabels,datasets},
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      animation:{duration:300},
-      onClick:(e,els)=>{
-        if(!els.length||els[0].datasetIndex!==0)return;
-        const idx=els[0].index;
-        if(_cmSelected.has(idx))_cmSelected.delete(idx);
-        else _cmSelected.add(idx);
-        cmUpdateSel();
-        cmUpdateColors();
-      },
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          callbacks:{
-            title:c=>{const i=c[0].dataIndex;return _cmAll[i]?.nm||'';},
-            label:c=>{if(c.datasetIndex!==0)return null;const v=c.raw;
-              const mon=monLabels[c.dataIndex]||'';
-              const flag={f3:'⚠ ±3SEP',f2:'◉ 2/3',f9:'◆ 9จุด',ok:'✓ Pass'}[_cmAll[c.dataIndex]?.flag]||'';
-              return['Diff: '+(v>=0?'+':'')+v.toFixed(3),'เดือน: '+mon,flag].filter(Boolean);}
-          },
-          displayColors:false,
-          backgroundColor:'rgba(30,40,80,0.92)',titleColor:'#fff',bodyColor:'#c0c8e8',
-          titleFont:{size:11,weight:'700'},bodyFont:{size:11,family:'DM Mono'},
-          padding:10,cornerRadius:8
-        }
-      },
+    type:'line',data:{labels:monLabels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:300},
+      onClick:(e,els)=>{if(!els.length||els[0].datasetIndex!==0)return;const idx=els[0].index;if(_cmSelected.has(idx))_cmSelected.delete(idx);else _cmSelected.add(idx);cmUpdateSel();cmUpdateColors();},
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{
+          title:c=>{const i=c[0].dataIndex;return _cmAll[i]?.nm||'';},
+          label:c=>{if(c.datasetIndex!==0)return null;const v=c.raw,mon=monLabels[c.dataIndex]||'';
+            const flag={f3:'⚠ ±3SEP',f2:'◉ 2/3',f9:'◆ 9จุด',ok:'✓ Pass'}[_cmAll[c.dataIndex]?.flag]||'';
+            return['Diff: '+(v>=0?'+':'')+v.toFixed(3),'เดือน: '+mon,flag].filter(Boolean);}},
+          displayColors:false,backgroundColor:'rgba(30,40,80,0.92)',titleColor:'#fff',bodyColor:'#c0c8e8',
+          titleFont:{size:11,weight:'700'},bodyFont:{size:11,family:'DM Mono'},padding:10,cornerRadius:8}},
       scales:{
-        x:{
-          ticks:{
-            font:{size:9},color:'#a0a9c8',maxRotation:40,minRotation:0,
-            callback:(val,i)=>{
-              if(i===0||monLabels[i]!==monLabels[i-1]) return monLabels[i];
-              return '';
-            }
-          },
-          grid:{color:(ctx)=>{
-            const i=ctx.index;
-            return(i>0&&monLabels[i]!==monLabels[i-1])?'rgba(91,142,240,0.25)':'rgba(192,200,224,0.15)';
-          }},
-          border:{display:false}
-        },
-        y:{ticks:{font:{size:10,family:'DM Mono'},color:'#a0a9c8',padding:8},
-           grid:{color:'rgba(192,200,224,0.3)'},border:{display:false}}
+        x:{ticks:{font:{size:9},color:'#a0a9c8',maxRotation:40,
+            callback:(val,i)=>{return(i===0||monLabels[i]!==monLabels[i-1])?monLabels[i]:''}},
+           grid:{color:ctx2=>(ctx2.index>0&&monLabels[ctx2.index]!==monLabels[ctx2.index-1])?'rgba(91,142,240,0.25)':'rgba(192,200,224,0.15)'},border:{display:false}},
+        y:{ticks:{font:{size:10,family:'DM Mono'},color:'#a0a9c8',padding:8},grid:{color:'rgba(192,200,224,0.3)'},border:{display:false}}
       }
     }
   });
-
   document.getElementById('chartModal').classList.add('open');
 }
-
 function closeChartModal(){
   document.getElementById('chartModal').classList.remove('open');
   document.getElementById('cmSelPanel').classList.remove('open');
-  _cmSelected.clear();
-  _cmAll=[];
+  _cmSelected.clear();_cmAll=[];
   if(_cmChart){_cmChart.destroy();_cmChart=null;}
 }
-
-// ปิด modal เมื่อคลิก backdrop
-document.getElementById('chartModal').addEventListener('click',function(e){
-  if(e.target===this)closeChartModal();
+document.getElementById('chartModal').addEventListener('click',function(e){if(e.target===this)closeChartModal();});
+</script>
+  try{var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');var _p=_u.plants;
+    if(!_p||_p.length===0)return;
+    if(_p.length===1){var s=document.getElementById('fPlant');if(!s)return;
+      var c=function(){for(var i=1;i<s.options.length;i++){if(s.options[i].value===_p[0]){
+        s.value=_p[0];s.disabled=true;s.style.opacity='0.6';s.style.cursor='not-allowed';
+        s.dispatchEvent(new Event('change',{bubbles:true}));return;}}setTimeout(c,200);};
+      setTimeout(c,500);}
+  }catch(e){}
 });
 </script>
+</body>
+</html>
