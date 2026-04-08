@@ -1052,25 +1052,39 @@ function ttClick(el,e){
 
 <!-- ── Shared Correction Storage ── -->
 <script>
-// แทน localStorage → Shared Storage (ทุกคนเห็น)
+// Storage: ใช้ localStorage (รองรับทุก environment) + แยก key ตาม eqp/src
 function cKey(p,m,eqp,src){
-  const e=eqp||'all',s=src||'all';
+  const e=(eqp||'').trim()||'all', s=(src||'').trim()||'all';
   return 'corr::'+p+'::'+m+'::'+e+'::'+s;
 }
 async function cLoad(p,m,eqp,src){
-  try{const k=cKey(p,m,eqp,src);const res=await window.storage.get(k,true);return res?JSON.parse(res.value):null;}catch{return null;}
+  const k=cKey(p,m,eqp,src);
+  // ลอง shared storage ก่อน ถ้าไม่มีใช้ localStorage
+  try{
+    if(window.storage){
+      const res=await window.storage.get(k,true);
+      if(res) return JSON.parse(res.value);
+    }
+  }catch{}
+  try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch{return null;}
 }
 async function cSaveShared(p,m,eqp,src,text,user){
   const obj={text,user,savedAt:new Date().toLocaleString('th-TH',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})};
-  try{await window.storage.set(cKey(p,m,eqp,src),JSON.stringify(obj),true);}catch{}
+  const k=cKey(p,m,eqp,src);
+  // บันทึกทั้งสองที่
+  try{if(window.storage)await window.storage.set(k,JSON.stringify(obj),true);}catch{}
+  try{localStorage.setItem(k,JSON.stringify(obj));}catch{}
   return obj;
 }
 
-function eid2(prd,mon,eqp,src){return 'c'+btoa(encodeURIComponent(prd+'|'+mon+'|'+(eqp||'')+'|'+(src||''))).replace(/[^a-zA-Z0-9]/g,'');}
+function eid2(prd,mon,eqp,src){
+  return 'c'+btoa(encodeURIComponent(prd+'|'+mon+'|'+(eqp||'')+'|'+(src||''))).replace(/[^a-zA-Z0-9]/g,'');
+}
 
 async function corrHTML2(prd,mon,eqp,src){
   const id=eid2(prd,mon,eqp,src);
-  const d=await cLoad(prd,mon,eqp,src);
+  let d=null;
+  try{d=await cLoad(prd,mon,eqp,src);}catch{}
   const viewH=d
     ?`<div class="corr-view" id="${id}v">
         <div style="flex:1"><div class="corr-text">${d.text.replace(/</g,'&lt;')}</div><div class="corr-meta">💾 ${d.savedAt} · ${d.user}</div></div>
@@ -1080,7 +1094,7 @@ async function corrHTML2(prd,mon,eqp,src){
         <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">+ บันทึก</button></div></div>`;
   return `<div class="corr-inner" id="${id}" data-prd="${prd.replace(/"/g,'&quot;')}" data-mon="${mon}" data-eqp="${(eqp||'').replace(/"/g,'&quot;')}" data-src="${(src||'').replace(/"/g,'&quot;')}">
     ${viewH}
-    <div class="corr-edit" id="${id}e">
+    <div class="corr-edit" id="${id}e" style="display:none;flex-direction:column;gap:5px;width:100%">
       <textarea class="corr-textarea" id="${id}t" placeholder="บันทึก Correction...">${d?d.text.replace(/</g,'&lt;'):''}</textarea>
       <div class="corr-row">
         <input type="text" class="corr-user" id="${id}u" placeholder="ชื่อผู้บันทึก" value="${d?d.user:''}">
@@ -1091,12 +1105,14 @@ async function corrHTML2(prd,mon,eqp,src){
 }
 function startE2(id){
   document.getElementById(id+'v').style.display='none';
-  const ed=document.getElementById(id+'e');ed.style.display='flex';
+  const ed=document.getElementById(id+'e');
+  ed.style.display='flex';
   document.getElementById(id+'t').focus();
 }
 async function doSave2(id){
   const el=document.getElementById(id);
-  const prd=el.dataset.prd,mon=el.dataset.mon,eqp=el.dataset.eqp,src=el.dataset.src;
+  if(!el){alert('เกิดข้อผิดพลาด');return;}
+  const prd=el.dataset.prd, mon=el.dataset.mon, eqp=el.dataset.eqp||'', src=el.dataset.src||'';
   const text=document.getElementById(id+'t').value.trim();
   const user=document.getElementById(id+'u').value.trim()||'ไม่ระบุชื่อ';
   if(!text){alert('กรุณากรอกข้อความก่อน Save');return;}
@@ -1108,8 +1124,7 @@ async function doSave2(id){
      <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">✏️ แก้ไข</button></div>`;
   cancelE(id);
 }
-
-// Override corrHTML เดิม ให้ใช้ shared version + eqp/src จาก filter ปัจจุบัน
+</script>
 
 
 <!-- ── Chart Modal CSS ── -->
@@ -1298,6 +1313,8 @@ function closeChartModal(){
 }
 document.getElementById('chartModal').addEventListener('click',function(e){if(e.target===this)closeChartModal();});
 </script>
+<script>
+window.addEventListener('load',function(){
   try{var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');var _p=_u.plants;
     if(!_p||_p.length===0)return;
     if(_p.length===1){var s=document.getElementById('fPlant');if(!s)return;
