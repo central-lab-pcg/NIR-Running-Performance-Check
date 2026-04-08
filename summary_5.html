@@ -253,9 +253,10 @@ const DATA_URL="https://raw.githubusercontent.com/central-lab-pcg/NIR-Running-Pe
 const DATA_URL2="https://raw.githubusercontent.com/central-lab-pcg/NIR-Running-Performance-Check/main/data2.json";
 
 // ── Shared Correction Storage (JSONBin.io) ────────────────────────────────────
-const JSONBIN_ID  = '69d5c4f4856a6821890d184e';
-const JSONBIN_KEY = '$2a$10$Ohq6FsEj2BnQUMGq5NYPqO4WWFJL/vbLidCxvHtrUGA3aRdQIS.zq';
-const JSONBIN_URL = 'https://api.jsonbin.io/v3/b/' + JSONBIN_ID;
+const JSONBIN_ID     = '69d5c4f4856a6821890d184e';
+const JSONBIN_MASTER = '$2a$10$Ohq6FsEj2BnQUMGq5NYPqO4WWFJL/vbLidCxvHtrUGA3aRdQIS.zq';
+const JSONBIN_ACCESS = '$2a$10$KUCt03lbeTKyErlWNAdVheQ0dGdoVzYq5y.hnbhTnnWgT3oLxKk5e';
+const JSONBIN_URL    = 'https://api.jsonbin.io/v3/b/' + JSONBIN_ID;
 
 // ไม่ cache — ดึงสดทุกครั้งเพื่อให้ทุกเครื่องเห็นข้อมูลล่าสุด
 async function corrGetAll() {
@@ -263,14 +264,13 @@ async function corrGetAll() {
     const res = await fetch(JSONBIN_URL + '/latest', {
       cache: 'no-store',
       headers: {
-        'X-Master-Key': JSONBIN_KEY,
-        'X-Bin-Meta': 'false',
-        'Cache-Control': 'no-cache'
+        'X-Master-Key': JSONBIN_MASTER,
+        'X-Bin-Meta': 'false'
       }
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
-    return json.record?.corrections || {};
+    return json.record?.corrections || json.corrections || {};
   } catch(e) {
     console.error('JSONBin read error:', e);
     return {};
@@ -283,7 +283,8 @@ async function corrSaveAll(data) {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_KEY
+        'X-Master-Key': JSONBIN_MASTER,
+        'X-Access-Key': JSONBIN_ACCESS
       },
       body: JSON.stringify({ corrections: data })
     });
