@@ -13,6 +13,7 @@
   --txt:#0d1f35;--txt2:#2d4a6b;--txt3:#5a7a9a;
   --blue:#5b9bd5;--blue-bg:#e8f2fc;--blue-light:#a8ccee;
   --green:#1a8a50;--green-bg:#f0fdf7;--green-border:#a7f3d0;
+  --purple:#7c3aed;--purple-bg:#f5f3ff;--purple-border:#ddd6fe;
   --r:10px;--r-lg:16px;
   --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
   --shadow:0 1px 4px rgba(30,58,95,.06),0 6px 18px rgba(30,58,95,.04);
@@ -20,7 +21,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font);background:var(--bg);color:var(--txt);font-size:13px;line-height:1.5;padding:20px}
 body::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;
-  background:linear-gradient(90deg,#90aee8,#5b9bd5,#7dd8c8,#a8ccee,#90aee8);
+  background:linear-gradient(90deg,#90aee8,#5b9bd5,#b89cf0,#a8ccee,#90aee8);
   background-size:300% 100%;animation:rb 6s linear infinite;z-index:100}
 @keyframes rb{0%{background-position:0%}100%{background-position:300%}}
 .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;margin-top:8px;gap:10px;flex-wrap:wrap}
@@ -39,15 +40,25 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(91,
 .stat-card{flex:1;min-width:130px;background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--r-lg);padding:14px 18px;box-shadow:var(--shadow);text-align:center}
 .stat-card .sv{font-size:26px;font-weight:800;font-family:var(--mono);color:var(--blue)}
 .stat-card .sl{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px;margin-top:3px}
+.stat-card.purple .sv{color:var(--purple)}
+.stat-card.purple{border-color:var(--purple-border)}
 .view-toggle{display:flex;gap:3px;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--r);padding:3px}
 .vtab{font-size:12px;padding:5px 14px;border-radius:7px;border:none;background:transparent;color:var(--txt2);cursor:pointer;font-weight:600;transition:all .15s;font-family:var(--font)}
-.vtab:hover{background:var(--bg2)}
 .vtab.active{background:var(--bg2);color:var(--blue);box-shadow:0 1px 4px rgba(30,58,95,.1)}
+
+/* Legend */
+.legend-bar{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--txt2)}
+.leg{display:flex;align-items:center;gap:6px}
+.leg-dot{width:10px;height:10px;border-radius:50%}
+
 /* Cards */
 .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
-.adj-card{background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;box-shadow:var(--shadow);transition:box-shadow .2s,border-color .2s}
+.adj-card{background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;box-shadow:var(--shadow);transition:box-shadow .2s,border-color .2s;position:relative;overflow:hidden}
 .adj-card:hover{box-shadow:0 4px 20px rgba(91,155,213,.15);border-color:var(--blue-light)}
-.adj-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:8px}
+/* New equation card style */
+.adj-card.new-eq{border-color:var(--purple-border);background:linear-gradient(135deg,#fff,var(--purple-bg))}
+.adj-card.new-eq::before{content:'🔄 สมการใหม่ / Bias = 0';position:absolute;top:0;right:0;background:var(--purple);color:#fff;font-size:9px;font-weight:700;padding:3px 10px;border-bottom-left-radius:8px;letter-spacing:.5px}
+.adj-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:8px;padding-top:4px}
 .adj-product{font-size:14px;font-weight:700;color:var(--txt)}
 .adj-date{font-size:10px;color:var(--txt3);font-family:var(--mono);white-space:nowrap}
 .adj-meta{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
@@ -55,12 +66,16 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(91,
 .b-plant{background:#f0f9ff;color:#0369a1;border-color:#bae6fd}
 .b-equip{background:#fdf4ff;color:#7e22ce;border-color:#e9d5ff}
 .b-src{background:#f0fdf4;color:#15803d;border-color:#bbf7d0}
+.b-new{background:var(--purple-bg);color:var(--purple);border-color:var(--purple-border)}
 .params-wrap{display:flex;flex-wrap:wrap;gap:5px}
 .param-chip{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:4px 10px;font-size:11px;display:flex;align-items:center;gap:5px}
+.param-chip.new-eq{background:var(--purple-bg);border-color:var(--purple-border)}
 .pn{font-weight:700;color:var(--blue);font-family:var(--mono)}
+.pn.purple{color:var(--purple)}
 .pv{font-family:var(--mono);font-weight:700}
 .pv.pos{color:#1a8a50}.pv.neg{color:#cc3333}.pv.z{color:var(--txt3)}
 .adj-user{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--txt3);font-family:var(--mono)}
+
 /* Table */
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow);overflow:hidden}
 .card-title{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:12px 16px 10px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
@@ -70,8 +85,10 @@ table{width:100%;border-collapse:collapse;font-size:12px}
 thead th{background:linear-gradient(180deg,#ddeeff,#c8e0f8);color:#1a3a5c;font-weight:700;padding:9px 12px;text-align:left;border-bottom:2px solid var(--border2);font-size:10px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;position:sticky;top:0;z-index:2}
 tbody td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
 tbody tr:hover td{background:var(--blue-bg)}
+tbody tr.tr-new-eq td{background:var(--purple-bg)}
+tbody tr.tr-new-eq:hover td{background:#ede9ff}
 tbody tr:last-child td{border-bottom:none}
-.no-data{text-align:center;padding:60px 20px;color:var(--txt3);font-size:13px}
+.no-data{text-align:center;padding:60px 20px;color:var(--txt3)}
 #loadingOverlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:14px}
 .spinner{width:36px;height:36px;border:3px solid var(--blue-light);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -105,20 +122,38 @@ tbody tr:last-child td{border-bottom:none}
   <div class="f-group"><span class="f-label">Source</span><select id="fSource"><option value="">All</option></select></div>
   <div class="f-group"><span class="f-label">Product</span><select id="fProduct"><option value="">All</option></select></div>
   <div class="f-group"><span class="f-label">Parameter</span><select id="fParam"><option value="">All</option></select></div>
+  <div class="f-group">
+    <span class="f-label">ประเภท</span>
+    <select id="fType">
+      <option value="">All</option>
+      <option value="adjust">Adjust Bias</option>
+      <option value="new_equation">🔄 สมการใหม่</option>
+    </select>
+  </div>
 </div>
 
 <div class="stats-row">
-  <div class="stat-card"><div class="sv" id="sTotal">—</div><div class="sl">รายการ</div></div>
+  <div class="stat-card"><div class="sv" id="sTotal">—</div><div class="sl">รายการทั้งหมด</div></div>
   <div class="stat-card"><div class="sv" id="sProd">—</div><div class="sl">Product</div></div>
   <div class="stat-card"><div class="sv" id="sParam">—</div><div class="sl">Parameter</div></div>
-  <div class="stat-card"><div class="sv" id="sPlant">—</div><div class="sl">Plant</div></div>
+  <div class="stat-card purple"><div class="sv" id="sNewEq">—</div><div class="sl">🔄 สมการใหม่</div></div>
+</div>
+
+<div class="legend-bar">
+  <span class="leg"><span class="leg-dot" style="background:var(--blue)"></span>Adjust Bias ปกติ</span>
+  <span class="leg"><span class="leg-dot" style="background:var(--purple)"></span>🔄 สมการใหม่ (Bias รีเซ็ต = 0) — ค่าที่แสดงคือ Bias เริ่มต้นหลัง install</span>
 </div>
 
 <div id="cardView"><div class="cards-grid" id="cardsGrid"></div></div>
 <div id="tableView" style="display:none">
   <div class="card">
-    <div class="card-title"><span class="bar"></span>รายการ Bias Adjustment<span id="tCount" style="margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--txt3)"></span></div>
-    <div class="tbl-wrap"><table><thead><tr><th>#</th><th>วันที่</th><th>Product</th><th>Plant</th><th>Equipment</th><th>Source</th><th>Parameters & ค่าที่ปรับ</th><th>ผู้ปรับ</th></tr></thead><tbody id="tBody"></tbody></table></div>
+    <div class="card-title"><span class="bar"></span>รายการทั้งหมด<span id="tCount" style="margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--txt3)"></span></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>#</th><th>ประเภท</th><th>วันที่</th><th>Product</th><th>Plant</th><th>Equipment</th><th>Source</th><th>Parameters &amp; ค่า</th><th>ผู้ปรับ</th></tr></thead>
+        <tbody id="tBody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 </div>
@@ -132,13 +167,13 @@ async function loadData(){
     if(!res.ok)throw new Error('HTTP '+res.status);
     const json=await res.json();
     ALL=json.records||[];
-    if(json.generated_at)document.getElementById('lastUpdated').textContent='อัปเดตล่าสุด: '+json.generated_at;
+    if(json.generated_at)document.getElementById('lastUpdated').textContent='อัปเดตล่าสุด: '+json.generated_at+' | รวม '+ALL.length.toLocaleString()+' records';
     initFilters();
     document.getElementById('loadingOverlay').style.display='none';
     document.getElementById('appContent').style.display='block';
     render();
   }catch(e){
-    document.getElementById('loadingOverlay').innerHTML=`<div style="color:#cc3333;text-align:center;padding:20px">❌ โหลดไม่ได้: ${e.message}<br><small style="color:#888">ตรวจสอบว่า bias_adjustments.json อยู่ใน GitHub repo เดียวกัน</small></div>`;
+    document.getElementById('loadingOverlay').innerHTML=`<div style="color:#cc3333;text-align:center;padding:20px;font-family:sans-serif">❌ โหลดไม่ได้: ${e.message}<br><br><small style="color:#888">ตรวจสอบว่า bias_adjustments.json อยู่ใน GitHub repo เดียวกัน</small></div>`;
   }
 }
 
@@ -154,13 +189,14 @@ function initFilters(){
   fill('fSource',[...new Set(ALL.map(r=>r.source))].filter(Boolean).sort());
   fill('fProduct',[...new Set(ALL.map(r=>r.product))].filter(Boolean).sort());
   fill('fParam',[...new Set(ALL.flatMap(r=>Object.keys(r.params)))].sort());
-  ['fMonth','fPlant','fEquip','fSource','fProduct','fParam'].forEach(id=>document.getElementById(id).addEventListener('change',render));
+  ['fMonth','fPlant','fEquip','fSource','fProduct','fParam','fType'].forEach(id=>document.getElementById(id).addEventListener('change',render));
 }
 
 function getFiltered(){
   const mon=document.getElementById('fMonth').value,pla=document.getElementById('fPlant').value,
     eqp=document.getElementById('fEquip').value,src=document.getElementById('fSource').value,
-    prd=document.getElementById('fProduct').value,par=document.getElementById('fParam').value;
+    prd=document.getElementById('fProduct').value,par=document.getElementById('fParam').value,
+    typ=document.getElementById('fType').value;
   return ALL.filter(r=>{
     if(mon&&r.month!==mon)return false;
     if(pla&&r.plant!==pla)return false;
@@ -168,6 +204,7 @@ function getFiltered(){
     if(src&&r.source!==src)return false;
     if(prd&&r.product!==prd)return false;
     if(par&&!Object.keys(r.params).includes(par))return false;
+    if(typ&&r.type!==typ)return false;
     return true;
   }).sort((a,b)=>b.date.localeCompare(a.date)||a.product.localeCompare(b.product));
 }
@@ -178,23 +215,29 @@ function dateTH(d){return new Date(d).toLocaleDateString('th-TH',{day:'2-digit',
 
 function render(){
   const rows=getFiltered();
+  const newEqRows=rows.filter(r=>r.type==='new_equation');
   document.getElementById('sTotal').textContent=rows.length;
   document.getElementById('sProd').textContent=new Set(rows.map(r=>r.product)).size;
   document.getElementById('sParam').textContent=new Set(rows.flatMap(r=>Object.keys(r.params))).size;
-  document.getElementById('sPlant').textContent=new Set(rows.map(r=>r.plant)).size;
+  document.getElementById('sNewEq').textContent=newEqRows.length;
   if(view==='card')renderCards(rows);
   else renderTable(rows);
 }
 
 function renderCards(rows){
   const g=document.getElementById('cardsGrid');
-  if(!rows.length){g.innerHTML='<div class="no-data" style="grid-column:1/-1">📭 ไม่พบข้อมูลการปรับ Bias</div>';return;}
+  if(!rows.length){g.innerHTML='<div class="no-data" style="grid-column:1/-1">📭 ไม่พบข้อมูล</div>';return;}
   g.innerHTML=rows.map(r=>{
-    const params=Object.entries(r.params).map(([p,v])=>`<div class="param-chip"><span class="pn">${p}</span>${fv(v)}</div>`).join('');
-    return`<div class="adj-card">
+    const isNew=r.type==='new_equation';
+    const params=Object.entries(r.params).map(([p,v])=>
+      `<div class="param-chip${isNew?' new-eq':''}"><span class="pn${isNew?' purple':''}">${p}</span>${fv(v)}</div>`
+    ).join('');
+    const resetNote=isNew?'<div style="font-size:10px;color:var(--purple);margin-top:6px;font-weight:600">⚠️ Bias รีเซ็ตเป็น 0 — ค่าด้านบนคือ Bias เริ่มต้นหลัง install สมการใหม่</div>':'';
+    return`<div class="adj-card${isNew?' new-eq':''}">
       <div class="adj-header"><div class="adj-product">${r.product}</div><div class="adj-date">📅 ${dateTH(r.date)}</div></div>
       <div class="adj-meta">${badge(r.plant,'b-plant')}${badge(r.equipment,'b-equip')}${badge(r.source,'b-src')}</div>
       <div class="params-wrap">${params}</div>
+      ${resetNote}
       ${r.adjuster?`<div class="adj-user">👤 ${r.adjuster}</div>`:''}
     </div>`;
   }).join('');
@@ -203,19 +246,27 @@ function renderCards(rows){
 function renderTable(rows){
   document.getElementById('tCount').textContent=rows.length+' รายการ';
   const tb=document.getElementById('tBody');
-  if(!rows.length){tb.innerHTML='<tr><td colspan="8"><div class="no-data">📭 ไม่พบข้อมูล</div></td></tr>';return;}
+  if(!rows.length){tb.innerHTML='<tr><td colspan="9"><div class="no-data">📭 ไม่พบข้อมูล</div></td></tr>';return;}
   tb.innerHTML=rows.map((r,i)=>{
+    const isNew=r.type==='new_equation';
+    const typeBadge=isNew
+      ?`<span class="badge b-new">🔄 สมการใหม่</span>`
+      :`<span class="badge" style="background:#f0f9ff;color:#0369a1;border-color:#bae6fd">Adjust Bias</span>`;
     const ps=Object.entries(r.params).map(([p,v])=>
-      `<span style="display:inline-flex;gap:4px;align-items:center;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:2px 8px;margin:1px;font-size:11px"><b style="color:var(--blue);font-family:var(--mono)">${p}</b><span style="font-family:var(--mono);font-weight:700;color:${v>0?'#1a8a50':v<0?'#cc3333':'var(--txt3)'}">${v>0?'+':''}${v}</span></span>`
+      `<span style="display:inline-flex;gap:4px;align-items:center;background:${isNew?'var(--purple-bg)':'var(--bg3)'};border:1px solid ${isNew?'var(--purple-border)':'var(--border2)'};border-radius:6px;padding:2px 8px;margin:1px;font-size:11px">
+        <b style="color:${isNew?'var(--purple)':'var(--blue)'};font-family:var(--mono)">${p}</b>
+        <span style="font-family:var(--mono);font-weight:700;color:${v>0?'#1a8a50':v<0?'#cc3333':'var(--txt3)'}">${v>0?'+':''}${v}</span>
+      </span>`
     ).join('');
-    return`<tr>
+    return`<tr class="${isNew?'tr-new-eq':''}">
       <td style="color:var(--txt3);font-family:var(--mono);font-size:11px">${i+1}</td>
+      <td>${typeBadge}</td>
       <td style="white-space:nowrap;font-family:var(--mono);font-size:11px">${dateTH(r.date)}</td>
       <td style="font-weight:700">${r.product}</td>
       <td>${badge(r.plant,'badge b-plant')}</td>
       <td>${badge(r.equipment,'badge b-equip')}</td>
       <td>${badge(r.source,'badge b-src')}</td>
-      <td>${ps}</td>
+      <td>${ps}${isNew?'<div style="font-size:9px;color:var(--purple);margin-top:3px">⚠️ Bias = 0 หลัง install</div>':''}</td>
       <td style="color:var(--txt3);font-size:11px">${r.adjuster||'—'}</td>
     </tr>`;
   }).join('');
@@ -232,8 +283,10 @@ function switchView(v){
 
 function exportCSV(){
   const rows=getFiltered(),mon=document.getElementById('fMonth').value;
-  const lines=['Date,Product,Plant,Equipment,Source,Parameter,Value,Adjuster'];
-  rows.forEach(r=>Object.entries(r.params).forEach(([p,v])=>lines.push([r.date,'"'+r.product+'"',r.plant,r.equipment,r.source,p,v,r.adjuster||''].join(','))));
+  const lines=['Type,Date,Product,Plant,Equipment,Source,Parameter,Value,Adjuster'];
+  rows.forEach(r=>Object.entries(r.params).forEach(([p,v])=>
+    lines.push([r.type==='new_equation'?'New Equation':'Adjust Bias',r.date,'"'+r.product+'"',r.plant,r.equipment,r.source,p,v,r.adjuster||''].join(','))
+  ));
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'}));
   a.download='BiasAdjustment_'+mon+'.csv';a.click();
@@ -241,10 +294,12 @@ function exportCSV(){
 
 function exportExcel(){
   const rows=getFiltered(),mon=document.getElementById('fMonth').value;
-  const data=[['Date','Product','Plant','Equipment','Source','Parameter','Value','Adjuster']];
-  rows.forEach(r=>Object.entries(r.params).forEach(([p,v])=>data.push([r.date,r.product,r.plant,r.equipment,r.source,p,v,r.adjuster||''])));
+  const data=[['Type','Date','Product','Plant','Equipment','Source','Parameter','Value','Adjuster']];
+  rows.forEach(r=>Object.entries(r.params).forEach(([p,v])=>
+    data.push([r.type==='new_equation'?'New Equation':'Adjust Bias',r.date,r.product,r.plant,r.equipment,r.source,p,v,r.adjuster||''])
+  ));
   const ws=XLSX.utils.aoa_to_sheet(data);
-  ws['!cols']=[12,20,8,12,10,10,10,15].map(w=>({wch:w}));
+  ws['!cols']=[14,12,20,8,12,10,10,10,15].map(w=>({wch:w}));
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Bias Adjustment');
   XLSX.writeFile(wb,'BiasAdjustment_'+mon+'.xlsx');
