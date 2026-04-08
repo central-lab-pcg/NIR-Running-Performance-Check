@@ -53,7 +53,7 @@ select:hover:not(:focus){border-color:var(--border2)}
 #searchInput{border:none;outline:none;font-size:12px;color:var(--txt);background:transparent;min-width:90px;flex:1;padding:1px 2px;font-family:var(--font)}
 #searchInput::placeholder{color:var(--txt3)}
 .s-clear{padding:0 4px;cursor:pointer;color:var(--txt3);font-size:13px;align-self:center;transition:color .1s}.s-clear:hover{color:var(--red)}
-.search-dd{position:fixed;z-index:99999;background:var(--bg2);border:1.5px solid var(--border2);border-radius:var(--r-lg);max-height:220px;overflow-y:auto;box-shadow:0 8px 32px rgba(26,29,46,0.18);display:none}
+.search-dd{position:absolute;top:calc(100%+4px);left:0;right:0;z-index:9999;background:var(--bg2);border:1.5px solid var(--border2);border-radius:var(--r-lg);max-height:220px;overflow-y:auto;box-shadow:0 8px 32px rgba(26,29,46,0.12);display:none}
 .search-dd.open{display:block}
 .search-dd::-webkit-scrollbar{width:4px}.search-dd::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 .dd-item{padding:8px 14px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;transition:background .1s}
@@ -330,10 +330,9 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
 
 <script>
 // =====================================================
-// ⚙️ CONFIG — แก้ URL ให้ตรงกับ path จริง
-// DATA_URL2 = ไฟล์ที่ 2 (ถ้าไม่มีให้ใส่ "" ได้เลย)
+// ⚙️ CONFIG — แก้ URL ให้ตรงกับ path จริงบน SharePoint
 // =====================================================
-const DATA_URL  = "https://raw.githubusercontent.com/central-lab-pcg/NIR-Running-Performance-Check/main/data.json";
+const DATA_URL = "https://raw.githubusercontent.com/central-lab-pcg/NIR-Running-Performance-Check/main/data.json";
 const DATA_URL2 = "https://raw.githubusercontent.com/central-lab-pcg/NIR-Running-Performance-Check/main/data2.json";
 // =====================================================
 
@@ -508,49 +507,32 @@ function updateChartColors(){
 // แปลง 1 row (Excel Wide) → หลาย records (Long)
 // =====================================================
 const WIDE_PARAM_MAP = [
-  { par:'M',      wc:'M-WC',          nir:'M-NIR',          diff:['M-Diff , WC-NIR','M-Diff,WC-NIR','M Diff','M-Diff'],                                        u2:'M2SEPeqa',           l2:'M-2SEPeqa2',          u3:'M3sep',               l3:'M-3sep2'              },
-  { par:'CP',     wc:'CP-WC',         nir:'CP-NIR',         diff:['CP Diff , WC-NIR','CP Diff,WC-NIR','CP Diff','CP-Diff'],                                     u2:'CP2SEPeqa',          l2:'CP-2SEPeqa2',         u3:'CP3SEPeqa',           l3:'CP-3SEPeqa3'          },
-  { par:'EE',     wc:'EE-WC',         nir:'EE-NIR',         diff:['EE Diff','EE-Diff','EE Diff , WC-NIR'],                                                      u2:'EE2SEP',             l2:'EE-2SEP',             u3:'EE3SEP',              l3:'EE-3SEP'              },
-  { par:'AH',     wc:'AH-WC',         nir:'AH-NIR',         diff:['AH Diff , WC-NIR2','AH Diff,WC-NIR2','AH Diff','AH-Diff'],                                  u2:'AH2SEPeqa',          l2:'AH-2SEPeqa2',         u3:'AH3SEPeqa',           l3:'ah-3SEPeqa3'          },
-  { par:'FIB',    wc:'FIB-WC',        nir:'FIB-NIR',        diff:['Fib Diff , WC-NIR3','Fib Diff,WC-NIR3','Fib Diff','FIB Diff','FIB-Diff'],                   u2:'Fib 2SEPeqa',        l2:'Fib-2SEPeqa2',        u3:'Fib 3SEPeqa',         l3:'Fib-3SEPeqa3'         },
-  { par:'ASH',    wc:'ASH-WC',        nir:'ASH-NIR',        diff:['Ash Diff , WC-NIR4','Ash Diff,WC-NIR4','Ash Diff','ASH Diff','ASH-Diff'],                   u2:'Ash 2SEPeqa',        l2:'Ash-2SEPeqa2',        u3:'Ash 3SEPeqa',         l3:'Ash-3SEPeqa3'         },
-  { par:'Ca',     wc:'Ca-WC',         nir:'Ca-NIR',         diff:['Ca Diff , WC-NIR6','Ca Diff,WC-NIR6','Ca Diff','Ca-Diff'],                                   u2:'Ca2SEPeqa',          l2:'Ca-2SEPeqa2',         u3:'Ca3SEPeqa',           l3:'Ca-3SEPeqa3'          },
-  { par:'P',      wc:'P-WC',          nir:'P-NIR',          diff:['P Diff , WC-NIR6','P Diff,WC-NIR6','P Diff','P-Diff'],                                       u2:'P2SEPeqa',           l2:'P-2SEPeqa2',          u3:'P3SEPeqa',            l3:'P-3SEPeqa3'           },
-  { par:'Aw',     wc:'Aw-WC',         nir:'Aw-NIR',         diff:['Aw Diff , WC-NIR6','Aw Diff,WC-NIR6','Aw Diff','Aw-Diff'],                                  u2:'Aw2SEPeqa',          l2:'Aw-2SEPeqa2',         u3:'Aw3SEPeqa',           l3:'Aw-3SEPeqa3'          },
-  { par:'NaCl',   wc:'NaCl-WC',       nir:'NaCl-NIR',       diff:['NaCl Diff , WC-NIR5','NaCl Diff,WC-NIR5','NaCl Diff','NaCl-Diff'],                          u2:'NaCl2SEPeqa',        l2:'NaCl-2SEPeqa3',       u3:'NaCl3SEPeqa2',        l3:'NaCl-3SEPeqa2'        },
-  { par:'PD',     wc:'PD-WC',         nir:'PD-NIR',         diff:['PD Diff , WC-NIR6','PD Diff,WC-NIR6','PD Diff','PD-Diff'],                                  u2:'PD2SEP',             l2:'PD-2SEPeqa2',         u3:'PD3SEPeqa',           l3:'PD-3SEPeqa3'          },
-  { par:'TVBN',   wc:'TVBN-WC',       nir:'TVBN-NIR',       diff:['TVBN Diff , WC-NIR6','TVBN Diff,WC-NIR6','TVBN Diff','TVBN-Diff'],                          u2:'TVBN2SEP',           l2:'TVBN-2SEPeqa2',       u3:'TVBN3SEPeqa',         l3:'TVBN-3SEPeqa3'        },
-  { par:'Sand',   wc:['Sand-WC5','Sand-WC','Sand WC'],       nir:['Sand-NIR6','Sand-NIR','Sand NIR'],       diff:['Sand Diff , WC-NIR37','Sand Diff,WC-NIR37','Sand Diff , WC-NIR','Sand Diff','Sand-Diff','SandDiff'],    u2:'Sand2SEP',           l2:'Sand-2SEPeqa23',      u3:'Sand 3SEPeqa2',       l3:'Sand-3SEPeqa34'       },
-  { par:'Starch', wc:['Starch-WC5','Starch-WC','Starch WC'],     nir:['Starch-NIR','Starch NIR','StarchNIR'],     diff:['Starch Diff , WC-NIR47','Starch Diff,WC-NIR47','Starch Diff , WC-NIR','Starch Diff','Starch-Diff','StarchDiff'], u2:'Starch2SEP', l2:'Starch-2SEPeqa23',    u3:'Starch3SEPeqa2',      l3:'Starch-3SEPeqa34'     },
-  { par:'BHT',    wc:'BHT-WC',        nir:'BHT-NIR',        diff:['BHT Diff , WC-NIR6','BHT Diff,WC-NIR6','BHT Diff','BHT-Diff'],                              u2:'BHT2SEP',            l2:'BHT-2SEPeqa2',        u3:'BHT3SEPeqa',          l3:'BHT-3SEPeqa3'         },
-  { par:'pH',     wc:'pH-WC',         nir:'pH-NIR',         diff:['pH Diff , WC-NIR6','pH Diff,WC-NIR6','pH Diff','pH-Diff'],                                  u2:'pH2SEP',             l2:'pH-2SEPeqa2',         u3:'pH3SEPeqa',           l3:'pH-3SEPeqa3'          },
-  { par:'Fat-C',  wc:'Fat-C-WC',      nir:'Fat-C-NIR',      diff:['Fat-C Diff , WC-NIR5','Fat-C Diff,WC-NIR5','Fat-C Diff','Fat-C-Diff'],                      u2:'Fat-C2SEP',          l2:'Fat-C-2SEPeqa3',      u3:'Fat-C 3SEPeqa2',      l3:'Fat-C-3SEPeqa2'       },
+  { par:'M',      wc:'M-WC',          nir:'M-NIR',          diff:'M-Diff , WC-NIR',           u2:'M2SEPeqa',           l2:'M-2SEPeqa2',          u3:'M3sep',               l3:'M-3sep2'              },
+  { par:'CP',     wc:'CP-WC',         nir:'CP-NIR',         diff:'CP Diff , WC-NIR',           u2:'CP2SEPeqa',          l2:'CP-2SEPeqa2',         u3:'CP3SEPeqa',           l3:'CP-3SEPeqa3'          },
+  { par:'EE',     wc:'EE-WC',         nir:'EE-NIR',         diff:'EE Diff',                    u2:'EE2SEP',             l2:'EE-2SEP',             u3:'EE3SEP',              l3:'EE-3SEP'              },
+  { par:'AH',     wc:'AH-WC',         nir:'AH-NIR',         diff:'AH Diff , WC-NIR2',          u2:'AH2SEPeqa',          l2:'AH-2SEPeqa2',         u3:'AH3SEPeqa',           l3:'ah-3SEPeqa3'          },
+  { par:'FIB',    wc:'FIB-WC',        nir:'FIB-NIR',        diff:'Fib Diff , WC-NIR3',         u2:'Fib 2SEPeqa',        l2:'Fib-2SEPeqa2',        u3:'Fib 3SEPeqa',         l3:'Fib-3SEPeqa3'         },
+  { par:'ASH',    wc:'ASH-WC',        nir:'ASH-NIR',        diff:'Ash Diff , WC-NIR4',         u2:'Ash 2SEPeqa',        l2:'Ash-2SEPeqa2',        u3:'Ash 3SEPeqa',         l3:'Ash-3SEPeqa3'         },
+  { par:'Ca',     wc:'Ca-WC',         nir:'Ca-NIR',         diff:'Ca Diff , WC-NIR6',          u2:'Ca2SEPeqa',          l2:'Ca-2SEPeqa2',         u3:'Ca3SEPeqa',           l3:'Ca-3SEPeqa3'          },
+  { par:'P',      wc:'P-WC',          nir:'P-NIR',          diff:'P Diff , WC-NIR6',           u2:'P2SEPeqa',           l2:'P-2SEPeqa2',          u3:'P3SEPeqa',            l3:'P-3SEPeqa3'           },
+  { par:'Aw',     wc:'Aw-WC',         nir:'Aw-NIR',         diff:'Aw Diff , WC-NIR6',          u2:'Aw2SEPeqa',          l2:'Aw-2SEPeqa2',         u3:'Aw3SEPeqa',           l3:'Aw-3SEPeqa3'          },
+  { par:'NaCl',   wc:'NaCl-WC',       nir:'NaCl-NIR',       diff:'NaCl Diff , WC-NIR5',        u2:'NaCl2SEPeqa',        l2:'NaCl-2SEPeqa3',       u3:'NaCl3SEPeqa2',        l3:'NaCl-3SEPeqa2'        },
+  { par:'PD',     wc:'PD-WC',         nir:'PD-NIR',         diff:'PD Diff , WC-NIR6',          u2:'PD2SEP',             l2:'PD-2SEPeqa2',         u3:'PD3SEPeqa',           l3:'PD-3SEPeqa3'          },
+  { par:'TVBN',   wc:'TVBN-WC',       nir:'TVBN-NIR',       diff:'TVBN Diff , WC-NIR6',        u2:'TVBN2SEP',           l2:'TVBN-2SEPeqa2',       u3:'TVBN3SEPeqa',         l3:'TVBN-3SEPeqa3'        },
+  { par:'Sand',   wc:'Sand-WC',       nir:'Sand-NIR',       diff:'Sand Diff , WC-NIR37',       u2:'Sand2SEP',           l2:'Sand-2SEPeqa23',      u3:'Sand 3SEPeqa2',       l3:'Sand-3SEPeqa34'       },
+  { par:'Starch', wc:'Starch-WC',     nir:'Starch-NIR',     diff:'Starch Diff , WC-NIR47',     u2:'Starch2SEP',         l2:'Starch-2SEPeqa23',    u3:'Starch3SEPeqa2',      l3:'Starch-3SEPeqa34'     },
+  { par:'BHT',    wc:'BHT-WC',        nir:'BHT-NIR',        diff:'BHT Diff , WC-NIR6',         u2:'BHT2SEP',            l2:'BHT-2SEPeqa2',        u3:'BHT3SEPeqa',          l3:'BHT-3SEPeqa3'         },
+  { par:'pH',     wc:'pH-WC',         nir:'pH-NIR',         diff:'pH Diff , WC-NIR6',          u2:'pH2SEP',             l2:'pH-2SEPeqa2',         u3:'pH3SEPeqa',           l3:'pH-3SEPeqa3'          },
+  { par:'Fat-C',  wc:'Fat-C-WC',      nir:'Fat-C-NIR',      diff:'Fat-C Diff , WC-NIR5',       u2:'Fat-C2SEP',          l2:'Fat-C-2SEPeqa3',      u3:'Fat-C 3SEPeqa2',      l3:'Fat-C-3SEPeqa2'       },
 ];
 
 function wideToLong(wideRows) {
+  // Debug: log column names of first row to console
   if (wideRows.length > 0) {
-    console.log('📋 Column names in data.json:', Object.keys(wideRows[0]).join(' | '));
+    console.log('📋 Column names in data.json:', Object.keys(wideRows[0]).join(', '));
   }
   const long = [];
-
-  // normalize key: lowercase, ลบ space, dash, underscore, comma ทั้งหมด
-  function norm(s){ return String(s).toLowerCase().replace(/[\s\-_,\.]+/g,''); }
-
-  function getVal(row, keyOrKeys, ciMap) {
-    const keys = Array.isArray(keyOrKeys) ? keyOrKeys : [keyOrKeys];
-    for(const k of keys) {
-      if(row[k] !== undefined && row[k] !== null) return row[k];
-      const nk = norm(k);
-      if(ciMap[nk] !== undefined && ciMap[nk] !== null) return ciMap[nk];
-    }
-    return undefined;
-  }
-
   wideRows.forEach(row => {
-    // normalize ทุก key ใน row
-    const ciMap = {};
-    Object.keys(row).forEach(k => { ciMap[norm(k)] = row[k]; });
-
     const base = {
       no:     row['No.']       || row['no']       || '',
       mon:    row['Month']     || row['mon']       || '',
@@ -563,24 +545,18 @@ function wideToLong(wideRows) {
       sample: row['Sample']    || row['sample']    || '',
     };
     WIDE_PARAM_MAP.forEach(pm => {
-      const diff = getVal(row, pm.diff, ciMap);
-      if (diff === undefined || diff === null || diff === '') return;
-      const wcVal  = getVal(row, pm.wc,  ciMap);
-      const nirVal = getVal(row, pm.nir, ciMap);
-      const u2Val  = getVal(row, pm.u2,  ciMap);
-      const l2Val  = getVal(row, pm.l2,  ciMap);
-      const u3Val  = getVal(row, pm.u3,  ciMap);
-      const l3Val  = getVal(row, pm.l3,  ciMap);
+      const diff = row[pm.diff];
+      if (diff === undefined || diff === null || diff === '') return; // ไม่มีข้อมูล param นี้ใน row นี้
       long.push({
         ...base,
         par:  pm.par,
         diff: parseFloat(diff) || 0,
-        wc:   wcVal  != null && wcVal  !== '' ? parseFloat(wcVal)  : null,
-        nir:  nirVal != null && nirVal !== '' ? parseFloat(nirVal) : null,
-        u2:   u2Val  != null && u2Val  !== '' ? parseFloat(u2Val)  : null,
-        l2:   l2Val  != null && l2Val  !== '' ? parseFloat(l2Val)  : null,
-        u3:   u3Val  != null && u3Val  !== '' ? parseFloat(u3Val)  : null,
-        l3:   l3Val  != null && l3Val  !== '' ? parseFloat(l3Val)  : null,
+        wc:   row[pm.wc]  != null && row[pm.wc]  !== '' ? parseFloat(row[pm.wc])  : null,
+        nir:  row[pm.nir] != null && row[pm.nir] !== '' ? parseFloat(row[pm.nir]) : null,
+        u2:   row[pm.u2] != null && row[pm.u2] !== '' ? parseFloat(row[pm.u2]) : null,
+        l2:   row[pm.l2] != null && row[pm.l2] !== '' ? parseFloat(row[pm.l2]) : null,
+        u3:   row[pm.u3] != null && row[pm.u3] !== '' ? parseFloat(row[pm.u3]) : null,
+        l3:   row[pm.l3] != null && row[pm.l3] !== '' ? parseFloat(row[pm.l3]) : null,
       });
     });
   });
@@ -588,54 +564,53 @@ function wideToLong(wideRows) {
 }
 
 // =====================================================
-// Load data.json (+ data2.json ถ้ามี)
+// Load data.json
 // รองรับทั้ง 2 format:
 //   1. Wide format:  { "rows": [...] }       ← Power Automate ส่ง raw Excel rows
 //   2. Long format:  { "records": [...] }    ← format เดิม (Long)
 // =====================================================
-async function fetchJSON(url) {
-  try {
-    const res = await fetch(url, {cache:'no-cache'});
-    if (!res.ok) return null; // ไฟล์ไม่มีหรือ error → ข้ามไป
-    return await res.json();
-  } catch(e) {
-    return null;
-  }
-}
-
 async function loadData() {
   try {
-    // อัปเดต loading text
-    document.querySelector('.loading-txt').textContent = 'กำลังโหลดข้อมูล...';
-
-    // โหลดไฟล์แรก (บังคับ)
+    // โหลดไฟล์แรก
     const res = await fetch(DATA_URL, {cache:'no-cache'});
     if (!res.ok) throw new Error('HTTP '+res.status);
     const json = await res.json();
 
-    // โหลดไฟล์ที่ 2 (ถ้ามี URL และไฟล์มีอยู่จริง)
+    // โหลดไฟล์ที่ 2 (ถ้ามี)
     let json2 = null;
     if (DATA_URL2) {
-      document.querySelector('.loading-txt').textContent = 'กำลังโหลดข้อมูลเพิ่มเติม...';
-      json2 = await fetchJSON(DATA_URL2);
-    }
-
-    // Merge rows จากทั้งสองไฟล์
-    let allRows = [];
-    if (json.rows) {
-      allRows = [...json.rows];
-      if (json2?.rows) allRows = [...allRows, ...json2.rows];
+      try {
+        const res2 = await fetch(DATA_URL2, {cache:'no-cache'});
+        if (res2.ok) json2 = await res2.json();
+      } catch(e) {}
     }
 
     let longRecords;
-    if (allRows.length > 0) {
+    if (json.rows) {
+      // Merge rows และ deduplicate
+      let allRows = [...json.rows];
+      if (json2?.rows) allRows = [...allRows, ...json2.rows];
+
+      // Deduplicate ก่อน wideToLong
+      const seen = new Set();
+      allRows = allRows.filter(r => {
+        const k = [r['No.']||r['no']||'', r['Month']||r['mon']||'', r['SEP']||r['sep']||'', r['Sample']||r['sample']||'', r['Product']||r['prd']||''].join('|');
+        if (seen.has(k)) return false;
+        seen.add(k); return true;
+      });
+
       longRecords = wideToLong(allRows);
     } else {
-      // Long format เดิม
-      const recs1 = json.records || [];
-      const recs2 = json2?.records || [];
-      longRecords = [...recs1, ...recs2];
+      longRecords = [...(json.records||[]), ...(json2?.records||[])];
     }
+
+    // Deduplicate long records
+    const seenRec = new Set();
+    longRecords = longRecords.filter(r => {
+      const k = [r.no, r.mon, r.sep, r.sample, r.prd, r.par].join('|');
+      if (seenRec.has(k)) return false;
+      seenRec.add(k); return true;
+    });
 
     RAW = buildLookups(longRecords, PARAMS_DEF);
     RAW.generated_at = json.generated_at || '';
@@ -720,19 +695,10 @@ function renderDropItems(items,q){
   searchDrop.querySelectorAll('.dd-item[data-key]').forEach(el=>{el.addEventListener('mousedown',e=>{e.preventDefault();const key=el.dataset.key;const item=items.find(it=>it.key===key);if(item)toggleItem(item.key,item.type,item.idx,item.main);});});
 }
 function refreshDDContent(){renderDropItems(_dropItems,searchInput.value.trim());}
-function positionDD(){
-  const box=document.getElementById('searchBox');
-  const rect=box.getBoundingClientRect();
-  searchDrop.style.top=(rect.bottom+4)+'px';
-  searchDrop.style.left=rect.left+'px';
-  searchDrop.style.width=rect.width+'px';
-}
-function showDD(q){_dropItems=buildDropItems(q);renderDropItems(_dropItems,q);positionDD();searchDrop.classList.add('open');}
+function showDD(q){_dropItems=buildDropItems(q);renderDropItems(_dropItems,q);searchDrop.classList.add('open');}
 searchInput.addEventListener('input',()=>{const q=searchInput.value.trim();if(!q){searchDrop.classList.remove('open');return;}showDD(q);});
-searchInput.addEventListener('focus',()=>{const q=searchInput.value.trim();if(q){showDD(q);}else{positionDD();}});
+searchInput.addEventListener('focus',()=>{const q=searchInput.value.trim();if(q)showDD(q);});
 searchInput.addEventListener('keydown',e=>{if(e.key==='Escape'){searchDrop.classList.remove('open');searchInput.value='';}});
-window.addEventListener('scroll',()=>{if(searchDrop.classList.contains('open'))positionDD();},true);
-window.addEventListener('resize',()=>{if(searchDrop.classList.contains('open'))positionDD();});
 document.addEventListener('click',e=>{if(!e.target.closest('.search-wrap'))searchDrop.classList.remove('open');});
 function clearAllFilters(){
   selectedMap.clear();searchInput.value='';renderTags();searchDrop.classList.remove('open');
@@ -1014,16 +980,7 @@ function buildRawWide() {
     });
     const pk = RAW.params[r[I.PAR]];
     const wc=r[I.WC], nir=r[I.NIR], diff=r[I.DIF];
-    const existing = map.get(k).params[pk];
-    map.get(k).params[pk] = {
-      diff: diff ?? existing?.diff,
-      wc:   wc  != null ? wc  : (existing?.wc  ?? null),
-      nir:  nir != null ? nir : (existing?.nir ?? null),
-      u2:   r[I.U2] != null ? r[I.U2] : (existing?.u2 ?? null),
-      l2:   r[I.L2] != null ? r[I.L2] : (existing?.l2 ?? null),
-      u3:   r[I.U3] != null ? r[I.U3] : (existing?.u3 ?? null),
-      l3:   r[I.L3] != null ? r[I.L3] : (existing?.l3 ?? null),
-    };
+    map.get(k).params[pk] = {diff,wc,nir,u2:r[I.U2],l2:r[I.L2],u3:r[I.U3],l3:r[I.L3]};
   });
   const rows = [...map.values()];
   rows.sort((a,b)=>(a.no+'').localeCompare(b.no+'',undefined,{numeric:true}));
