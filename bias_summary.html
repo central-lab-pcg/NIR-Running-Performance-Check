@@ -488,8 +488,7 @@ function initFilters(){
   const prods=[...new Set(all.map(r=>r.product))].filter(Boolean).sort();
   const fP=document.getElementById('fProduct');
   prods.forEach(p=>fP.appendChild(new Option(p,p)));
-  const dl=document.getElementById('productList');
-  prods.forEach(p=>{const o=document.createElement('option');o.value=p;dl.appendChild(o);});
+  // product เป็น select แล้ว ไม่ต้อง populate datalist
   ['fMonth','fLabel','fProduct'].forEach(id=>document.getElementById(id).addEventListener('change',render));
 }
 
