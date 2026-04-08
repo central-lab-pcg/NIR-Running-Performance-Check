@@ -257,24 +257,29 @@ const JSONBIN_ID  = '69d5c4f4856a6821890d184e';
 const JSONBIN_KEY = '$2a$10$Ohq6FsEj2BnQUMGq5NYPqO4WWFJL/vbLidCxvHtrUGA3aRdQIS.zq';
 const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_ID}`;
 
-let _corrCache = null; // cache ใน memory เพื่อลด API calls
-
+// ไม่ cache — ดึงสดทุกครั้งเพื่อให้ทุกเครื่องเห็นข้อมูลล่าสุด
 async function corrGetAll() {
-  if (_corrCache) return _corrCache;
   try {
     const res = await fetch(JSONBIN_URL + '/latest', {
-      headers: { 'X-Master-Key': JSONBIN_KEY }
+      cache: 'no-store',
+      headers: {
+        'X-Master-Key': JSONBIN_KEY,
+        'X-Bin-Meta': 'false',
+        'Cache-Control': 'no-cache'
+      }
     });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
-    _corrCache = json.record?.corrections || {};
-    return _corrCache;
-  } catch { return {}; }
+    return json.record?.corrections || {};
+  } catch(e) {
+    console.error('JSONBin read error:', e);
+    return {};
+  }
 }
 
 async function corrSaveAll(data) {
-  _corrCache = data;
   try {
-    await fetch(JSONBIN_URL, {
+    const res = await fetch(JSONBIN_URL, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -282,7 +287,12 @@ async function corrSaveAll(data) {
       },
       body: JSON.stringify({ corrections: data })
     });
-  } catch(e) { console.error('JSONBin save error:', e); }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return true;
+  } catch(e) {
+    console.error('JSONBin save error:', e);
+    throw e;
+  }
 }
 
 function cKey(p, m, eqp, src) {
@@ -300,6 +310,7 @@ async function cSaveShared(p, m, eqp, src, text, user) {
     text, user,
     savedAt: new Date().toLocaleString('th-TH', {year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})
   };
+  // อ่านข้อมูลล่าสุดก่อน แล้วค่อย merge เพื่อไม่ให้ overwrite คนอื่น
   const all = await corrGetAll();
   all[cKey(p, m, eqp, src)] = obj;
   await corrSaveAll(all);
