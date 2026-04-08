@@ -307,11 +307,12 @@ async function cLoad(p, m, eqp, src) {
   return all[cKey(p, m, eqp, src)] || null;
 }
 
-async function cSaveShared(p, m, eqp, src, text, user) {
+async function cSaveShared(p, m, eqp, src, text, user, extra) {
   const obj = {
     text, user,
     savedAt: new Date().toLocaleString('th-TH', {year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})
   };
+  if(extra) Object.assign(obj, extra);
   // อ่านข้อมูลล่าสุดก่อน แล้วค่อย merge เพื่อไม่ให้ overwrite คนอื่น
   const all = await corrGetAll();
   all[cKey(p, m, eqp, src)] = obj;
@@ -1137,15 +1138,34 @@ async function corrHTML2(prd,mon,eqp,src){
   try{d=await cLoad(prd,mon,eqp,src);}catch{}
   const viewH=d
     ?`<div class="corr-view" id="${id}v">
-        <div style="flex:1"><div class="corr-text">${d.text.replace(/</g,'&lt;')}</div><div class="corr-meta">💾 ${d.savedAt} · ${d.user}</div></div>
+        <div style="flex:1">
+          <div class="corr-text">${d.text.replace(/</g,'&lt;')}</div>
+          <div class="corr-meta">
+            💾 ${d.savedAt} · ${d.user}
+            ${d.plant?`<span style="margin-left:6px;background:#e8f2fc;color:#3b82f6;border-radius:4px;padding:1px 6px;font-size:10px">${d.plant}</span>`:''}
+            ${d.type_val?`<span style="margin-left:3px;background:#f0fdf4;color:#16a34a;border-radius:4px;padding:1px 6px;font-size:10px">${d.type_val}</span>`:''}
+            ${d.equip?`<span style="margin-left:3px;background:#fdf4ff;color:#7c3aed;border-radius:4px;padding:1px 6px;font-size:10px">${d.equip}</span>`:''}
+            ${d.source_val?`<span style="margin-left:3px;background:#fffbeb;color:#d97706;border-radius:4px;padding:1px 6px;font-size:10px">${d.source_val}</span>`:''}
+          </div>
+        </div>
         <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">✏️ แก้ไข</button></div></div>`
     :`<div class="corr-view" id="${id}v">
         <span class="corr-empty">— ยังไม่มีบันทึก</span>
         <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">+ บันทึก</button></div></div>`;
   return `<div class="corr-inner" id="${id}" data-prd="${prd.replace(/"/g,'&quot;')}" data-mon="${mon}" data-eqp="${(eqp||'').replace(/"/g,'&quot;')}" data-src="${(src||'').replace(/"/g,'&quot;')}">
     ${viewH}
-    <div class="corr-edit" id="${id}e" style="display:none;flex-direction:column;gap:5px;width:100%">
-      <textarea class="corr-textarea" id="${id}t" placeholder="บันทึก Correction...">${d?d.text.replace(/</g,'&lt;'):''}</textarea>
+    <div class="corr-edit" id="${id}e" style="display:none;flex-direction:column;gap:6px;width:100%">
+      <textarea class="corr-textarea" id="${id}t" placeholder="บันทึก Correction... เช่น Adjust Bias M -0.185, CP -0.230">${d?d.text.replace(/</g,'&lt;'):''}</textarea>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px">
+        <input type="text" class="corr-user" id="${id}plant" placeholder="Plant" value="${d&&d.plant?d.plant:''}" list="plantOpts">
+        <input type="text" class="corr-user" id="${id}type" placeholder="Type" value="${d&&d.type_val?d.type_val:''}" list="typeOpts">
+        <input type="text" class="corr-user" id="${id}equip" placeholder="Equipment" value="${d&&d.equip?d.equip:''}" list="equipOpts">
+        <input type="text" class="corr-user" id="${id}srcv" placeholder="Source" value="${d&&d.source_val?d.source_val:''}" list="sourceOpts">
+      </div>
+      <datalist id="plantOpts"><option value="169"><option value="RY"><option value="Indo"><option value="MM"><option value="POC"></datalist>
+      <datalist id="typeOpts"><option value="RM"><option value="FG"><option value="WF"></datalist>
+      <datalist id="equipOpts"><option value="DS2500"><option value="DS3F"><option value="DS3"></datalist>
+      <datalist id="sourceOpts"><option value="LAB"><option value="QC"><option value="Wet Food"><option value="Portal"></datalist>
       <div class="corr-row">
         <input type="text" class="corr-user" id="${id}u" placeholder="ชื่อผู้บันทึก" value="${d?d.user:''}">
         <button class="btn-save" onclick="doSave2('${id}')">💾 Save</button>
@@ -1167,13 +1187,26 @@ async function doSave2(id){
   const prd=el.dataset.prd, mon=el.dataset.mon, eqp=el.dataset.eqp||'', src=el.dataset.src||'';
   const text=document.getElementById(id+'t').value.trim();
   const user=document.getElementById(id+'u').value.trim()||'ไม่ระบุชื่อ';
+  const plant=document.getElementById(id+'plant')?.value.trim()||'';
+  const type_val=document.getElementById(id+'type')?.value.trim()||'';
+  const equip=document.getElementById(id+'equip')?.value.trim()||'';
+  const source_val=document.getElementById(id+'srcv')?.value.trim()||'';
   if(!text){alert('กรุณากรอกข้อความก่อน Save');return;}
   const btn=el.querySelector('.btn-save');
   if(btn){btn.textContent='⏳ กำลังบันทึก...';btn.disabled=true;}
   try{
-    const saved=await cSaveShared(prd,mon,eqp,src,text,user);
+    const saved=await cSaveShared(prd,mon,eqp,src,text,user,{plant,type_val,equip,source_val});
+    const badges=[
+      plant?`<span style="background:#e8f2fc;color:#3b82f6;border-radius:4px;padding:1px 6px;font-size:10px">${plant}</span>`:'',
+      type_val?`<span style="background:#f0fdf4;color:#16a34a;border-radius:4px;padding:1px 6px;font-size:10px">${type_val}</span>`:'',
+      equip?`<span style="background:#fdf4ff;color:#7c3aed;border-radius:4px;padding:1px 6px;font-size:10px">${equip}</span>`:'',
+      source_val?`<span style="background:#fffbeb;color:#d97706;border-radius:4px;padding:1px 6px;font-size:10px">${source_val}</span>`:'',
+    ].filter(Boolean).join(' ');
     document.getElementById(id+'v').innerHTML=
-      `<div style="flex:1"><div class="corr-text">${saved.text.replace(/</g,'&lt;')}</div><div class="corr-meta">💾 ${saved.savedAt} · ${saved.user}</div></div>
+      `<div style="flex:1">
+        <div class="corr-text">${saved.text.replace(/</g,'&lt;')}</div>
+        <div class="corr-meta">💾 ${saved.savedAt} · ${saved.user} ${badges}</div>
+       </div>
        <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">✏️ แก้ไข</button></div>`;
     cancelE(id);
   }catch(e){
