@@ -313,7 +313,17 @@ function getAllEvents(){
       const m=text.match(new RegExp('(?<![A-Za-z\\d])'+esc+'[\\s=:]*([+-]?\\d+\\.?\\d*)','i'));
       if(m)params[p]=parseFloat(m[1]);
     });
-    evts.push({date,month:date.slice(0,7),product:prd,label,params,is_install:false,adjuster:v.user||'',note:v.text||'',_src:'correction'});
+    evts.push({
+      date, month:date.slice(0,7), product:prd, label,
+      params, is_install:false,
+      adjuster: v.user||'',
+      note:     v.text||'',
+      plant:    v.plant||'',
+      type_val: v.type_val||'',
+      equip:    v.equip||'',
+      source_val: v.source_val||'',
+      _src:'correction'
+    });
   });
   return evts.sort((a,b)=>a.date.localeCompare(b.date));
 }
@@ -333,7 +343,14 @@ function calcBias(evts){
         state[k]=Math.round((state[k]+(delta||0))*100000)/100000;
       }
       if(!history.has(k))history.set(k,[]);
-      history.get(k).push({date:evt.date,bias:state[k],delta,install:isInstall,adjuster:evt.adjuster,note:evt.note,_src:evt._src});
+      history.get(k).push({
+        date:evt.date, bias:state[k], delta,
+        install:isInstall,
+        adjuster:evt.adjuster, note:evt.note,
+        plant:evt.plant||'', type_val:evt.type_val||'',
+        equip:evt.equip||'', source_val:evt.source_val||'',
+        _src:evt._src
+      });
     };
     if(evt.is_install){
       // reset all params for this product+label, then apply delta if any
@@ -470,8 +487,16 @@ function render(){
           const dStr=h.date.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>`${d}/${m}`);
           const dVal=h.delta!==null&&h.delta!==undefined?(h.delta>=0?'+':'')+h.delta:'';
           const bStr=(h.bias>=0?'+':'')+h.bias;
-          if(h.install)return`<div class="hist-row"><span class="hist-date">${dStr}</span><span class="hist-install">🔄 reset→${bStr}</span></div>`;
-          return`<div class="hist-row"><span class="hist-date">${dStr}</span><span class="hist-delta ${h.delta>0?'pos':h.delta<0?'neg':''}">${dVal}</span><span class="hist-bias">→${bStr}</span>${h.adjuster?`<span style="color:var(--txt3);margin-left:4px">${h.adjuster}</span>`:''}</div>`;
+          // badges สำหรับ plant/type/equip/source
+          const mkBadge=(v,bg,cl)=>v?`<span style="background:${bg};color:${cl};border-radius:3px;padding:0 4px;font-size:9px;font-family:var(--font)">${v}</span>`:'';
+          const badges=[
+            mkBadge(h.plant,'#dbeafe','#1d4ed8'),
+            mkBadge(h.type_val,'#dcfce7','#15803d'),
+            mkBadge(h.equip,'#ede9fe','#7c3aed'),
+            mkBadge(h.source_val,'#fef3c7','#d97706'),
+          ].filter(Boolean).join('');
+          if(h.install)return`<div class="hist-row"><span class="hist-date">${dStr}</span><span class="hist-install">🔄 reset→${bStr}</span>${badges}</div>`;
+          return`<div class="hist-row"><span class="hist-date">${dStr}</span><span class="hist-delta ${h.delta>0?'pos':h.delta<0?'neg':''}">${dVal}</span><span class="hist-bias">→${bStr}</span>${h.adjuster?`<span style="color:var(--txt3);margin-left:2px">${h.adjuster}</span>`:''}${badges?`<span style="margin-left:3px">${badges}</span>`:''}</div>`;
         }).join('');
 
         const uid='h'+Math.random().toString(36).slice(2,8);
@@ -482,6 +507,12 @@ function render(){
           <div class="param-meta">
             ${lastDate?`<span class="param-date">${lastDate}</span>`:''}
             ${lastEntry&&lastEntry.adjuster?`<br>${lastEntry.adjuster}`:''}
+            ${(()=>{
+              const e=lastEntry;if(!e)return'';
+              const mkB=(v,bg,cl)=>v?`<span style="background:${bg};color:${cl};border-radius:3px;padding:0 4px;font-size:9px">${v}</span>`:'';
+              const b=[mkB(e.plant,'#dbeafe','#1d4ed8'),mkB(e.type_val,'#dcfce7','#15803d'),mkB(e.equip,'#ede9fe','#7c3aed'),mkB(e.source_val,'#fef3c7','#d97706')].filter(Boolean).join(' ');
+              return b?`<br>${b}`:'';
+            })()}
           </div>
           ${monEntries.length>0?`<span class="history-btn" onclick="toggleHist('${uid}')">ประวัติเดือนนี้ (${monEntries.length})</span>
           <div class="history-list" id="${uid}">${histLines}</div>`:''}
