@@ -252,12 +252,57 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
 const DATA_URL="https://raw.githubusercontent.com/central-lab-pcg/NIR-Running-Performance-Check/main/data.json";
 const DATA_URL2="https://raw.githubusercontent.com/central-lab-pcg/NIR-Running-Performance-Check/main/data2.json";
 
-// ── corrections (localStorage) ──────────────────────────────────────────────
-function cKey(p,m){return 'corr::'+p+'::'+m;}
-function cLoad(p,m){try{const v=localStorage.getItem(cKey(p,m));return v?JSON.parse(v):null;}catch{return null;}}
-function cSave(p,m,text,user){
-  const obj={text,user,savedAt:new Date().toLocaleString('th-TH',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})};
-  try{localStorage.setItem(cKey(p,m),JSON.stringify(obj));}catch{}
+// ── Shared Correction Storage (JSONBin.io) ────────────────────────────────────
+const JSONBIN_ID  = '69d5c4f4856a6821890d184e';
+const JSONBIN_KEY = '$2a$10$Ohq6FsEj2BnQUMGq5NYPqO4WWFJL/vbLidCxvHtrUGA3aRdQIS.zq';
+const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_ID}`;
+
+let _corrCache = null; // cache ใน memory เพื่อลด API calls
+
+async function corrGetAll() {
+  if (_corrCache) return _corrCache;
+  try {
+    const res = await fetch(JSONBIN_URL + '/latest', {
+      headers: { 'X-Master-Key': JSONBIN_KEY }
+    });
+    const json = await res.json();
+    _corrCache = json.record?.corrections || {};
+    return _corrCache;
+  } catch { return {}; }
+}
+
+async function corrSaveAll(data) {
+  _corrCache = data;
+  try {
+    await fetch(JSONBIN_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': JSONBIN_KEY
+      },
+      body: JSON.stringify({ corrections: data })
+    });
+  } catch(e) { console.error('JSONBin save error:', e); }
+}
+
+function cKey(p, m, eqp, src) {
+  const e = (eqp||'').trim()||'all', s = (src||'').trim()||'all';
+  return p + '::' + m + '::' + e + '::' + s;
+}
+
+async function cLoad(p, m, eqp, src) {
+  const all = await corrGetAll();
+  return all[cKey(p, m, eqp, src)] || null;
+}
+
+async function cSaveShared(p, m, eqp, src, text, user) {
+  const obj = {
+    text, user,
+    savedAt: new Date().toLocaleString('th-TH', {year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})
+  };
+  const all = await corrGetAll();
+  all[cKey(p, m, eqp, src)] = obj;
+  await corrSaveAll(all);
   return obj;
 }
 
@@ -320,9 +365,26 @@ async function loadData(){
     let json2=null;
     if(DATA_URL2){try{const r2=await fetch(DATA_URL2,{cache:'no-cache'});if(r2.ok)json2=await r2.json();}catch(e){}}
     let allRows=[];
-    if(json.rows){allRows=[...json.rows];if(json2?.rows)allRows=[...allRows,...json2.rows];RECS=wideToLong(allRows);}
+    if(json.rows){
+      allRows=[...json.rows];
+      if(json2?.rows) allRows=[...allRows,...json2.rows];
+      // Deduplicate โดยใช้ No.+Month+SEP+Sample เป็น key
+      const seen=new Set();
+      allRows=allRows.filter(r=>{
+        const k=[r['No.']||r['no']||'',r['Month']||r['mon']||'',r['SEP']||r['sep']||'',r['Sample']||r['sample']||'',r['Product']||r['prd']||''].join('|');
+        if(seen.has(k))return false;
+        seen.add(k);return true;
+      });
+      RECS=wideToLong(allRows);
+    }
     else{RECS=[...(json.records||[]),...(json2?.records||[])];}
-    try{const _u=JSON.parse(localStorage.getItem('nir_user')||'{}');const _p=_u.plants;if(_p&&_p.length>0)RECS=RECS.filter(r=>_p.includes(r.pla));}catch(e){}
+    // Deduplicate long records
+    const seenRec=new Set();
+    RECS=RECS.filter(r=>{
+      const k=[r.no,r.mon,r.sep,r.sample,r.prd,r.par].join('|');
+      if(seenRec.has(k))return false;
+      seenRec.add(k);return true;
+    });    try{const _u=JSON.parse(localStorage.getItem('nir_user')||'{}');const _p=_u.plants;if(_p&&_p.length>0)RECS=RECS.filter(r=>_p.includes(r.pla));}catch(e){}
     const monSet=new Map(),pla=new Set(),typ=new Set(),eqp=new Set(),src=new Set();
     RECS.forEach(r=>{if(r.mon)monSet.set(String(r.mon),1);if(r.pla)pla.add(r.pla);if(r.typ)typ.add(r.typ);if(r.eqp)eqp.add(r.eqp);if(r.src)src.add(r.src);});
     const ms=[...monSet.keys()].sort((a,b)=>parseInt(a)-parseInt(b));
@@ -1052,31 +1114,6 @@ function ttClick(el,e){
 
 <!-- ── Shared Correction Storage ── -->
 <script>
-// Storage: ใช้ localStorage (รองรับทุก environment) + แยก key ตาม eqp/src
-function cKey(p,m,eqp,src){
-  const e=(eqp||'').trim()||'all', s=(src||'').trim()||'all';
-  return 'corr::'+p+'::'+m+'::'+e+'::'+s;
-}
-async function cLoad(p,m,eqp,src){
-  const k=cKey(p,m,eqp,src);
-  // ลอง shared storage ก่อน ถ้าไม่มีใช้ localStorage
-  try{
-    if(window.storage){
-      const res=await window.storage.get(k,true);
-      if(res) return JSON.parse(res.value);
-    }
-  }catch{}
-  try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch{return null;}
-}
-async function cSaveShared(p,m,eqp,src,text,user){
-  const obj={text,user,savedAt:new Date().toLocaleString('th-TH',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})};
-  const k=cKey(p,m,eqp,src);
-  // บันทึกทั้งสองที่
-  try{if(window.storage)await window.storage.set(k,JSON.stringify(obj),true);}catch{}
-  try{localStorage.setItem(k,JSON.stringify(obj));}catch{}
-  return obj;
-}
-
 function eid2(prd,mon,eqp,src){
   return 'c'+btoa(encodeURIComponent(prd+'|'+mon+'|'+(eqp||'')+'|'+(src||''))).replace(/[^a-zA-Z0-9]/g,'');
 }
@@ -1103,12 +1140,14 @@ async function corrHTML2(prd,mon,eqp,src){
       </div>
     </div></div>`;
 }
+
 function startE2(id){
   document.getElementById(id+'v').style.display='none';
   const ed=document.getElementById(id+'e');
   ed.style.display='flex';
   document.getElementById(id+'t').focus();
 }
+
 async function doSave2(id){
   const el=document.getElementById(id);
   if(!el){alert('เกิดข้อผิดพลาด');return;}
@@ -1117,12 +1156,17 @@ async function doSave2(id){
   const user=document.getElementById(id+'u').value.trim()||'ไม่ระบุชื่อ';
   if(!text){alert('กรุณากรอกข้อความก่อน Save');return;}
   const btn=el.querySelector('.btn-save');
-  if(btn){btn.textContent='⏳ บันทึก...';btn.disabled=true;}
-  const saved=await cSaveShared(prd,mon,eqp,src,text,user);
-  document.getElementById(id+'v').innerHTML=
-    `<div style="flex:1"><div class="corr-text">${saved.text.replace(/</g,'&lt;')}</div><div class="corr-meta">💾 ${saved.savedAt} · ${saved.user}</div></div>
-     <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">✏️ แก้ไข</button></div>`;
-  cancelE(id);
+  if(btn){btn.textContent='⏳ กำลังบันทึก...';btn.disabled=true;}
+  try{
+    const saved=await cSaveShared(prd,mon,eqp,src,text,user);
+    document.getElementById(id+'v').innerHTML=
+      `<div style="flex:1"><div class="corr-text">${saved.text.replace(/</g,'&lt;')}</div><div class="corr-meta">💾 ${saved.savedAt} · ${saved.user}</div></div>
+       <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">✏️ แก้ไข</button></div>`;
+    cancelE(id);
+  }catch(e){
+    alert('บันทึกไม่สำเร็จ: '+e.message);
+    if(btn){btn.textContent='💾 Save';btn.disabled=false;}
+  }
 }
 </script>
 
