@@ -13,9 +13,8 @@
         "Ash": -1.2,
         "Aw": 0.06
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-01-15",
@@ -27,9 +26,8 @@
       "params": {
         "EE": 0.85
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-07-14",
@@ -41,9 +39,8 @@
       "params": {
         "EE": -0.298
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-07-23",
@@ -56,9 +53,8 @@
         "CP": 0.211,
         "EE": -0.329
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-09-11",
@@ -70,9 +66,8 @@
       "params": {
         "Fib": 0.98
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-12",
@@ -84,9 +79,8 @@
       "params": {
         "M": 0.31
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-04-21",
@@ -100,9 +94,8 @@
         "P": -0.032,
         "PD": 0.901
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-06-16",
@@ -115,9 +108,8 @@
         "CP": 1.499,
         "Ca": -0.297
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-08-14",
@@ -129,9 +121,8 @@
       "params": {
         "M": -0.125
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-09-11",
@@ -145,9 +136,8 @@
         "Ash": 0.213,
         "PD": 1.05
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-09",
@@ -161,9 +151,8 @@
         "Ash": -0.227,
         "Ca": 0.23
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-01-15",
@@ -175,9 +164,8 @@
       "params": {
         "EE": 0.578
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-03-11",
@@ -190,9 +178,8 @@
         "CP": 0.651,
         "BHT": 26.37
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-09",
@@ -204,9 +191,8 @@
       "params": {
         "EE": 0.915
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -219,9 +205,8 @@
         "CP": -0.401,
         "BHT": -19.67
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-10-09",
@@ -234,9 +219,8 @@
         "M": -0.12,
         "TVBN": -7.32
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-12-08",
@@ -248,9 +232,8 @@
       "params": {
         "TVBN": -1.407
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-12",
@@ -263,9 +246,8 @@
         "M": 0.0,
         "EE": 0.48
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-13",
@@ -277,9 +259,8 @@
       "params": {
         "BHT": -88.55
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-03-18",
@@ -291,9 +272,8 @@
       "params": {
         "TVBN": 5.96
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-01-15",
@@ -305,9 +285,8 @@
       "params": {
         "CP": 3.523
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-03-11",
@@ -319,9 +298,8 @@
       "params": {
         "M": 0.017
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-08-01",
@@ -333,9 +311,8 @@
       "params": {
         "CP": -1.06
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-10-09",
@@ -347,9 +324,8 @@
       "params": {
         "CP": 0.257
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-12-08",
@@ -361,9 +337,8 @@
       "params": {
         "CP": 1.436
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-12",
@@ -375,9 +350,8 @@
       "params": {
         "CP": -0.311
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-01-15",
@@ -390,9 +364,8 @@
         "CP": -0.227,
         "Fib": 0.893
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-04-21",
@@ -405,9 +378,8 @@
         "EE": -0.403,
         "Fib": 0.557
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-06-16",
@@ -420,9 +392,8 @@
         "M": 0.164,
         "Fib": 0.031
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-06-30",
@@ -434,9 +405,8 @@
       "params": {
         "EE": -0.126
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-08-14",
@@ -449,9 +419,8 @@
         "CP": 0.41,
         "Fib": 1.025
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-09-11",
@@ -464,9 +433,8 @@
         "EE": 0.299,
         "Ash": 0.3
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-09",
@@ -479,9 +447,8 @@
         "CP": 0.02,
         "Fib": 0.125
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2024-12-27",
@@ -493,9 +460,8 @@
       "params": {
         "M": 0.071
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-02-17",
@@ -507,9 +473,8 @@
       "params": {
         "CP": -0.357
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-04-21",
@@ -521,9 +486,8 @@
       "params": {
         "CP": 0.226
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-09-11",
@@ -535,9 +499,8 @@
       "params": {
         "M": -0.127
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-09",
@@ -549,9 +512,8 @@
       "params": {
         "CP": -0.394
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-12",
@@ -564,9 +526,8 @@
         "M": 0.184,
         "CP": -0.476
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-03-18",
@@ -578,9 +539,8 @@
       "params": {
         "CP": -0.178
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-01-15",
@@ -592,9 +552,8 @@
       "params": {
         "CP": 5.05
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-04-21",
@@ -606,9 +565,8 @@
       "params": {
         "NaCl": -2.555
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -620,9 +578,8 @@
       "params": {
         "CP": 3.8
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-08-14",
@@ -637,9 +594,8 @@
         "Ash": 5.03,
         "PD": 4.263
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -652,9 +608,8 @@
         "M": -0.151,
         "CP": 0.623
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-09-11",
@@ -667,9 +622,8 @@
         "M": -0.192,
         "CP": 0.62
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-07",
@@ -681,9 +635,8 @@
       "params": {
         "CP": -0.057
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2026-01-12",
@@ -695,9 +648,8 @@
       "params": {
         "M": 0.108
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -709,9 +661,8 @@
       "params": {
         "M": -0.125
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-09-11",
@@ -723,9 +674,8 @@
       "params": {
         "EE": 0.45
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-04-21",
@@ -737,9 +687,8 @@
       "params": {
         "M": 0.233
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-09",
@@ -752,9 +701,8 @@
         "CP": -0.347,
         "Ash": 0.04
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-08-14",
@@ -766,9 +714,8 @@
       "params": {
         "CP": 0.381
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-12-08",
@@ -781,9 +728,8 @@
         "M": 0.151,
         "CP": -0.105
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-03-18",
@@ -795,9 +741,8 @@
       "params": {
         "CP": 0.528
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-02-17",
@@ -810,9 +755,8 @@
         "M": 0.462,
         "CP": -0.646
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-07-14",
@@ -825,9 +769,8 @@
         "M": -0.166,
         "CP": -0.096
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-01-15",
@@ -839,9 +782,8 @@
       "params": {
         "M": 0.036
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-03-11",
@@ -853,9 +795,8 @@
       "params": {
         "M": -0.153
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-04-21",
@@ -868,9 +809,8 @@
         "M": 0.0,
         "Fib": 0.476
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -882,9 +822,8 @@
       "params": {
         "CP": 0.489
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-08-14",
@@ -896,9 +835,8 @@
       "params": {
         "M": -0.176
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-02",
@@ -910,9 +848,8 @@
       "params": {
         "M": -0.065
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-09",
@@ -924,9 +861,8 @@
       "params": {
         "CP": -0.46
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-07",
@@ -938,9 +874,8 @@
       "params": {
         "M": 0.055
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2026-01-12",
@@ -953,9 +888,8 @@
         "CP": -0.151,
         "Fib": 0.386
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-01-15",
@@ -967,9 +901,8 @@
       "params": {
         "CP": 0.528
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-03-11",
@@ -981,9 +914,8 @@
       "params": {
         "EE": 0.307
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-04-21",
@@ -995,9 +927,8 @@
       "params": {
         "CP": 0.149
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -1009,9 +940,8 @@
       "params": {
         "CP": -0.695
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-09-11",
@@ -1023,9 +953,8 @@
       "params": {
         "Fib": 0.155
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-07",
@@ -1037,9 +966,8 @@
       "params": {
         "EE": 0.56
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2026-02-13",
@@ -1051,9 +979,8 @@
       "params": {
         "EE": 0.02
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-01-15",
@@ -1065,9 +992,8 @@
       "params": {
         "Starch": -4.325
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-03-11",
@@ -1080,9 +1006,8 @@
         "Fib": -0.652,
         "Starch": -0.841
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-04-21",
@@ -1094,9 +1019,8 @@
       "params": {
         "Ash": -0.422
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-09",
@@ -1108,9 +1032,8 @@
       "params": {
         "Starch": -2.546
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-09",
@@ -1122,9 +1045,8 @@
       "params": {
         "Starch": -2.22
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-07",
@@ -1136,9 +1058,8 @@
       "params": {
         "Ash": -1.0
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-01-15",
@@ -1150,9 +1071,8 @@
       "params": {
         "CP": 0.164
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-03-11",
@@ -1164,9 +1084,8 @@
       "params": {
         "Ash": 0.3
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-04-21",
@@ -1179,9 +1098,8 @@
         "CP": -0.275,
         "Ash": 0.68
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-09",
@@ -1194,9 +1112,8 @@
         "M": 0.151,
         "EE": 0.347
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-06-16",
@@ -1208,9 +1125,8 @@
       "params": {
         "Ash": 0.25
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-07-14",
@@ -1222,9 +1138,8 @@
       "params": {
         "CP": 0.182
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-08-14",
@@ -1236,9 +1151,8 @@
       "params": {
         "M": 0.054
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-07",
@@ -1251,9 +1165,8 @@
         "CP": -0.183,
         "Ash": 0.03
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2026-01-12",
@@ -1266,9 +1179,8 @@
         "M": 0.154,
         "Fib": -0.654
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-14",
@@ -1280,9 +1192,8 @@
       "params": {
         "M": -0.069
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2026-03-18",
@@ -1294,9 +1205,8 @@
       "params": {
         "Fib": -0.78
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-03-11",
@@ -1308,9 +1218,8 @@
       "params": {
         "CP": 0.52
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-09",
@@ -1322,9 +1231,8 @@
       "params": {
         "CP": -0.032
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-08-14",
@@ -1336,9 +1244,8 @@
       "params": {
         "Ash": 0.2
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-11",
@@ -1350,9 +1257,8 @@
       "params": {
         "Fib": 0.79
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-09",
@@ -1364,9 +1270,8 @@
       "params": {
         "M": -0.12
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-07",
@@ -1378,9 +1283,8 @@
       "params": {
         "Ash": 0.0
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-12-08",
@@ -1393,9 +1297,8 @@
         "M": -0.0283,
         "Fib": 0.075
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-13",
@@ -1407,9 +1310,8 @@
       "params": {
         "CP": 0.527
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-01-22",
@@ -1421,9 +1323,8 @@
       "params": {
         "M": 1.248
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-02-17",
@@ -1435,9 +1336,8 @@
       "params": {
         "CP": -0.246
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-04-21",
@@ -1449,9 +1349,8 @@
       "params": {
         "CP": 0.044
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -1463,9 +1362,8 @@
       "params": {
         "CP": 0.724
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-10-09",
@@ -1477,9 +1375,8 @@
       "params": {
         "CP": 0.074
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-06",
@@ -1491,9 +1388,8 @@
       "params": {
         "CP": -0.131
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-08",
@@ -1505,9 +1401,8 @@
       "params": {
         "M": 1.048
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-03-11",
@@ -1519,9 +1414,8 @@
       "params": {
         "M": -0.18
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-09",
@@ -1533,9 +1427,8 @@
       "params": {
         "M": -0.051
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-08-14",
@@ -1548,9 +1441,8 @@
         "M": -0.156,
         "CP": -0.622
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-09",
@@ -1562,9 +1454,8 @@
       "params": {
         "CP": -0.372
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-15",
@@ -1577,9 +1468,8 @@
         "EE": -0.541,
         "Fib": -0.135
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-12-08",
@@ -1592,9 +1482,8 @@
         "CP": -0.244,
         "Fib": 0.257
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-03-18",
@@ -1606,9 +1495,8 @@
       "params": {
         "Fib": -0.401
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-02-17",
@@ -1620,9 +1508,8 @@
       "params": {
         "M": 0.034
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-05-09",
@@ -1634,9 +1521,8 @@
       "params": {
         "M": -0.008
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-08-14",
@@ -1648,9 +1534,8 @@
       "params": {
         "M": 0.034
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-12-08",
@@ -1662,9 +1547,8 @@
       "params": {
         "M": 0.025
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-03-18",
@@ -1676,9 +1560,8 @@
       "params": {
         "M": -0.015
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-21",
@@ -1690,9 +1573,8 @@
       "params": {
         "Aw": 0.012
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2026-02-06",
@@ -1704,9 +1586,8 @@
       "params": {
         "Fib": 0.401
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2026-02-11",
@@ -1718,9 +1599,8 @@
       "params": {
         "CP": 0.93
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-03-31",
@@ -1732,9 +1612,8 @@
       "params": {
         "EE": 1.39
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2026-03-18",
@@ -1746,9 +1625,8 @@
       "params": {
         "Aw": -0.04
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-11",
@@ -1761,9 +1639,8 @@
         "M": -0.122,
         "CP": 0.221
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-11",
@@ -1781,9 +1658,8 @@
         "P": -0.084,
         "Aw": 0.029
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-03-31",
@@ -1799,9 +1675,8 @@
         "NaCl": -0.07,
         "Aw": 0.015
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-01-15",
@@ -1814,9 +1689,8 @@
         "M": 0.107,
         "Fib": 0.624
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-03-06",
@@ -1831,9 +1705,8 @@
         "Ca": -0.293,
         "P": -0.159
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-12",
@@ -1846,9 +1719,8 @@
         "CP": 0.0,
         "P": 0.18
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-10",
@@ -1860,9 +1732,8 @@
       "params": {
         "CP": -0.79
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-12",
@@ -1875,9 +1746,8 @@
         "CP": -1.499,
         "Fib": -0.343
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-01-15",
@@ -1889,9 +1759,8 @@
       "params": {
         "M": 0.071
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-04-21",
@@ -1903,9 +1772,8 @@
       "params": {
         "CP": 0.574
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -1917,9 +1785,8 @@
       "params": {
         "CP": -0.092
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-08-08",
@@ -1931,9 +1798,8 @@
       "params": {
         "M": -0.141
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-10",
@@ -1945,9 +1811,8 @@
       "params": {
         "M": 0.099
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-11",
@@ -1959,9 +1824,8 @@
       "params": {
         "CP": -0.28
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-12",
@@ -1973,9 +1837,8 @@
       "params": {
         "M": 0.16
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-01-15",
@@ -1989,9 +1852,8 @@
         "Sand": -1.1,
         "Starch": 2.46
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-04-21",
@@ -2003,9 +1865,8 @@
       "params": {
         "Ash": -1.602
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-12",
@@ -2017,9 +1878,8 @@
       "params": {
         "Fib": -0.815
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -2031,9 +1891,8 @@
       "params": {
         "Fib": 0.733
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-08-08",
@@ -2047,9 +1906,8 @@
         "Ash": 0.218,
         "Sand": 0.49
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-09-12",
@@ -2061,9 +1919,8 @@
       "params": {
         "Fib": -0.055
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-10-09",
@@ -2076,9 +1933,8 @@
         "M": -0.218,
         "Starch": -1.03
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-12-08",
@@ -2091,9 +1947,8 @@
         "Ash": -0.419,
         "Sand": -0.344
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-12",
@@ -2105,9 +1960,8 @@
       "params": {
         "Fib": -0.875
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-03-06",
@@ -2120,9 +1974,8 @@
         "CP": 0.668,
         "EE": -0.288
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -2134,9 +1987,8 @@
       "params": {
         "CP": 0.348
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-10-09",
@@ -2149,9 +2001,8 @@
         "M": -0.43,
         "Fib": -0.17
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-12-08",
@@ -2163,9 +2014,8 @@
       "params": {
         "M": 0.228
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-10",
@@ -2177,9 +2027,8 @@
       "params": {
         "M": 0.033
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-03-18",
@@ -2191,9 +2040,8 @@
       "params": {
         "M": -0.017
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-04-21",
@@ -2205,9 +2053,8 @@
       "params": {
         "EE": 0.538
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-12",
@@ -2219,9 +2066,8 @@
       "params": {
         "CP": 0.765
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -2233,9 +2079,8 @@
       "params": {
         "M": -0.066
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-10-09",
@@ -2249,9 +2094,8 @@
         "Ash": 0.45,
         "TVBN": 5.8
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-12-08",
@@ -2264,9 +2108,8 @@
         "CP": 0.342,
         "Ash": -0.336
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-12",
@@ -2279,9 +2122,8 @@
         "CP": -0.204,
         "BHT": -83.73
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-03-18",
@@ -2293,9 +2135,8 @@
       "params": {
         "Ash": 0.064
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-01-15",
@@ -2307,9 +2148,8 @@
       "params": {
         "CP": 1.304
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-06-16",
@@ -2321,9 +2161,8 @@
       "params": {
         "CP": 2.618
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2026-02-12",
@@ -2335,9 +2174,8 @@
       "params": {
         "CP": -0.842
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-12",
@@ -2349,9 +2187,8 @@
       "params": {
         "CP": 0.577
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-01-15",
@@ -2363,9 +2200,8 @@
       "params": {
         "CP": 0.164
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-03-06",
@@ -2378,9 +2214,8 @@
         "Fib": -0.934,
         "Ash": -0.45
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-12",
@@ -2392,9 +2227,8 @@
       "params": {
         "Ash": 0.37
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-06-16",
@@ -2406,9 +2240,8 @@
       "params": {
         "Fib": 0.0
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-07-14",
@@ -2422,9 +2255,8 @@
         "CP": -0.306,
         "Ash": -0.04
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-09-12",
@@ -2436,9 +2268,8 @@
       "params": {
         "CP": 0.072
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-12-08",
@@ -2452,9 +2283,8 @@
         "Fib": -0.728,
         "Ash": -0.324
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-14",
@@ -2466,9 +2296,8 @@
       "params": {
         "M": -0.069
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-09-12",
@@ -2480,9 +2309,8 @@
       "params": {
         "CP": 1.027
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-10-09",
@@ -2494,9 +2322,8 @@
       "params": {
         "M": -0.065
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-12",
@@ -2508,9 +2335,8 @@
       "params": {
         "M": 0.235
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-03-06",
@@ -2522,9 +2348,8 @@
       "params": {
         "EE": 0.0
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-06-16",
@@ -2536,9 +2361,8 @@
       "params": {
         "EE": -0.553
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-07-14",
@@ -2551,9 +2375,8 @@
         "M": -0.451,
         "Fib": -0.51
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-08-08",
@@ -2565,9 +2388,8 @@
       "params": {
         "EE": -0.178
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-09",
@@ -2580,9 +2402,8 @@
         "M": -0.141,
         "Fib": -0.09
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-31",
@@ -2595,9 +2416,8 @@
         "EE": -0.541,
         "Fib": -0.135
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-12",
@@ -2609,9 +2429,8 @@
       "params": {
         "M": 0.31
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-03-06",
@@ -2623,9 +2442,8 @@
       "params": {
         "M": -0.316
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-04-21",
@@ -2638,9 +2456,8 @@
         "EE": 0.403,
         "Fib": -0.304
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-08-08",
@@ -2654,9 +2471,8 @@
         "CP": 0.71,
         "EE": 0.423
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-09",
@@ -2668,9 +2484,8 @@
       "params": {
         "CP": 0.0
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-10",
@@ -2683,9 +2498,8 @@
         "M": 0.042,
         "Ash": -0.163
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-12-08",
@@ -2698,9 +2512,8 @@
         "CP": 0.38,
         "Fib": 0.565
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-03-18",
@@ -2712,9 +2525,8 @@
       "params": {
         "Fib": -0.06
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-04-21",
@@ -2726,9 +2538,8 @@
       "params": {
         "CP": 0.365
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-10",
@@ -2740,9 +2551,8 @@
       "params": {
         "M": -0.154
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-12",
@@ -2754,9 +2564,8 @@
       "params": {
         "M": 0.416
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-08-08",
@@ -2768,9 +2577,8 @@
       "params": {
         "M": 0.411
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-12",
@@ -2782,9 +2590,8 @@
       "params": {
         "AH": 0.14
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-08-08",
@@ -2796,9 +2603,8 @@
       "params": {
         "CP": -0.858
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-09-10",
@@ -2810,9 +2616,8 @@
       "params": {
         "CP": 0.858
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-11-10",
@@ -2824,9 +2629,8 @@
       "params": {
         "CP": -0.134
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-06",
@@ -2838,9 +2642,8 @@
       "params": {
         "CP": -0.131
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-12",
@@ -2853,9 +2656,8 @@
         "M": -0.093,
         "AH": 0.53
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-12",
@@ -2867,9 +2669,8 @@
       "params": {
         "M": 0.273
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-06-30",
@@ -2881,9 +2682,8 @@
       "params": {
         "EE": -0.126
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-03-18",
@@ -2895,9 +2695,8 @@
       "params": {
         "EE": 0.124
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-06-30",
@@ -2909,9 +2708,8 @@
       "params": {
         "EE": -0.126
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-06-18",
@@ -2927,9 +2725,8 @@
         "P": -0.0836,
         "Aw": 0.015
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-10-15",
@@ -2942,9 +2739,8 @@
         "M": -0.17,
         "Aw": 0.005
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2026-04-02",
@@ -2960,9 +2756,8 @@
         "NaCl": -0.07,
         "Aw": 0.015
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-05-13",
@@ -2979,9 +2774,8 @@
         "Ca": 0.607,
         "PD": 1.714
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-13",
@@ -2993,9 +2787,8 @@
       "params": {
         "CP": 1.856
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-02-03",
@@ -3007,9 +2800,8 @@
       "params": {
         "EE": -0.75
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-13",
@@ -3024,9 +2816,8 @@
         "EE": 0.26,
         "Fib": -0.303
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-13",
@@ -3040,9 +2831,8 @@
         "EE": 0.97,
         "Fib": 0.676
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-04-02",
@@ -3055,9 +2845,8 @@
         "EE": -0.092,
         "Fib": -0.197
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-02-03",
@@ -3069,9 +2858,8 @@
       "params": {
         "EE": 1.065
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-13",
@@ -3083,9 +2871,8 @@
       "params": {
         "EE": 0.3
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-13",
@@ -3097,9 +2884,8 @@
       "params": {
         "M": -0.027
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-02-03",
@@ -3111,9 +2897,8 @@
       "params": {
         "CP": 0.164
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-02-03",
@@ -3125,9 +2910,8 @@
       "params": {
         "M": 1.145
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-08",
@@ -3140,9 +2924,8 @@
         "M": 1.048,
         "CP": -0.131
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-13",
@@ -3154,9 +2937,8 @@
       "params": {
         "M": -0.38
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-15",
@@ -3169,9 +2951,8 @@
         "EE": -0.541,
         "Fib": -0.135
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-10-15",
@@ -3183,9 +2964,8 @@
       "params": {
         "M": -0.065
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2026-01-08",
@@ -3198,9 +2978,8 @@
         "M": 1.048,
         "CP": -0.131
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-13",
@@ -3215,9 +2994,8 @@
         "EE": -5.445,
         "NaCl": 10.92
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-23",
@@ -3230,9 +3008,8 @@
         "CP": 3.64,
         "NaCl": -4.07
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-05-13",
@@ -3246,9 +3023,8 @@
         "CP": -10.615,
         "Ash": 12.225
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-13",
@@ -3260,9 +3036,8 @@
       "params": {
         "EE": -1.493
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-23",
@@ -3274,9 +3049,8 @@
       "params": {
         "CP": -1.687
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-01-23",
@@ -3290,9 +3064,8 @@
         "CP": 2.919,
         "EE": 1.57
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-10-09",
@@ -3304,9 +3077,8 @@
       "params": {
         "CP": -0.065
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-23",
@@ -3320,9 +3092,8 @@
         "CP": -1.102,
         "Fib": 6.863
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-07-23",
@@ -3334,9 +3105,8 @@
       "params": {
         "EE": -0.126
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-01-23",
@@ -3348,9 +3118,8 @@
       "params": {
         "M": 0.071
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2026-01-23",
@@ -3362,9 +3131,8 @@
       "params": {
         "M": -0.069
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2026-01-08",
@@ -3377,9 +3145,8 @@
         "M": 1.048,
         "CP": -0.131
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-02-07",
@@ -3394,9 +3161,8 @@
         "AH": 0.271,
         "Ash": -4.802
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-02-19",
@@ -3408,9 +3174,8 @@
       "params": {
         "AH": 0.118
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-04-22",
@@ -3423,9 +3188,8 @@
         "CP": -0.35,
         "Ash": 1.144
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -3437,9 +3201,8 @@
       "params": {
         "Ash": -0.183
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-08-08",
@@ -3451,9 +3214,8 @@
       "params": {
         "CP": 0.135
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-09-11",
@@ -3465,9 +3227,8 @@
       "params": {
         "M": -0.416
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-10",
@@ -3479,9 +3240,8 @@
       "params": {
         "Ash": 0.957
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-13",
@@ -3494,9 +3254,8 @@
         "M": -0.124,
         "Ash": -0.063
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-01-15",
@@ -3509,9 +3268,8 @@
         "Aw": 0.022,
         "pH": -0.105
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-03-06",
@@ -3526,9 +3284,8 @@
         "AH": 0.164,
         "Ash": -0.631
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-03-25",
@@ -3540,9 +3297,8 @@
       "params": {
         "Ash": -0.152
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-05-09",
@@ -3554,9 +3310,8 @@
       "params": {
         "CP": -0.093
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -3568,9 +3323,8 @@
       "params": {
         "CP": 0.494
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-08-08",
@@ -3583,9 +3337,8 @@
         "M": 0.183,
         "Ash": -0.292
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2024-09-11",
@@ -3597,9 +3350,8 @@
       "params": {
         "M": 0.207
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-10",
@@ -3611,9 +3363,8 @@
       "params": {
         "CP": 0.054
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-12-09",
@@ -3625,9 +3376,8 @@
       "params": {
         "M": 0.024
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-12",
@@ -3640,9 +3390,8 @@
         "CP": -0.204,
         "Ash": -0.02
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-03-12",
@@ -3655,9 +3404,8 @@
         "CP": 0.214,
         "Ash": -0.473
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-09",
@@ -3670,9 +3418,8 @@
         "AH": -0.332,
         "pH": 0.048
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -3685,9 +3432,8 @@
         "AH": 0.0,
         "pH": -0.107
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-08-08",
@@ -3699,9 +3445,8 @@
       "params": {
         "M": 0.298
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-10",
@@ -3713,9 +3458,8 @@
       "params": {
         "CP": -0.96
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-06",
@@ -3728,9 +3472,8 @@
         "AH": -0.42,
         "pH": 0.023
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-12-03",
@@ -3742,9 +3485,8 @@
       "params": {
         "AH": 0.456
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-04-22",
@@ -3757,9 +3499,8 @@
         "M": 0.399,
         "Ash": -0.251
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-09",
@@ -3771,9 +3512,8 @@
       "params": {
         "Fat-C": -0.206
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -3786,9 +3526,8 @@
         "Fat-C": 0.05,
         "pH": 0.07
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-13",
@@ -3800,9 +3539,8 @@
       "params": {
         "Fat-C": -0.15
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-03-06",
@@ -3814,9 +3552,8 @@
       "params": {
         "CP": 0.677
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-06-16",
@@ -3829,9 +3566,8 @@
         "Fat-C": -0.344,
         "Ash": -1.063
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -3843,9 +3579,8 @@
       "params": {
         "CP": 0.685
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-08-08",
@@ -3858,9 +3593,8 @@
         "Ash": -1.787,
         "pH": 0.096
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-10-10",
@@ -3872,9 +3606,8 @@
       "params": {
         "Fat-C": -0.034
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-06",
@@ -3888,9 +3621,8 @@
         "Ash": -0.747,
         "pH": 0.016
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-12-01",
@@ -3902,9 +3634,8 @@
       "params": {
         "Fat-C": 0.12
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-13",
@@ -3917,9 +3648,8 @@
         "M": 0.422,
         "CP": -0.48
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-03-12",
@@ -3931,9 +3661,8 @@
       "params": {
         "Fat-C": -0.27
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -3946,9 +3675,8 @@
         "M": 0.178,
         "CP": 0.386
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-09-11",
@@ -3960,9 +3688,8 @@
       "params": {
         "pH": 0.174
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-06",
@@ -3974,9 +3701,8 @@
       "params": {
         "Fat-C": -0.19
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-12-16",
@@ -3988,9 +3714,8 @@
       "params": {
         "CP": 0.103
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2026-01-12",
@@ -4005,9 +3730,8 @@
         "Fat-C": 0.072,
         "pH": -0.136
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-13",
@@ -4021,9 +3745,8 @@
         "Ash": -0.879,
         "pH": 0.032
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-01-15",
@@ -4037,9 +3760,8 @@
         "CP": 1.32,
         "Fat-C": 0.545
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-05-09",
@@ -4052,9 +3774,8 @@
         "M": -3.44,
         "pH": -1.135
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-06-16",
@@ -4066,9 +3787,8 @@
       "params": {
         "CP": 0.845
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-06-16",
@@ -4081,9 +3801,8 @@
         "CP": -1.316,
         "Fat-C": -1.133
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -4097,9 +3816,8 @@
         "CP": 1.779,
         "Ash": 0.657
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-08-08",
@@ -4111,9 +3829,8 @@
       "params": {
         "Fat-C": -0.013
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-09-11",
@@ -4127,9 +3844,8 @@
         "CP": 3.601,
         "pH": -0.538
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-06",
@@ -4141,9 +3857,8 @@
       "params": {
         "CP": -3.601
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-12-09",
@@ -4155,9 +3870,8 @@
       "params": {
         "Ash": -0.022
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-12",
@@ -4169,9 +3883,8 @@
       "params": {
         "pH": 0.0
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-02-13",
@@ -4184,9 +3897,8 @@
         "CP": -0.537,
         "Fat-C": -0.695
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-04-03",
@@ -4198,9 +3910,8 @@
       "params": {
         "Aw": -0.009
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-08-08",
@@ -4212,9 +3923,8 @@
       "params": {
         "M": -0.153
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-11-06",
@@ -4226,9 +3936,8 @@
       "params": {
         "M": 0.753
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-01-12",
@@ -4240,9 +3949,8 @@
       "params": {
         "Aw": 0.005
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2026-03-12",
@@ -4255,9 +3963,8 @@
         "Ash": -1.588,
         "pH": 0.094
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-06-16",
@@ -4269,9 +3976,8 @@
       "params": {
         "CP": -3.733
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-08-08",
@@ -4283,9 +3989,8 @@
       "params": {
         "Ash": 1.81
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-04-30",
@@ -4297,9 +4002,8 @@
       "params": {
         "M": -0.167
       },
-      "is_install": true,
-      "note": "🔄 อัพสมการใหม่ (Bias reset = 0)",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": true
     },
     {
       "date": "2025-09-11",
@@ -4311,9 +4015,8 @@
       "params": {
         "M": -0.522
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     },
     {
       "date": "2025-07-14",
@@ -4325,10 +4028,9 @@
       "params": {
         "CP": 0.32
       },
-      "is_install": false,
-      "note": "",
-      "adjuster": ""
+      "adjuster": "",
+      "is_install": false
     }
   ],
-  "generated_at": "08/04/2026 07:13"
+  "generated_at": "08/04/2026 07:30"
 }

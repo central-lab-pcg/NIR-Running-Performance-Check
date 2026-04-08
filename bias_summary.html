@@ -75,6 +75,7 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(91,
 .pv{font-family:var(--mono);font-weight:700}
 .pv.pos{color:#1a8a50}.pv.neg{color:#cc3333}.pv.z{color:var(--txt3)}
 .adj-user{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--txt3);font-family:var(--mono)}
+.install-badge{display:inline-flex;align-items:center;gap:4px;background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa;border-radius:8px;padding:3px 10px;font-size:11px;font-weight:700;margin-bottom:8px}
 
 /* Table */
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow);overflow:hidden}
@@ -215,7 +216,7 @@ function dateTH(d){return new Date(d).toLocaleDateString('th-TH',{day:'2-digit',
 
 function render(){
   const rows=getFiltered();
-  const newEqRows=rows.filter(r=>r.type==='new_equation');
+  const newEqRows=rows.filter(r=>r.is_install===true);
   document.getElementById('sTotal').textContent=rows.length;
   document.getElementById('sProd').textContent=new Set(rows.map(r=>r.product)).size;
   document.getElementById('sParam').textContent=new Set(rows.flatMap(r=>Object.keys(r.params))).size;
@@ -228,7 +229,7 @@ function renderCards(rows){
   const g=document.getElementById('cardsGrid');
   if(!rows.length){g.innerHTML='<div class="no-data" style="grid-column:1/-1">📭 ไม่พบข้อมูล</div>';return;}
   g.innerHTML=rows.map(r=>{
-    const isNew=r.type==='new_equation';
+    const isNew=r.is_install===true;
     const params=Object.entries(r.params).map(([p,v])=>
       `<div class="param-chip${isNew?' new-eq':''}"><span class="pn${isNew?' purple':''}">${p}</span>${fv(v)}</div>`
     ).join('');
@@ -248,7 +249,7 @@ function renderTable(rows){
   const tb=document.getElementById('tBody');
   if(!rows.length){tb.innerHTML='<tr><td colspan="9"><div class="no-data">📭 ไม่พบข้อมูล</div></td></tr>';return;}
   tb.innerHTML=rows.map((r,i)=>{
-    const isNew=r.type==='new_equation';
+    const isNew=r.is_install===true;
     const typeBadge=isNew
       ?`<span class="badge b-new">🔄 สมการใหม่</span>`
       :`<span class="badge" style="background:#f0f9ff;color:#0369a1;border-color:#bae6fd">Adjust Bias</span>`;
@@ -285,7 +286,7 @@ function exportCSV(){
   const rows=getFiltered(),mon=document.getElementById('fMonth').value;
   const lines=['Type,Date,Product,Plant,Equipment,Source,Parameter,Value,Adjuster'];
   rows.forEach(r=>Object.entries(r.params).forEach(([p,v])=>
-    lines.push([r.type==='new_equation'?'New Equation':'Adjust Bias',r.date,'"'+r.product+'"',r.plant,r.equipment,r.source,p,v,r.adjuster||''].join(','))
+    lines.push([r.is_install===true?'New Equation':'Adjust Bias',r.date,'"'+r.product+'"',r.plant,r.equipment,r.source,p,v,r.adjuster||''].join(','))
   ));
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'}));
@@ -296,7 +297,7 @@ function exportExcel(){
   const rows=getFiltered(),mon=document.getElementById('fMonth').value;
   const data=[['Type','Date','Product','Plant','Equipment','Source','Parameter','Value','Adjuster']];
   rows.forEach(r=>Object.entries(r.params).forEach(([p,v])=>
-    data.push([r.type==='new_equation'?'New Equation':'Adjust Bias',r.date,r.product,r.plant,r.equipment,r.source,p,v,r.adjuster||''])
+    data.push([r.is_install===true?'New Equation':'Adjust Bias',r.date,r.product,r.plant,r.equipment,r.source,p,v,r.adjuster||''])
   ));
   const ws=XLSX.utils.aoa_to_sheet(data);
   ws['!cols']=[14,12,20,8,12,10,10,10,15].map(w=>({wch:w}));
