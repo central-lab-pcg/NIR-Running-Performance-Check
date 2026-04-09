@@ -183,7 +183,7 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
   </div>
   <div style="display:flex;gap:8px;align-items:center;">
     <a href="NIR-Running-Performance-Check.html" class="nav-link">📈 ดูกราฟ</a>
-    <a href="bias_summary.html" class="nav-link" style="background:#f0fdf7;color:#059669;border-color:#a7f3d0">📋 สรุป Bias</a>
+    <a href="bias_latest.html" class="nav-link" style="background:#f0fdf7;color:#059669;border-color:#a7f3d0">🔧 Install & Bias</a>
     <a href="index.html" class="nav-link" style="color:#555;background:#f5f5f3;border-color:#d8d8d4;">← กลับหน้าหลัก</a>
   </div>
 </div>
@@ -310,7 +310,15 @@ async function cLoad(p, m, eqp, src) {
 async function cSaveShared(p, m, eqp, src, text, user, extra) {
   const obj = {
     text, user,
-    savedAt: new Date().toLocaleString('th-TH', {year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})
+    savedAt: (()=>{
+      const n=new Date();
+      const dd=String(n.getDate()).padStart(2,'0');
+      const mm=String(n.getMonth()+1).padStart(2,'0');
+      const yyyy=n.getFullYear(); // ค.ศ. 4 หลัก เช่น 2026
+      const hh=String(n.getHours()).padStart(2,'0');
+      const mi=String(n.getMinutes()).padStart(2,'0');
+      return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+    })()
   };
   if(extra) Object.assign(obj, extra);
   // อ่านข้อมูลล่าสุดก่อน แล้วค่อย merge เพื่อไม่ให้ overwrite คนอื่น
