@@ -57,7 +57,7 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,
 
 /* Product groups */
 .prod-group{margin-bottom:16px}
-.prod-header{font-size:12px;font-weight:700;color:var(--txt2);background:var(--bg);border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;padding:7px 12px;display:flex;align-items:center;gap:8px}
+.prod-header{font-size:12px;font-weight:700;color:var(--txt2);background:var(--bg);border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;padding:7px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .prod-icon{width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0}
 .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0;border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);overflow:hidden}
 
@@ -125,6 +125,27 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,
 .btn-save{background:var(--purple);color:#fff;border:none;padding:7px 18px;border-radius:var(--r);cursor:pointer;font-weight:700;font-family:var(--font);font-size:13px;display:flex;align-items:center;gap:5px}
 .btn-save:hover{background:#6d28d9}.btn-save:disabled{background:#a0aec0;cursor:not-allowed}
 
+/* Approve status */
+.status-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid}
+.status-pending{background:#fffbeb;color:#d97706;border-color:#fde68a}
+.status-approved{background:#f0fdf4;color:#16a34a;border-color:#bbf7d0}
+.approve-btn{font-size:10px;padding:3px 10px;border-radius:6px;border:1.5px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;font-weight:700}
+.approve-btn:hover{background:#16a34a;color:#fff}
+.reject-btn{font-size:10px;padding:3px 10px;border-radius:6px;border:1.5px solid #fca5a5;background:#fef2f2;color:#dc2626;cursor:pointer;font-weight:700}
+/* Approve modal */
+.approve-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.4);backdrop-filter:blur(3px);z-index:300;align-items:center;justify-content:center}
+.approve-overlay.open{display:flex}
+.approve-modal{background:#fff;border-radius:12px;width:min(400px,96vw);box-shadow:0 20px 50px rgba(0,0,0,.15);overflow:hidden}
+.approve-hdr{padding:14px 18px;background:#f8fafc;border-bottom:1px solid var(--border);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:space-between}
+.approve-body{padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.approve-ftr{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+
+/* Chip buttons */
+.plant-chip,.equip-chip,.src-chip{display:flex;align-items:center;padding:6px 14px;border:1.5px solid var(--border2);border-radius:20px;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;background:#fff;color:var(--txt2);user-select:none}
+.plant-chip.sel{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
+.equip-chip.sel{border-color:var(--purple);background:var(--purple-bg);color:var(--purple)}
+.src-chip.sel{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+
 /* Loading */
 #loadingOverlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:14px}
 .spinner{width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
@@ -146,6 +167,7 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,
   </div>
   <div class="topbar-actions">
     <button class="btn btn-add" onclick="openModal()">➕ บันทึก Install / Adjust</button>
+    <a href="bias_latest.html" class="nav-link">📋 สรุป Bias ล่าสุด</a>
     <a href="summary_5.html" class="nav-link">← กลับ Summary</a>
   </div>
 </div>
@@ -160,12 +182,12 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,
     <option value="169 LAB-DS2500">169 LAB-DS2500</option>
     <option value="169 QC-DS2500">169 QC-DS2500</option>
     <option value="169 QC-DS3">169 QC-DS3</option>
-    <option value="Rayong">Rayong DS3F</option>
+    <option value="Rayong">Rayong (RY DS3F)</option>
     <option value="Indo DS2500">Indo DS2500</option>
     <option value="Indo DS3F">Indo DS3F</option>
-    <option value="Myanmar">Myanmar DS2500</option>
-    <option value="Wet Food">Wet Food DS2500</option>
-    <option value="POC">POC DS2500</option>
+    <option value="Myanmar">Myanmar (MM)</option>
+    <option value="Wet Food">Wet Food</option>
+    <option value="POC">POC</option>
   </select>
   <span class="f-label" style="margin-left:8px">Product</span>
   <select id="fProduct"><option value="">All Products</option></select>
@@ -182,6 +204,27 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,
 <!-- Content -->
 <div class="content" id="content"></div>
 
+</div>
+
+<!-- Approve Modal -->
+<div class="approve-overlay" id="approveModal">
+  <div class="approve-modal">
+    <div class="approve-hdr">
+      ✅ Approve รายการ
+      <button onclick="closeApprove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--txt3)">✕</button>
+    </div>
+    <div class="approve-body">
+      <div id="approveInfo" style="font-size:12px;color:var(--txt2);background:var(--bg);border-radius:8px;padding:10px 12px;line-height:1.8"></div>
+      <div>
+        <label class="flabel">ชื่อผู้ Approve *</label>
+        <input class="finput" type="text" id="approverName" placeholder="ชื่อผู้ตรวจสอบและอนุมัติ">
+      </div>
+    </div>
+    <div class="approve-ftr">
+      <button class="btn-cancel" onclick="closeApprove()">ยกเลิก</button>
+      <button class="approve-btn" style="font-size:12px;padding:7px 16px" id="doApproveBtn" onclick="doApprove()">✅ Approve</button>
+    </div>
+  </div>
 </div>
 
 <!-- Modal -->
@@ -217,8 +260,7 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,
               <option>RB S</option><option>RB ext , F</option><option>YC</option><option>FFS</option>
               <option>Wheat Gain</option><option>Wheat Bran</option><option>Wheat Product</option>
               <option>SB.G</option><option>Casava</option><option>Chicken oil</option>
-              <option>Wheat flour</option><option>Mix1</option><option>SDF I01</option>
-              <option>1R06901N , 1R06221N , 1R10221N</option>
+              <option>Wheat flour</option><option>Mix1</option>
             </optgroup>
             <optgroup label="── Wet Food ──">
               <option>Paste,Gravy,Jelly,Soup,Stick</option><option>Stick + Miniroll</option>
@@ -228,50 +270,49 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,
               <option>MF01</option><option>FP01</option><option>FP02 04 05 + Mix P</option>
               <option>PEC+LH+SDF</option><option>PE C06</option><option>PED+LH02</option>
               <option>Egg PU</option><option>Egg LU</option><option>FPB01</option>
-              <option>HPB03 04 09</option><option>FEC01 03 05</option><option>FEC06</option>
-              <option>FED01</option><option>FED03</option><option>FED04 07 08</option>
-              <option>FED05 09</option><option>FED06</option><option>CP01 03 04</option>
-              <option>CP02</option><option>CPB01</option><option>CPB02</option><option>CPB03</option>
-              <option>IPB01</option><option>HPB02</option><option>CK LIV, Lamb Liver</option>
-              <option>Coli</option><option>กากยีสต์</option>
+              <option>HPB03 04 09</option><option>FEC01 03 05</option>
+              <option>CP01 03 04</option><option>CK LIV, Lamb Liver</option>
             </optgroup>
           </select>
         </div>
-        <div>
-          <label class="flabel">Plant *</label>
-          <select class="finput" id="inPlant" onchange="updateEquipSource()">
-            <option value="">— เลือก Plant —</option>
-            <option value="169">169 (Rayong)</option>
-            <option value="RY">RY (Rayong DS3F)</option>
-            <option value="Indo">Indonesia</option>
-            <option value="MM">Myanmar</option>
-            <option value="POC">POC</option>
-          </select>
+      </div>
+
+      <!-- Plant / Equipment / Source เป็น chip ติ๊กเลือก -->
+      <div>
+        <label class="flabel">Plant *</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+          <label class="plant-chip"><input type="radio" name="rPlant" value="169" style="display:none" onchange="updateEquipSource()"> 169</label>
+          <label class="plant-chip"><input type="radio" name="rPlant" value="RY" style="display:none" onchange="updateEquipSource()"> RY</label>
+          <label class="plant-chip"><input type="radio" name="rPlant" value="Indo" style="display:none" onchange="updateEquipSource()"> Indo</label>
+          <label class="plant-chip"><input type="radio" name="rPlant" value="MM" style="display:none" onchange="updateEquipSource()"> MM</label>
+          <label class="plant-chip"><input type="radio" name="rPlant" value="POC" style="display:none" onchange="updateEquipSource()"> POC</label>
+          <label class="plant-chip"><input type="radio" name="rPlant" value="WF" style="display:none" onchange="updateEquipSource()"> Wet Food</label>
         </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div>
           <label class="flabel">Equipment *</label>
-          <select class="finput" id="inEquip" onchange="updateLabel()">
-            <option value="">— เลือก Equipment —</option>
-            <option value="DS2500">DS2500</option>
-            <option value="DS3F">DS3F</option>
-            <option value="DS3">DS3</option>
-          </select>
+          <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+            <label class="equip-chip"><input type="radio" name="rEquip" value="DS2500" style="display:none" onchange="updateLabel()"> DS2500</label>
+            <label class="equip-chip"><input type="radio" name="rEquip" value="DS3F" style="display:none" onchange="updateLabel()"> DS3F</label>
+            <label class="equip-chip"><input type="radio" name="rEquip" value="DS3" style="display:none" onchange="updateLabel()"> DS3</label>
+          </div>
         </div>
         <div>
           <label class="flabel">Source</label>
-          <select class="finput" id="inSource" onchange="updateLabel()">
-            <option value="">— เลือก Source —</option>
-            <option value="LAB">LAB</option>
-            <option value="QC">QC</option>
-            <option value="Wet Food">Wet Food</option>
-            <option value="Portal">Portal</option>
-            <option value="Import">Import</option>
-          </select>
+          <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+            <label class="src-chip"><input type="radio" name="rSource" value="LAB" style="display:none" onchange="updateLabel()"> LAB</label>
+            <label class="src-chip"><input type="radio" name="rSource" value="QC" style="display:none" onchange="updateLabel()"> QC</label>
+          </div>
         </div>
-        <div>
-          <label class="flabel">Plant / Machine (Auto)</label>
-          <input class="finput" type="text" id="inLabel" readonly style="background:#f1f5f9;color:var(--txt3)" placeholder="จะ auto-fill จาก Plant+Equipment+Source">
-        </div>
+      </div>
+      <div>
+        <label class="flabel">Plant / Machine (Auto-fill)</label>
+        <input class="finput" type="text" id="inLabel" readonly style="background:#f1f5f9;color:var(--blue);font-weight:700" placeholder="จะ auto-fill จาก Plant+Equipment+Source">
+        <input type="hidden" id="inLabelVal">
+      </div>
+
+      <div class="form-grid">
         <div><label class="flabel">ผู้บันทึก</label><input class="finput" type="text" id="inAdjuster" placeholder="ชื่อผู้บันทึก"></div>
         <div><label class="flabel">ผู้ตรวจสอบ</label><input class="finput" type="text" id="inReviewer" placeholder="ชื่อผู้ตรวจสอบ"></div>
         <div class="form-full"><label class="flabel">หมายเหตุ</label><input class="finput" type="text" id="inNote" placeholder="หมายเหตุ"></div>
@@ -342,16 +383,52 @@ function norm(r,src){
 }
 
 // ── Load ──────────────────────────────────────────────────────────────────────
+let APPROVALS = {}; // key → {approver, approvedAt}
+let _approveKey = '';
+
+function openApprove(key, prd, param){
+  _approveKey = key;
+  document.getElementById('approveInfo').innerHTML =
+    `<b>Product:</b> ${prd}<br><b>เดือน:</b> ${key.split('|')[2]||''}<br><b>Plant:</b> ${key.split('|')[0]||'—'}<br><span style="color:var(--txt3);font-size:11px">การ Approve นี้จะครอบคลุมทุก Parameter ของ Product นี้</span>`;
+  document.getElementById('approverName').value='';
+  document.getElementById('approveModal').classList.add('open');
+}
+function closeApprove(){document.getElementById('approveModal').classList.remove('open');}
+
+async function doApprove(){
+  const name=document.getElementById('approverName').value.trim();
+  if(!name){alert('กรุณากรอกชื่อผู้ Approve');return;}
+  const btn=document.getElementById('doApproveBtn');
+  btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...';
+  try{
+    const data=await jbGet();
+    const approvals=data.approvals||{};
+    approvals[_approveKey]={
+      approver:name,
+      approvedAt:(()=>{const n=new Date();return`${String(n.getDate()).padStart(2,'0')}/${String(n.getMonth()+1).padStart(2,'0')}/${n.getFullYear()} ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;})()
+    };
+    await jbPut({...data,approvals});
+    APPROVALS=approvals;
+    closeApprove();
+    render();
+  }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
+  btn.disabled=false; btn.textContent='✅ Approve';
+}
+
+document.getElementById('approveModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeApprove();});
+
 async function loadData(){
   try{
     JB_DATA = await jbGet();
     RAW_BIAS   = (JB_DATA.bias_records  ||[]).map(r=>norm(r,'excel'));
     RAW_MANUAL = (JB_DATA.manual_records||[]).map(r=>norm(r,'manual'));
     RAW_CORR   = JB_DATA.corrections||{};
+    APPROVALS  = JB_DATA.approvals||{};
     if(JB_DATA.generated_at) document.getElementById('lastUpdated').textContent=JB_DATA.generated_at;
     initFilters();
     document.getElementById('loadingOverlay').style.display='none';
     document.getElementById('app').style.display='block';
+    bindChips();
     render();
   }catch(e){
     document.getElementById('loadingOverlay').innerHTML=`<div style="color:#dc2626;text-align:center;padding:20px"><b>❌ โหลดไม่ได้</b><br><small>${e.message}</small></div>`;
@@ -368,17 +445,22 @@ function getAllEvents(){
     const eqp=parts[2]==='all'?'':(parts[2]||'');
     const src=parts[3]==='all'?'':(parts[3]||'');
     if(!prd||!serial)return;
-    // ใช้วันที่จาก savedAt ถ้ามี ไม่งั้นใช้ serial → date
+    // ใช้ serial เป็น base date (เดือนที่บันทึกใน Summary)
     let date='';
     try{date=new Date((serial-25569)*86400*1000).toISOString().slice(0,10);}catch{return;}
-    // savedAt format: "dd/mm/yy HH:MM" → แปลงเป็น date string
+    // ถ้ามี savedAt ให้ใช้ dd/mm จาก savedAt แต่ใช้ปีจาก serial เสมอ
+    // เพราะ savedAt อาจเป็น พ.ศ. และมีปัญหาแปลงปี
     if(v.savedAt){
       try{
-        const parts=v.savedAt.split(' ')[0].split('/'); // dd/mm/yy
-        if(parts.length===3){
-          const dd=parts[0],mm=parts[1],yy=parts[2];
-          const yyyy=parseInt(yy)<100?(2000+parseInt(yy)).toString():yy;
-          date=`${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+        const p=v.savedAt.split(' ')[0].split('/');
+        if(p.length===3){
+          const dd=parseInt(p[0]), mm=parseInt(p[1]);
+          // ใช้ปีจาก serial (ค.ศ. แน่นอน) เสมอ ไม่ใช้ปีจาก savedAt
+          const serialDate=new Date((serial-25569)*86400*1000);
+          const yyyy=serialDate.getFullYear();
+          if(dd>=1&&dd<=31&&mm>=1&&mm<=12){
+            date=`${yyyy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+          }
         }
       }catch{}
     }
@@ -410,11 +492,14 @@ function getAllEvents(){
     }
 
     const params={}, text=v.text||'';
+    // ข้าม correction ที่ text ว่างหรือเป็นแค่ "-"
+    if(!text || text.trim()==='-') return;
     PARAMS_DEF.forEach(p=>{
       const esc=p.replace(/[.*+?^=!:{}()|[\]/\\]/g,'\\$&').replace(/-/g,'[-]');
-      const m=text.match(new RegExp('(?<![A-Za-z\\d])'+esc+'[\\s=:]*([+-]?\\d+\\.?\\d*)','i'));
+      const m=text.match(new RegExp('(?<![A-Za-z\\d])'+esc+'[\\s=:+]*([+-]?\\d+\\.?\\d+)','i'));
       if(m)params[p]=parseFloat(m[1]);
     });
+    // ถ้า parse ไม่ได้เลย ยังแสดงเป็น note (params ว่าง = แสดงเป็น correction note)
     evts.push({
       date, month:date.slice(0,7), product:prd, label,
       params, is_install:false,
@@ -520,9 +605,10 @@ function render(){
 
   // กรอง keys ตาม label/product filter
   const filteredKeys=[...activeKeys].filter(k=>{
-    const [lbl,prd]=k.split('|');
-    if(f.label&&lbl!==f.label)return false;
-    if(f.product&&prd!==f.product)return false;
+    const parts=k.split('|');
+    const lbl=parts[0], prd=parts[1];
+    if(f.label && lbl && lbl!==f.label) return false;
+    if(f.product && prd!==f.product) return false;
     return true;
   });
 
@@ -554,17 +640,22 @@ function render(){
     byProd.get(prd).push({param,k,lastEntry,monEntries,lastInstall,hlist});
   });
 
-  // sort label by LABEL_ORDER
-  const sortedLabels=[...byLabel.keys()].sort((a,b)=>LABEL_ORDER.indexOf(a)-LABEL_ORDER.indexOf(b));
+  // sort label by LABEL_ORDER — label ว่างแสดงเป็น group "Correction จาก Summary"
+  const sortedLabels=[...byLabel.keys()].sort((a,b)=>{
+    if(a===''&&b!=='')return 1; // ว่างไปท้าย
+    if(a!==''&&b==='')return -1;
+    return LABEL_ORDER.indexOf(a)-LABEL_ORDER.indexOf(b);
+  });
 
   let html='';
   sortedLabels.forEach(lbl=>{
     const byProd=byLabel.get(lbl);
     const totalCards=[...byProd.values()].reduce((s,a)=>s+a.length,0);
+    const displayName=lbl||'📋 Correction จาก Summary';
     html+=`<div class="plant-section">
       <div class="plant-header">
-        <div class="plant-name">🏭 ${lbl}</div>
-        <span class="plant-badge">${lbl.includes('169')?'Rayong 169':lbl.includes('Indo')?'Indonesia':lbl.includes('MM')||lbl==='Myanmar'?'Myanmar':lbl}</span>
+        <div class="plant-name">${lbl?'🏭 ':''} ${displayName}</div>
+        <span class="plant-badge">${lbl||'Summary'}</span>
         <span class="plant-count">${byProd.size} Product · ${totalCards} Parameter</span>
       </div>`;
 
@@ -572,25 +663,50 @@ function render(){
     const sortedProds=[...byProd.keys()].sort();
     sortedProds.forEach(prd=>{
       const params=byProd.get(prd);
-      // sort params by PARAMS_DEF order
       params.sort((a,b)=>PARAMS_DEF.indexOf(a.param)-PARAMS_DEF.indexOf(b.param));
+
+      // ── Approve ระดับ Product ──
+      const prodApKey=`${lbl}|${prd}|${selMon}`;
+      const prodApStatus=APPROVALS[prodApKey];
+      const safeProdKey=encodeURIComponent(prodApKey);
+      const safePrdName=encodeURIComponent(prd);
+      const prodHasData=params.some(({monEntries})=>monEntries.length>0);
+      const prodStatusBadge=prodApStatus
+        ?`<span class="status-badge status-approved">✅ ${prodApStatus.approver} · ${prodApStatus.approvedAt}</span>`
+        :`<span class="status-badge status-pending">⏳ รอ Approve</span>`;
+      const prodApproveBtn=(!prodApStatus&&prodHasData)
+        ?`<button class="approve-btn" onclick="openApprove(decodeURIComponent('${safeProdKey}'),decodeURIComponent('${safePrdName}'),'')">✅ Approve Product</button>`
+        :'';
+
       html+=`<div class="prod-group">
-        <div class="prod-header"><span class="prod-icon"></span>${prd}</div>
+        <div class="prod-header">
+          <span class="prod-icon"></span>${prd}
+          <span style="margin-left:auto;display:flex;align-items:center;gap:8px">
+            ${prodStatusBadge}
+            ${prodApproveBtn}
+          </span>
+        </div>
         <div class="cards-grid">`;
 
       params.forEach(({param,lastEntry,monEntries,lastInstall,hlist})=>{
-        const bias=lastEntry?lastEntry.bias:null;
+        // Bias ณ สิ้นเดือนที่เลือก = entry ล่าสุดที่ date <= selMon สิ้นเดือน
+        const selMonEnd=selMon+'-31';
+        const entryAtMon=hlist.filter(h=>h.date<=selMonEnd);
+        const displayEntry=entryAtMon.length?entryAtMon[entryAtMon.length-1]:null;
+        const bias=displayEntry?displayEntry.bias:null;
         const biasStr=bias===null?'—':(bias>=0?'+':'')+bias;
         const biasCls=bias===null?'null':bias>0?'pos':bias<0?'neg':'zero';
-        const lastDate=lastEntry?lastEntry.date.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>`${d}/${m}/${y.slice(2)}`):'';
+        const displayDate=displayEntry?displayEntry.date.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>`${d}/${m}/${y.slice(2)}`):'';
         const hasInstall=!!lastInstall;
+        // หาวันที่ install ล่าสุด
+        const lastInstallEntry=[...hlist].reverse().find(h=>h.install);
+        const installDate=lastInstallEntry?lastInstallEntry.date.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>`${d}/${m}/${y.slice(2)}`):'';
 
         // history lines for this month
-        const histLines=monEntries.map(h=>{
+        const histLines=monEntries.map((h,hi)=>{
           const dStr=h.date.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>`${d}/${m}`);
           const dVal=h.delta!==null&&h.delta!==undefined?(h.delta>=0?'+':'')+h.delta:'';
           const bStr=(h.bias>=0?'+':'')+h.bias;
-          // badges สำหรับ plant/type/equip/source
           const mkBadge=(v,bg,cl)=>v?`<span style="background:${bg};color:${cl};border-radius:3px;padding:0 4px;font-size:9px;font-family:var(--font)">${v}</span>`:'';
           const badges=[
             mkBadge(h.plant,'#dbeafe','#1d4ed8'),
@@ -598,27 +714,34 @@ function render(){
             mkBadge(h.equip,'#ede9fe','#7c3aed'),
             mkBadge(h.source_val,'#fef3c7','#d97706'),
           ].filter(Boolean).join('');
-          if(h.install)return`<div class="hist-row"><span class="hist-date">${dStr}</span><span class="hist-install">🔄 reset→${bStr}</span>${badges}</div>`;
-          return`<div class="hist-row"><span class="hist-date">${dStr}</span><span class="hist-delta ${h.delta>0?'pos':h.delta<0?'neg':''}">${dVal}</span><span class="hist-bias">→${bStr}</span>${h.adjuster?`<span style="color:var(--txt3);margin-left:2px">${h.adjuster}</span>`:''}${badges?`<span style="margin-left:3px">${badges}</span>`:''}</div>`;
+          const editBtn=h._src==='manual'?`<button onclick="editRecord('${h._id||''}')" style="font-size:9px;padding:1px 5px;border:1px solid #cbd5e1;border-radius:4px;background:#f8fafc;cursor:pointer;margin-left:4px">✏️</button>`:'';
+          if(h.install)return`<div class="hist-row"><span class="hist-date">${dStr}</span><span class="hist-install">🔄 reset→${bStr}</span>${badges}${editBtn}</div>`;
+          return`<div class="hist-row"><span class="hist-date">${dStr}</span><span class="hist-delta ${h.delta>0?'pos':h.delta<0?'neg':''}">${dVal}</span><span class="hist-bias">→${bStr}</span>${h.adjuster?`<span style="color:var(--txt3);margin-left:2px">${h.adjuster}</span>`:''}${badges?`<span style="margin-left:3px">${badges}</span>`:''}${editBtn}</div>`;
         }).join('');
 
+        // approve status ระดับ product (ใช้ prodApStatus จาก outer scope)
         const uid='h'+Math.random().toString(36).slice(2,8);
+
         html+=`<div class="param-card${hasInstall?' card-install':''}">
           ${hasInstall?'<span class="install-ribbon">🔄 Install</span>':''}
           <div class="param-name">${param}</div>
           <div class="bias-val ${biasCls}">${biasStr}</div>
           <div class="param-meta">
-            ${lastDate?`<span class="param-date">${lastDate}</span>`:''}
-            ${lastEntry&&lastEntry.adjuster?`<br>${lastEntry.adjuster}`:''}
+            ${displayDate?`<span class="param-date">${displayDate}</span>`:''}
+            ${displayEntry&&displayEntry.adjuster?` · <span>${displayEntry.adjuster}</span>`:''}
+            ${displayEntry&&displayEntry.reviewer?` · <span style="color:var(--purple)">👁 ${displayEntry.reviewer}</span>`:''}
+            ${installDate?`<br><span style="color:var(--purple);font-size:9px">🔄 Install: ${installDate}</span>`:''}
             ${(()=>{
-              const e=lastEntry;if(!e)return'';
+              const e=displayEntry;if(!e)return'';
               const mkB=(v,bg,cl)=>v?`<span style="background:${bg};color:${cl};border-radius:3px;padding:0 4px;font-size:9px">${v}</span>`:'';
               const b=[mkB(e.plant,'#dbeafe','#1d4ed8'),mkB(e.type_val,'#dcfce7','#15803d'),mkB(e.equip,'#ede9fe','#7c3aed'),mkB(e.source_val,'#fef3c7','#d97706')].filter(Boolean).join(' ');
               return b?`<br>${b}`:'';
             })()}
           </div>
-          ${monEntries.length>0?`<span class="history-btn" onclick="toggleHist('${uid}')">ประวัติเดือนนี้ (${monEntries.length})</span>
-          <div class="history-list" id="${uid}">${histLines}</div>`:''}
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
+            ${monEntries.length>0?`<span class="history-btn" onclick="toggleHist('${uid}')">ประวัติ (${monEntries.length})</span>`:'<span></span>'}
+          </div>
+          ${monEntries.length>0?`<div class="history-list" id="${uid}">${histLines}</div>`:''}
         </div>`;
       });
 
@@ -637,47 +760,72 @@ function toggleHist(id){
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
-// auto-derive label จาก plant+equip+source
+// chip selection helpers
+function chipVal(name){const r=document.querySelector(`input[name="${name}"]:checked`);return r?r.value:'';}
+function setChip(name,val){
+  document.querySelectorAll(`input[name="${name}"]`).forEach(inp=>{
+    inp.checked=inp.value===val;
+    inp.closest('label').classList.toggle('sel',inp.value===val);
+  });
+}
+function bindChips(){
+  document.querySelectorAll('.plant-chip,.equip-chip,.src-chip').forEach(lbl=>{
+    lbl.addEventListener('click',()=>{
+      const inp=lbl.querySelector('input');
+      const name=inp.name;
+      document.querySelectorAll(`input[name="${name}"]`).forEach(i=>i.closest('label').classList.remove('sel'));
+      inp.checked=true;
+      lbl.classList.add('sel');
+      if(name==='rPlant') updateEquipSource();
+      else updateLabel();
+    });
+  });
+}
+
 function updateLabel(){
-  const plant=document.getElementById('inPlant').value;
-  const equip=document.getElementById('inEquip').value;
-  const src=document.getElementById('inSource').value;
+  const plant=chipVal('rPlant'), equip=chipVal('rEquip'), src=chipVal('rSource');
   let label='';
-  if(plant==='169'&&equip==='DS2500'&&src==='LAB')       label='169 LAB-DS2500';
-  else if(plant==='169'&&equip==='DS2500'&&src==='QC')   label='169 QC-DS2500';
-  else if(plant==='169'&&equip==='DS3'&&src==='QC')      label='169 QC-DS3';
-  else if(plant==='169'&&src==='Wet Food')               label='Wet Food';
-  else if(plant==='RY')                                  label='Rayong';
-  else if(plant==='Indo'&&equip==='DS3F')                label='Indo DS3F';
-  else if(plant==='Indo')                                label='Indo DS2500';
-  else if(plant==='MM')                                  label='Myanmar';
-  else if(plant==='POC')                                 label='POC';
-  document.getElementById('inLabel').value=label||'(กรุณาเลือก Plant+Equipment+Source)';
-  document.getElementById('inLabel')._label=label;
+  if(plant==='169'&&equip==='DS2500'&&src==='LAB')      label='169 LAB-DS2500';
+  else if(plant==='169'&&equip==='DS2500'&&src==='QC')  label='169 QC-DS2500';
+  else if(plant==='169'&&equip==='DS3'&&src==='QC')     label='169 QC-DS3';
+  else if(plant==='WF')                                 label='Wet Food';
+  else if(plant==='RY')                                 label='Rayong';
+  else if(plant==='Indo'&&equip==='DS3F')               label='Indo DS3F';
+  else if(plant==='Indo')                               label='Indo DS2500';
+  else if(plant==='MM')                                 label='Myanmar';
+  else if(plant==='POC')                                label='POC';
+  document.getElementById('inLabel').value=label||'(เลือก Plant+Equipment+Source ให้ครบ)';
+  document.getElementById('inLabelVal').value=label;
 }
 function updateEquipSource(){
-  // auto-fill Equipment ที่น่าจะใช้
-  const plant=document.getElementById('inPlant').value;
-  const eqp=document.getElementById('inEquip');
-  if(plant==='RY'){ eqp.value='DS3F'; }
-  else if(plant==='Indo'){ eqp.value=''; } // มีทั้ง DS2500 และ DS3F
-  else if(plant==='169'){ eqp.value='DS2500'; }
-  else if(plant==='MM'||plant==='POC'){ eqp.value='DS2500'; }
+  const plant=chipVal('rPlant');
+  if(plant==='RY'){setChip('rEquip','DS3F');setChip('rSource','');}
+  else if(plant==='WF'){setChip('rEquip','DS2500');setChip('rSource','');}
+  else if(plant==='169'){setChip('rEquip','DS2500');}
+  else if(plant==='MM'||plant==='POC'){setChip('rEquip','DS2500');setChip('rSource','');}
   updateLabel();
 }
 
-function openModal(){
+function openModal(prefill){
   document.getElementById('inDate').value=new Date().toISOString().slice(0,10);
   ['inAdjuster','inReviewer','inNote'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('inProduct').value='';
-  document.getElementById('inPlant').value='';
-  document.getElementById('inEquip').value='';
-  document.getElementById('inSource').value='';
   document.getElementById('inLabel').value='';
-  document.getElementById('inLabel')._label='';
+  document.getElementById('inLabelVal').value='';
   document.getElementById('isInstall').checked=false;
   document.getElementById('installHint').style.display='none';
   document.getElementById('paramsWrap').innerHTML='';
+  // reset chips
+  ['rPlant','rEquip','rSource'].forEach(n=>{
+    document.querySelectorAll(`input[name="${n}"]`).forEach(i=>{i.checked=false;i.closest('label').classList.remove('sel');});
+  });
+  if(prefill){
+    if(prefill.plant) setChip('rPlant',prefill.plant);
+    if(prefill.equipment) setChip('rEquip',prefill.equipment);
+    if(prefill.source) setChip('rSource',prefill.source);
+    updateLabel();
+    if(prefill.product) document.getElementById('inProduct').value=prefill.product;
+  }
   addParam();
   document.getElementById('modal').classList.add('open');
 }
@@ -697,15 +845,37 @@ function addParam(){
   wrap.appendChild(row);
 }
 
+function editRecord(id){
+  const rec=RAW_MANUAL.find(r=>r._id===id);
+  if(!rec){alert('ไม่พบรายการ');return;}
+  openModal({plant:rec.plant,equipment:rec.equipment,source:rec.source,product:rec.product});
+  document.getElementById('inDate').value=rec.date;
+  document.getElementById('inAdjuster').value=rec.adjuster||'';
+  document.getElementById('inReviewer').value=rec.reviewer||'';
+  document.getElementById('inNote').value=rec.note||'';
+  document.getElementById('isInstall').checked=rec.is_install||false;
+  // fill params
+  document.getElementById('paramsWrap').innerHTML='';
+  Object.entries(rec.params||{}).forEach(([p,v])=>{
+    const wrap=document.getElementById('paramsWrap');
+    const row=document.createElement('div');
+    row.className='param-row';
+    row.innerHTML=`<select class="finput" style="padding:6px 8px"><option value="">— Parameter —</option>${PARAMS_DEF.map(pp=>`<option value="${pp}"${pp===p?' selected':''}>${pp}</option>`).join('')}</select>
+      <input class="finput" type="number" step="any" value="${v}">
+      <button class="btn-rem" onclick="this.parentElement.remove()">✕</button>`;
+    wrap.appendChild(row);
+  });
+  // เก็บ id สำหรับ update
+  document.getElementById('saveBtn').dataset.editId=id;
+}
+
 async function saveRecord(){
   const date=document.getElementById('inDate').value;
-  const label=document.getElementById('inLabel')._label||document.getElementById('inLabel').value;
+  const label=document.getElementById('inLabelVal').value;
   const product=document.getElementById('inProduct').value;
-  const plant=document.getElementById('inPlant').value;
-  const equip=document.getElementById('inEquip').value;
-  const src=document.getElementById('inSource').value;
+  const plant=chipVal('rPlant'), equip=chipVal('rEquip'), src=chipVal('rSource');
   if(!date||!plant||!product){alert('กรุณาเลือก วันที่, Plant และ Product');return;}
-  if(!label||label.startsWith('(')){ alert('กรุณาเลือก Plant + Equipment + Source ให้ครบ'); return; }
+  if(!label){alert('กรุณาเลือก Equipment+Source ให้ครบเพื่อ auto-fill Plant/Machine');return;}
   const params={};
   document.querySelectorAll('#paramsWrap .param-row').forEach(row=>{
     const s=row.querySelector('select'),inp=row.querySelector('input[type=number]');
@@ -714,23 +884,27 @@ async function saveRecord(){
   const isInstall=document.getElementById('isInstall').checked;
   if(!Object.keys(params).length&&!isInstall){alert('กรุณากรอกอย่างน้อย 1 Parameter');return;}
   const btn=document.getElementById('saveBtn');
+  const editId=btn.dataset.editId||'';
   btn.disabled=true;btn.innerHTML='⏳ กำลัง Sync...';
   try{
     const data=await jbGet();
-    const manual=data.manual_records||[];
-    manual.push({
-      _id:Date.now().toString(),_src:'manual',
-      date,month:date.slice(0,7),product,label,
+    let manual=data.manual_records||[];
+    const newRec={
+      _id:editId||Date.now().toString(), _src:'manual',
+      date, month:date.slice(0,7), product, label,
       plant, equipment:equip, source:src,
-      params,is_install:isInstall,
+      params, is_install:isInstall,
       adjuster:document.getElementById('inAdjuster').value.trim(),
       reviewer:document.getElementById('inReviewer').value.trim(),
       note:document.getElementById('inNote').value.trim(),
       created_at:new Date().toLocaleString('th-TH'),
-    });
+    };
+    if(editId) manual=manual.map(r=>r._id===editId?newRec:r);
+    else manual.push(newRec);
     await jbPut({...data,manual_records:manual});
     RAW_MANUAL=manual.map(r=>norm(r,'manual'));
     JB_DATA={...data,manual_records:manual};
+    delete btn.dataset.editId;
     closeModal();
     render();
     alert('✅ บันทึกและ Sync สำเร็จ!');
