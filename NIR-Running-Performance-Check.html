@@ -534,7 +534,7 @@ function wideToLong(wideRows) {
   const long = [];
   wideRows.forEach(row => {
     const base = {
-      no:     row['No.']       || row['no']       || '',
+      no:     row['No_x002e_'] || row['No.'] || row['no'] || '',
       mon:    row['Month']     || row['mon']       || '',
       pla:    row['Plant']     || row['pla']       || '',
       typ:    row['Type']      || row['typ']       || '',
@@ -594,7 +594,7 @@ async function loadData() {
       // Deduplicate ก่อน wideToLong
       const seen = new Set();
       allRows = allRows.filter(r => {
-        const k = [r['No.']||r['no']||'', r['Month']||r['mon']||'', r['SEP']||r['sep']||'', r['Sample']||r['sample']||'', r['Product']||r['prd']||''].join('|');
+        const k = [r['No_x002e_']||r['No.']||r['no']||'', r['Month']||r['mon']||'', r['SEP']||r['sep']||'', r['Sample']||r['sample']||'', r['Product']||r['prd']||''].join('|');
         if (seen.has(k)) return false;
         seen.add(k); return true;
       });

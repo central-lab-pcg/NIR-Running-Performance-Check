@@ -353,7 +353,7 @@ const WIDE_MAP=[
 function wideToLong(rows){
   const out=[];
   rows.forEach(row=>{
-    const base={no:row['No.']||'',mon:row['Month']||'',pla:row['Plant']||'',
+    const base={no:row['No_x002e_']||row['No.']||'',mon:row['Month']||'',pla:row['Plant']||'',
       eqp:row['Equipment']||'',src:row['Source']||'',sep:row['SEP']||'',
       prd:row['Product']||'',sample:row['Sample']||'',typ:row['Type']||''};
     WIDE_MAP.forEach(pm=>{
@@ -385,7 +385,7 @@ async function loadData(){
       // Deduplicate โดยใช้ No.+Month+SEP+Sample เป็น key
       const seen=new Set();
       allRows=allRows.filter(r=>{
-        const k=[r['No.']||r['no']||'',r['Month']||r['mon']||'',r['SEP']||r['sep']||'',r['Sample']||r['sample']||'',r['Product']||r['prd']||''].join('|');
+        const k=[r['No_x002e_']||r['No.']||r['no']||'',r['Month']||r['mon']||'',r['SEP']||r['sep']||'',r['Sample']||r['sample']||'',r['Product']||r['prd']||''].join('|');
         if(seen.has(k))return false;
         seen.add(k);return true;
       });
