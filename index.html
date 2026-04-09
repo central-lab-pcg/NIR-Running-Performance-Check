@@ -246,6 +246,15 @@ const TOOLS = [
     tag: "active", tagLabel: "Active"
   },
   {
+    id: "bias",
+    name: "Install & Bias",
+    desc: "บันทึก Install สมการใหม่ และติดตาม Bias สะสมของแต่ละ Product",
+    color: "#f5f3ff", iconColor: "#7c3aed",
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>`,
+    url: "https://central-lab-pcg.github.io/NIR-Running-Performance-Check/bias_latest.html",
+    tag: "new", tagLabel: "New"
+  },
+  {
     id: "constituent",
     name: "Best Constituent Finder",
     desc: "ค้นหา model ที่ดีที่สุดของแต่ละ constituent โดยอัตโนมัติ",
@@ -254,21 +263,12 @@ const TOOLS = [
     url: "https://central-lab-pcg.github.io/NIR-Running-Performance-Check/best_constituent.html",
     tag: "new", tagLabel: "New"
   },
-  {
-    id: "placeholder1",
-    name: "Tool 4",
-    desc: "เพิ่มเครื่องมือใหม่ได้ที่นี่",
-    color: "#f5f5f3", iconColor: "#bbb",
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
-    url: "#",
-    tag: "soon", tagLabel: "Coming soon"
-  },
 ];
 
 const TAG_CLASS = { active: "tag-active", new: "tag-new", soon: "tag-soon", locked: "tag-locked" };
 
-const ALL_PERMS = { running: true, summary: true, constituent: true, placeholder1: true };
-const DEFAULT_PERMS = { running: true, summary: true, constituent: true, placeholder1: false };
+const ALL_PERMS = { running: true, summary: true, constituent: true, bias: true };
+const DEFAULT_PERMS = { running: true, summary: true, constituent: true, bias: true };
 
 // Role definitions — เพิ่ม role ใหม่ได้ที่นี่
 const ROLES = {
