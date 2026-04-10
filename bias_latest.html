@@ -277,6 +277,40 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
   </div>
 </div>
 
+<!-- Edit Modal -->
+<div class="ap-overlay" id="editModal">
+  <div class="ap-modal" style="width:min(480px,96vw)">
+    <div class="ap-hdr">
+      ✏️ แก้ไขรายการ
+      <button onclick="closeEditModal()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:15px">✕</button>
+    </div>
+    <div class="ap-body" style="gap:12px">
+      <div id="editInfo" style="font-size:12px;color:var(--txt2);background:var(--bg);border-radius:8px;padding:10px 12px;line-height:1.8"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label class="flabel">วันที่</label><input class="finput" type="date" id="editDate"></div>
+        <div><label class="flabel">ผู้บันทึก</label><input class="finput" type="text" id="editAdjuster" placeholder="ชื่อผู้บันทึก"></div>
+        <div class="ap-ftr" style="grid-column:1/-1;padding:0"><label class="flabel">หมายเหตุ</label><input class="finput" type="text" id="editNote" placeholder="หมายเหตุ"></div>
+      </div>
+      <div>
+        <label class="flabel">Parameters (delta)</label>
+        <div id="editParams" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;margin-top:4px"></div>
+        <button onclick="addEditParam()" style="margin-top:6px;font-size:11px;padding:5px 12px;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0;border-radius:8px;cursor:pointer;font-weight:600">+ เพิ่ม Parameter</button>
+      </div>
+      <div style="display:flex;gap:8px">
+        <input type="checkbox" id="editIsInstall" style="width:15px;height:15px;accent-color:#7c3aed">
+        <label for="editIsInstall" style="font-size:13px;font-weight:600;color:#7c3aed;cursor:pointer">🔄 Install ใหม่ (Bias reset)</label>
+      </div>
+    </div>
+    <div class="ap-ftr" style="justify-content:space-between">
+      <button onclick="deleteRecord()" style="background:#fef2f2;color:#dc2626;border:1.5px solid #fca5a5;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px;font-family:var(--font)">🗑 ลบ</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-cancel" onclick="closeEditModal()">ยกเลิก</button>
+        <button class="btn-approve" id="editSaveBtn" onclick="saveEdit()" style="background:#4f46e5">💾 บันทึก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 const JB_ID  = '69d5c4f4856a6821890d184e';
 const JB_MK  = '$2a$10$oCl17sk5FL69HRjvcyDZPefF/QkDJbfVDS.qpBYNwiFnb2ufVSMdi';
@@ -413,7 +447,7 @@ function calcLatest(evts){
         if(!rec.params[p]) rec.params[p]={bias:delta,date:evt.date,adjuster:evt.adjuster,reviewer:evt.reviewer||'',history:[]};
         rec.params[p].bias=delta; rec.params[p].date=evt.date;
         rec.params[p].adjuster=evt.adjuster; rec.params[p].reviewer=evt.reviewer||'';
-        rec.params[p].history.push({date:evt.date,bias:delta,delta,install:true,adjuster:evt.adjuster,reviewer:evt.reviewer||''});
+        rec.params[p].history.push({date:evt.date,bias:delta,delta,install:true,adjuster:evt.adjuster,_id:evt._id||'',_src:evt._src||''});
       });
     }else{
       Object.entries(evt.params).forEach(([p,delta])=>{
@@ -423,7 +457,7 @@ function calcLatest(evts){
         if(!rec.params[p]) rec.params[p]={bias:state[sk],date:evt.date,adjuster:evt.adjuster,reviewer:evt.reviewer||'',history:[]};
         rec.params[p].bias=state[sk]; rec.params[p].date=evt.date;
         rec.params[p].adjuster=evt.adjuster; rec.params[p].reviewer=evt.reviewer||'';
-        rec.params[p].history.push({date:evt.date,bias:state[sk],delta,install:false,adjuster:evt.adjuster,reviewer:evt.reviewer||''});
+        rec.params[p].history.push({date:evt.date,bias:state[sk],delta,install:false,adjuster:evt.adjuster,_id:evt._id||'',_src:evt._src||''});
       });
     }
   });
@@ -446,22 +480,29 @@ function showHist(key){
   popup.id='histPopup';
   popup.style.cssText=`position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(3px);z-index:300;display:flex;align-items:center;justify-content:center`;
 
-  const rows=hist.map(h=>{
+  // เก็บ _id และ _src ใน history ด้วย
+  const rows=hist.map((h,hi)=>{
     const dStr=h.date.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>`${d}/${m}/${y.slice(2)}`);
     const dVal=h.delta!==null&&h.delta!==undefined?(h.delta>=0?'+':'')+h.delta:'';
     const bStr=(h.bias>=0?'+':'')+h.bias;
     const bCls=h.bias>0?'color:#16a34a':h.bias<0?'color:#dc2626':'color:#94a3b8';
+    const canEdit=h._src==='manual'&&h._id;
+    const editBtn=canEdit
+      ?`<button onclick="openEditModal('${h._id}')" style="font-size:10px;padding:2px 8px;border:1px solid #c7d2fe;border-radius:5px;background:#eef2ff;color:#4f46e5;cursor:pointer;font-weight:600">✏️ แก้ไข</button>`
+      :'';
     if(h.install) return `<tr style="background:#f5f3ff">
       <td style="padding:7px 12px;font-family:monospace;font-size:11px;color:#94a3b8">${dStr}</td>
       <td style="padding:7px 12px;color:#7c3aed;font-weight:700;font-size:11px">🔄 Install</td>
       <td style="padding:7px 12px;font-family:monospace;font-size:12px;font-weight:800;${bCls}">${bStr}</td>
       <td style="padding:7px 12px;font-size:11px;color:#475569">${h.adjuster||'—'}</td>
+      <td style="padding:7px 8px">${editBtn}</td>
     </tr>`;
     return `<tr style="border-bottom:1px solid #e2e8f0">
       <td style="padding:7px 12px;font-family:monospace;font-size:11px;color:#94a3b8">${dStr}</td>
       <td style="padding:7px 12px;font-family:monospace;font-size:11px;${h.delta>0?'color:#16a34a':h.delta<0?'color:#dc2626':'color:#94a3b8'};font-weight:700">${dVal}</td>
       <td style="padding:7px 12px;font-family:monospace;font-size:12px;font-weight:800;${bCls}">${bStr}</td>
       <td style="padding:7px 12px;font-size:11px;color:#475569">${h.adjuster||'—'}</td>
+      <td style="padding:7px 8px">${editBtn}</td>
     </tr>`;
   }).join('');
 
@@ -481,6 +522,7 @@ function showHist(key){
             <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">Delta</th>
             <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">Bias สะสม</th>
             <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">ผู้บันทึก</th>
+            <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left"></th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -845,6 +887,94 @@ async function doApprove(){
 
 document.getElementById('apModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeApprove();});
 document.getElementById('apName').addEventListener('keydown',e=>{if(e.key==='Enter')doApprove();});
+
+// ── Edit Record ───────────────────────────────────────────────────────────────
+let _editId='';
+
+function openEditModal(id){
+  const rec=RAW_MANUAL.find(r=>r._id===id);
+  if(!rec){alert('ไม่พบรายการ (เฉพาะ manual records แก้ไขได้)');return;}
+  _editId=id;
+  document.getElementById('editInfo').innerHTML=
+    `<b>Plant:</b> ${rec.label||rec.plant||'—'} &nbsp;·&nbsp; <b>Product:</b> ${rec.product}`;
+  document.getElementById('editDate').value=rec.date||'';
+  document.getElementById('editAdjuster').value=rec.adjuster||'';
+  document.getElementById('editNote').value=rec.note||'';
+  document.getElementById('editIsInstall').checked=!!rec.is_install;
+  // fill params
+  const wrap=document.getElementById('editParams');
+  wrap.innerHTML='';
+  Object.entries(rec.params||{}).forEach(([p,v])=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center';
+    row.innerHTML=`<select class="finput" style="padding:6px 8px"><option value="">— Parameter —</option>${PARAMS_DEF.map(pp=>`<option value="${pp}"${pp===p?' selected':''}>${pp}</option>`).join('')}</select>
+      <input class="finput" type="number" step="any" value="${v}">
+      <button onclick="this.parentElement.remove()" style="background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:4px 8px;cursor:pointer;font-weight:700">✕</button>`;
+    wrap.appendChild(row);
+  });
+  // ปิด history popup ก่อนเปิด edit modal
+  document.getElementById('histPopup')?.remove();
+  document.getElementById('editModal').classList.add('open');
+}
+
+function addEditParam(){
+  const wrap=document.getElementById('editParams');
+  const row=document.createElement('div');
+  row.style.cssText='display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center';
+  row.innerHTML=`<select class="finput" style="padding:6px 8px"><option value="">— Parameter —</option>${PARAMS_DEF.map(p=>`<option value="${p}">${p}</option>`).join('')}</select>
+    <input class="finput" type="number" step="any" placeholder="delta">
+    <button onclick="this.parentElement.remove()" style="background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:4px 8px;cursor:pointer;font-weight:700">✕</button>`;
+  wrap.appendChild(row);
+}
+
+function closeEditModal(){document.getElementById('editModal').classList.remove('open');}
+
+async function saveEdit(){
+  const date=document.getElementById('editDate').value;
+  if(!date){alert('กรุณาเลือกวันที่');return;}
+  const params={};
+  document.querySelectorAll('#editParams div').forEach(row=>{
+    const s=row.querySelector('select'),inp=row.querySelector('input[type=number]');
+    if(s&&s.value&&inp&&inp.value!=='')params[s.value]=parseFloat(inp.value);
+  });
+  const btn=document.getElementById('editSaveBtn');
+  btn.disabled=true;btn.textContent='⏳ บันทึก...';
+  try{
+    const r=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
+    const j=await r.json();const data=j.record||j;
+    let manual=data.manual_records||[];
+    manual=manual.map(rec=>{
+      if(rec._id!==_editId)return rec;
+      return{...rec,date,month:date.slice(0,7),params,
+        adjuster:document.getElementById('editAdjuster').value.trim(),
+        note:document.getElementById('editNote').value.trim(),
+        is_install:document.getElementById('editIsInstall').checked,
+      };
+    });
+    await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify({...data,manual_records:manual})});
+    RAW_MANUAL=manual.map(r=>norm(r,'manual'));
+    closeEditModal();
+    render();
+    alert('✅ แก้ไขสำเร็จ!');
+  }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
+  btn.disabled=false;btn.textContent='💾 บันทึก';
+}
+
+async function deleteRecord(){
+  if(!confirm('ต้องการลบรายการนี้?'))return;
+  try{
+    const r=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
+    const j=await r.json();const data=j.record||j;
+    const manual=(data.manual_records||[]).filter(rec=>rec._id!==_editId);
+    await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify({...data,manual_records:manual})});
+    RAW_MANUAL=manual.map(r=>norm(r,'manual'));
+    closeEditModal();
+    render();
+    alert('✅ ลบสำเร็จ!');
+  }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
+}
+
+document.getElementById('editModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeEditModal();});
 
 loadData();
 </script>
