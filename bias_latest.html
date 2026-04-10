@@ -84,6 +84,10 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
 .plant-chip.sel{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
 .equip-chip.sel{border-color:var(--purple);background:var(--purple-bg);color:var(--purple)}
 .src-chip.sel{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.label-chip{display:inline-flex;align-items:center;padding:6px 14px;border:1.5px solid var(--border2);border-radius:20px;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;background:#fff;color:var(--txt2);user-select:none;gap:5px}
+.label-chip:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-bg)}
+.label-chip.sel{border-color:var(--purple);background:var(--purple-bg);color:var(--purple)}
+.label-chip.sel::before{content:'✓ ';font-size:11px}
 .fchip{font-size:11px;font-weight:600;padding:4px 12px;border-radius:20px;border:1.5px solid var(--border2);background:#fff;color:var(--txt2);cursor:pointer;transition:all .15s;font-family:var(--font);white-space:nowrap}
 .fchip:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-bg)}
 .fchip.active{border-color:var(--blue);background:var(--blue);color:#fff}
@@ -201,39 +205,21 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
         </div>
       </div>
 
-      <!-- Plant chips -->
+      <!-- Plant / Machine chips — เลือกได้หลายอัน (checkbox) -->
       <div>
-        <label class="flabel">Plant *</label>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
-          <label class="plant-chip"><input type="radio" name="recPlant" value="169" style="display:none" onchange="autoFillEquip()"> 169</label>
-          <label class="plant-chip"><input type="radio" name="recPlant" value="RY" style="display:none" onchange="autoFillEquip()"> RY</label>
-          <label class="plant-chip"><input type="radio" name="recPlant" value="Indo" style="display:none" onchange="autoFillEquip()"> Indo</label>
-          <label class="plant-chip"><input type="radio" name="recPlant" value="MM" style="display:none" onchange="autoFillEquip()"> MM</label>
-          <label class="plant-chip"><input type="radio" name="recPlant" value="POC" style="display:none" onchange="autoFillEquip()"> POC</label>
-          <label class="plant-chip"><input type="radio" name="recPlant" value="WF" style="display:none" onchange="autoFillEquip()"> Wet Food</label>
+        <label class="flabel">Plant / Machine * <span style="font-weight:400;color:var(--txt3)">(ติ๊กได้หลายอัน)</span></label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px" id="recLabelChips">
+          <label class="label-chip"><input type="checkbox" value="169 LAB-DS2500" style="display:none"> 169 LAB</label>
+          <label class="label-chip"><input type="checkbox" value="169 QC-DS2500" style="display:none"> 169 QC-DS2500</label>
+          <label class="label-chip"><input type="checkbox" value="169 QC-DS3" style="display:none"> 169 QC-DS3</label>
+          <label class="label-chip"><input type="checkbox" value="Rayong" style="display:none"> Rayong</label>
+          <label class="label-chip"><input type="checkbox" value="Indo DS2500" style="display:none"> Indo DS2500</label>
+          <label class="label-chip"><input type="checkbox" value="Indo DS3F" style="display:none"> Indo DS3F</label>
+          <label class="label-chip"><input type="checkbox" value="Myanmar" style="display:none"> Myanmar</label>
+          <label class="label-chip"><input type="checkbox" value="Wet Food" style="display:none"> Wet Food</label>
+          <label class="label-chip"><input type="checkbox" value="POC" style="display:none"> POC</label>
         </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div>
-          <label class="flabel">Equipment *</label>
-          <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
-            <label class="equip-chip"><input type="radio" name="recEquip" value="DS2500" style="display:none" onchange="deriveLabel()"> DS2500</label>
-            <label class="equip-chip"><input type="radio" name="recEquip" value="DS3F" style="display:none" onchange="deriveLabel()"> DS3F</label>
-            <label class="equip-chip"><input type="radio" name="recEquip" value="DS3" style="display:none" onchange="deriveLabel()"> DS3</label>
-          </div>
-        </div>
-        <div>
-          <label class="flabel">Source</label>
-          <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
-            <label class="src-chip"><input type="radio" name="recSource" value="LAB" style="display:none" onchange="deriveLabel()"> LAB</label>
-            <label class="src-chip"><input type="radio" name="recSource" value="QC" style="display:none" onchange="deriveLabel()"> QC</label>
-          </div>
-        </div>
-      </div>
-      <div>
-        <label class="flabel">Plant / Machine (Auto)</label>
-        <input class="finput" type="text" id="recLabel" readonly style="background:#f1f5f9;color:#3b82f6;font-weight:700" placeholder="จะ auto-fill">
-        <input type="hidden" id="recLabelVal">
+        <div id="recLabelPreview" style="margin-top:6px;font-size:11px;color:var(--blue);font-weight:600;min-height:16px"></div>
       </div>
 
       <!-- ผู้บันทึก -->
@@ -354,7 +340,7 @@ async function loadData(){
     if(data.generated_at)document.getElementById('lastUpdated').textContent=data.generated_at;
     document.getElementById('loadingOverlay').style.display='none';
     document.getElementById('app').style.display='block';
-    bindRecChips();
+    bindLabelChips();
     render();
   }catch(e){
     document.getElementById('loadingOverlay').innerHTML=`<div style="color:#dc2626;text-align:center;padding:20px"><b>❌ โหลดไม่ได้</b><br><small>${e.message}</small></div>`;
@@ -727,39 +713,36 @@ function setChip(name,val){
     inp.closest('label').classList.toggle('sel',inp.value===val);
   });
 }
-function bindRecChips(){
-  document.querySelectorAll('.plant-chip,.equip-chip,.src-chip').forEach(lbl=>{
+
+// ── Label Chips (multi-select checkbox) ──────────────────────────────────────
+function getSelectedLabels(){
+  return [...document.querySelectorAll('#recLabelChips input:checked')].map(i=>i.value);
+}
+function updateLabelPreview(){
+  const sel=getSelectedLabels();
+  document.getElementById('recLabelPreview').textContent=
+    sel.length ? '✅ เลือก: '+sel.join(' · ') : '';
+}
+function bindLabelChips(){
+  document.querySelectorAll('#recLabelChips .label-chip').forEach(lbl=>{
     lbl.addEventListener('click',()=>{
       const inp=lbl.querySelector('input');
-      document.querySelectorAll(`input[name="${inp.name}"]`).forEach(i=>i.closest('label').classList.remove('sel'));
-      inp.checked=true; lbl.classList.add('sel');
-      if(inp.name==='recPlant') autoFillEquip(); else deriveLabel();
+      inp.checked=!inp.checked;
+      lbl.classList.toggle('sel',inp.checked);
+      updateLabelPreview();
     });
   });
 }
-function deriveLabel(){
-  const plant=chipVal('recPlant'),equip=chipVal('recEquip'),src=chipVal('recSource');
-  let label='';
-  if(plant==='169'&&equip==='DS2500'&&src==='LAB')     label='169 LAB-DS2500';
-  else if(plant==='169'&&equip==='DS2500'&&src==='QC') label='169 QC-DS2500';
-  else if(plant==='169'&&equip==='DS3'&&src==='QC')    label='169 QC-DS3';
-  else if(plant==='WF')  label='Wet Food';
-  else if(plant==='RY')  label='Rayong';
-  else if(plant==='Indo'&&equip==='DS3F') label='Indo DS3F';
-  else if(plant==='Indo') label='Indo DS2500';
-  else if(plant==='MM')  label='Myanmar';
-  else if(plant==='POC') label='POC';
-  document.getElementById('recLabel').value=label||'(เลือก Plant+Equipment+Source)';
-  document.getElementById('recLabelVal').value=label;
+function resetLabelChips(){
+  document.querySelectorAll('#recLabelChips input').forEach(inp=>{
+    inp.checked=false;
+    inp.closest('label').classList.remove('sel');
+  });
+  document.getElementById('recLabelPreview').textContent='';
 }
-function autoFillEquip(){
-  const plant=chipVal('recPlant');
-  if(plant==='RY'){setChip('recEquip','DS3F');setChip('recSource','');}
-  else if(plant==='WF'){setChip('recEquip','DS2500');setChip('recSource','');}
-  else if(plant==='169'){setChip('recEquip','DS2500');}
-  else if(plant==='MM'||plant==='POC'){setChip('recEquip','DS2500');setChip('recSource','');}
-  deriveLabel();
-}
+
+function deriveLabel(){}   // compat stub
+function autoFillEquip(){} // compat stub
 function toggleInstall(){
   const cb=document.getElementById('isInstall'); cb.checked=!cb.checked;
   document.getElementById('installHint').style.display=cb.checked?'':'none';
@@ -778,26 +761,20 @@ function openRecordModal(){
   document.getElementById('recProduct').value='';
   document.getElementById('recAdjuster').value='';
   document.getElementById('recNote').value='';
-  document.getElementById('recLabel').value='';
-  document.getElementById('recLabelVal').value='';
   document.getElementById('isInstall').checked=false;
   document.getElementById('installHint').style.display='none';
-  ['recPlant','recEquip','recSource'].forEach(n=>{
-    document.querySelectorAll(`input[name="${n}"]`).forEach(i=>{i.checked=false;i.closest('label').classList.remove('sel');});
-  });
   document.getElementById('recParams').innerHTML='';
+  resetLabelChips();
   addRecParam();
   document.getElementById('recModal').classList.add('open');
 }
 function closeRecordModal(){document.getElementById('recModal').classList.remove('open');}
 
 async function saveRecord(){
-  const date=document.getElementById('recDate').value;
-  const label=document.getElementById('recLabelVal').value;
-  const product=document.getElementById('recProduct').value;
-  const plant=chipVal('recPlant'),equip=chipVal('recEquip'),src=chipVal('recSource');
-  if(!date||!plant||!product){alert('กรุณาเลือก วันที่, Plant และ Product');return;}
-  if(!label){alert('กรุณาเลือก Equipment+Source ให้ครบ');return;}
+  const date    = document.getElementById('recDate').value;
+  const product = document.getElementById('recProduct').value;
+  const labels  = getSelectedLabels();
+  if(!date||!product||!labels.length){alert('กรุณาเลือก วันที่, Plant และ Product');return;}
   const params={};
   document.querySelectorAll('#recParams div').forEach(row=>{
     const s=row.querySelector('select'),inp=row.querySelector('input[type=number]');
@@ -806,29 +783,32 @@ async function saveRecord(){
   const isInstall=document.getElementById('isInstall').checked;
   if(!Object.keys(params).length&&!isInstall){alert('กรุณากรอกอย่างน้อย 1 Parameter');return;}
   const btn=document.getElementById('recSaveBtn');
-  btn.disabled=true;btn.textContent='⏳ Sync...';
+  btn.disabled=true; btn.textContent=`⏳ บันทึก ${labels.length} Plant...`;
   try{
     const r=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
-    const j=await r.json();const data=j.record||j;
+    const j=await r.json(); const data=j.record||j;
     const manual=data.manual_records||[];
     const now=new Date();
     const ts=`${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-    manual.push({
-      _id:Date.now().toString(),_src:'manual',
-      date,month:date.slice(0,7),product,label,
-      plant,equipment:equip,source:src,
-      params,is_install:isInstall,
-      adjuster:document.getElementById('recAdjuster').value.trim(),
-      note:document.getElementById('recNote').value.trim(),
-      created_at:ts,
+    const adjuster=document.getElementById('recAdjuster').value.trim();
+    const note=document.getElementById('recNote').value.trim();
+    // บันทึกทีละ label ที่เลือก
+    labels.forEach(label=>{
+      const cfg=LMAP[label]||{};
+      manual.push({
+        _id: Date.now().toString()+Math.random().toString(36).slice(2,6),
+        _src:'manual', date, month:date.slice(0,7), product, label,
+        plant:cfg.plant||'', equipment:cfg.equipment||'', source:cfg.source||'',
+        params, is_install:isInstall, adjuster, note, created_at:ts,
+      });
     });
     await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify({...data,manual_records:manual})});
     RAW_MANUAL=manual.map(r=>norm(r,'manual'));
     closeRecordModal();
     render();
-    alert('✅ บันทึกสำเร็จ!');
+    alert(`✅ บันทึกสำเร็จ! ${labels.length} Plant`);
   }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
-  btn.disabled=false;btn.textContent='💾 บันทึก & Sync';
+  btn.disabled=false; btn.textContent='💾 บันทึก & Sync';
 }
 
 document.getElementById('recModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeRecordModal();});
