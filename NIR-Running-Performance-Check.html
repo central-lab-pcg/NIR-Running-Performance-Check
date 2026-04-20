@@ -311,11 +311,14 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
     <div class="card-title"><span class="bar"></span>Raw Data
       <span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <span class="f-label" id="rawCountLabel"></span>
+        <span id="rawSelLabel" style="font-size:11px;color:#3b82f6;font-weight:600;display:none"></span>
+        <button id="rawClearSelBtn" onclick="clearRawSelection()" style="display:none;font-size:11px;padding:3px 10px;border:1.5px solid #93c5fd;background:#eff6ff;color:#3b82f6;border-radius:20px;cursor:pointer;font-weight:600">✕ ล้างที่เลือก</button>
         <button class="btn-export-chart" onclick="exportRawPDF()" title="Export PDF">📄 Export PDF</button>
         <button class="btn btn-export" onclick="exportExcel()">📊 Export Excel</button>
         <button class="btn btn-export" onclick="exportCSV()">⬇ Export CSV</button>
       </span>
     </div>
+    <div style="font-size:11px;color:#94a3b8;padding:0 4px 6px;font-style:italic">💡 คลิกแถวเพื่อเลือก — แถวเฉลี่ยจะคำนวณจากที่เลือกเท่านั้น</div>
     <div class="raw-tbl-wrap" id="rawTableWrap">
       <table class="rtbl" id="rawTable">
         <thead id="rawThead"></thead>
@@ -519,8 +522,8 @@ const WIDE_PARAM_MAP = [
   { par:'NaCl',   wc:'NaCl-WC',       nir:'NaCl-NIR',       diff:'NaCl Diff , WC-NIR5',        u2:'NaCl2SEPeqa',        l2:'NaCl-2SEPeqa3',       u3:'NaCl3SEPeqa2',        l3:'NaCl-3SEPeqa2'        },
   { par:'PD',     wc:'PD-WC',         nir:'PD-NIR',         diff:'PD Diff , WC-NIR6',          u2:'PD2SEP',             l2:'PD-2SEPeqa2',         u3:'PD3SEPeqa',           l3:'PD-3SEPeqa3'          },
   { par:'TVBN',   wc:'TVBN-WC',       nir:'TVBN-NIR',       diff:'TVBN Diff , WC-NIR6',        u2:'TVBN2SEP',           l2:'TVBN-2SEPeqa2',       u3:'TVBN3SEPeqa',         l3:'TVBN-3SEPeqa3'        },
-  { par:'Sand',   wc:'Sand-WC',       nir:'Sand-NIR',       diff:'Sand Diff , WC-NIR37',       u2:'Sand2SEP',           l2:'Sand-2SEPeqa23',      u3:'Sand 3SEPeqa2',       l3:'Sand-3SEPeqa34'       },
-  { par:'Starch', wc:'Starch-WC',     nir:'Starch-NIR',     diff:'Starch Diff , WC-NIR47',     u2:'Starch2SEP',         l2:'Starch-2SEPeqa23',    u3:'Starch3SEPeqa2',      l3:'Starch-3SEPeqa34'     },
+  { par:'Sand',   wc:'Sand-WC5',      nir:'Sand-NIR6',      diff:'Sand Diff , WC-NIR37',       u2:'Sand2SEP',           l2:'Sand-2SEPeqa23',      u3:'Sand 3SEPeqa2',       l3:'Sand-3SEPeqa34'       },
+  { par:'Starch', wc:'Starch-WC5',    nir:'Starch-NIR',     diff:'Starch Diff , WC-NIR47',     u2:'Starch2SEP',         l2:'Starch-2SEPeqa23',    u3:'Starch3SEPeqa2',      l3:'Starch-3SEPeqa34'     },
   { par:'BHT',    wc:'BHT-WC',        nir:'BHT-NIR',        diff:'BHT Diff , WC-NIR6',         u2:'BHT2SEP',            l2:'BHT-2SEPeqa2',        u3:'BHT3SEPeqa',          l3:'BHT-3SEPeqa3'         },
   { par:'pH',     wc:'pH-WC',         nir:'pH-NIR',         diff:'pH Diff , WC-NIR6',          u2:'pH2SEP',             l2:'pH-2SEPeqa2',         u3:'pH3SEPeqa',           l3:'pH-3SEPeqa3'          },
   { par:'Fat-C',  wc:'Fat-C-WC',      nir:'Fat-C-NIR',      diff:'Fat-C Diff , WC-NIR5',       u2:'Fat-C2SEP',          l2:'Fat-C-2SEPeqa3',      u3:'Fat-C 3SEPeqa2',      l3:'Fat-C-3SEPeqa2'       },
@@ -613,13 +616,14 @@ async function loadData() {
     });
 
     RAW = buildLookups(longRecords, PARAMS_DEF);
-    RAW.generated_at = json.generated_at || '';
+    // ใช้ generated_at จาก data2.json ถ้ามี เพราะอัปเดตล่าสุดเสมอ
+    RAW.generated_at = (json2?.generated_at) || json.generated_at || '';
 
     document.getElementById('loadingOverlay').style.display='none';
     document.getElementById('appContent').style.display='block';
     if (RAW.generated_at) {
       document.getElementById('lastUpdated').textContent = 'อัปเดตล่าสุด: ' + RAW.generated_at
-        + (json2 ? '  |  รวม ' + longRecords.length.toLocaleString() + ' records' : '');
+        + '  |  รวม ' + longRecords.length.toLocaleString() + ' records';
     }
     initApp();
   } catch(e) {
@@ -932,6 +936,18 @@ function renderChart(){
 // =====================================================
 let currentView = 'chart';
 let rawSortCol = null, rawSortDir = 1;
+let rawSelectedKeys = new Set();
+
+function toggleRawRow(key){
+  if(rawSelectedKeys.has(key)) rawSelectedKeys.delete(key);
+  else rawSelectedKeys.add(key);
+  renderRawTable();
+}
+
+function clearRawSelection(){
+  rawSelectedKeys.clear();
+  renderRawTable();
+}
 
 function switchView(v) {
   currentView = v;
@@ -1027,6 +1043,15 @@ function renderRawTable() {
   }
 
   document.getElementById('rawCountLabel').textContent = rows.length + ' แถว';
+  // อัปเดต selection UI
+  const nSel = rawSelectedKeys.size;
+  const selLabel = document.getElementById('rawSelLabel');
+  const clearBtn = document.getElementById('rawClearSelBtn');
+  if(selLabel && clearBtn){
+    selLabel.style.display = nSel>0?'':'none';
+    selLabel.textContent = nSel>0?`เลือก ${nSel} แถว`:'';
+    clearBtn.style.display = nSel>0?'':'none';
+  }
 
   const fixCols=[
     {label:'Month', cls:'col-fix col-fix-0'},
@@ -1066,14 +1091,19 @@ function renderRawTable() {
     return 'cell-diff-gray';
   };
 
-  const tbody=rows.map(r=>{
+  const selectedKeys = new Set(rawSelectedKeys);
+  const tbody=rows.map((r,ri)=>{
     const month=RAW.monthLabels[r.mon]||'';
     const pla=RAW.plants[r.pla]||'';
     const prd=RAW.products[r.prd]||'';
-    let c=`<td class="cell-fix cell-fix-0">${month}</td>`;
-    c+=`<td class="cell-fix cell-fix-1">${pla}</td>`;
-    c+=`<td class="cell-fix cell-fix-2">${prd}</td>`;
-    c+=`<td class="cell-fix cell-fix-3">${r.sample||''}</td>`;
+    const rKey=[r.no,r.mon,r.sep,r.prd,r.eqp,r.pla,r.src,r.sample].join('|');
+    const isSel=selectedKeys.has(rKey);
+    r._selected=isSel;
+    const selStyle=isSel?'background:#dbeafe!important;outline:2px solid #3b82f6;outline-offset:-2px':'';
+    let c=`<td class="cell-fix cell-fix-0" style="${isSel?'background:#bfdbfe!important':''}">${month}</td>`;
+    c+=`<td class="cell-fix cell-fix-1" style="${isSel?'background:#bfdbfe!important':''}">${pla}</td>`;
+    c+=`<td class="cell-fix cell-fix-2" style="${isSel?'background:#bfdbfe!important':''}">${prd}</td>`;
+    c+=`<td class="cell-fix cell-fix-3" style="${isSel?'background:#bfdbfe!important':''}">${r.sample||''}</td>`;
     activePars.forEach((p,pi)=>{
       const pd=r.params[p.key];
       const wcv=pd?.wc, nirv=pd?.nir, dv=pd?.diff;
@@ -1083,19 +1113,24 @@ function renderRawTable() {
       const dCls=pd?diffHL(dv,pd):'';
       c+=`<td class="grp-sep">${wcStr}</td><td>${nirStr}</td><td class="${dCls}">${dStr}</td>`;
     });
-    return `<tr>${c}</tr>`;
+    return `<tr style="${selStyle};cursor:pointer" onclick="toggleRawRow('${rKey.replace(/'/g,"\\'")}')">${c}</tr>`;
   }).join('');
   document.getElementById('rawTbody').innerHTML=tbody;
 
-  let foot='<tr>';
-  foot+=`<td class="cell-fix cell-fix-0" style="text-align:left;font-family:var(--font)">Total (${rows.length})</td>`;
-  foot+=`<td class="cell-fix cell-fix-1"></td><td class="cell-fix cell-fix-2"></td><td class="cell-fix cell-fix-3"></td>`;
+  // rows ที่ใช้คำนวณ avg — ถ้ามี row ถูก highlight ให้ใช้เฉพาะนั้น
+  const selectedRows = rows.filter(r => r._selected);
+  const avgRows = selectedRows.length > 0 ? selectedRows : rows;
+  const avgLabel = selectedRows.length > 0 ? `เฉลี่ย ${selectedRows.length} ที่เลือก` : `เฉลี่ย (${rows.length})`;
+
+  let foot=`<tr style="background:#f0f7ff;font-weight:700;border-top:2px solid #93c5fd">`;
+  foot+=`<td class="cell-fix cell-fix-0" style="text-align:left;font-family:var(--font);color:#1d4ed8;font-size:11px">${avgLabel}</td>`;
+  foot+=`<td class="cell-fix cell-fix-1" style="background:#f0f7ff"></td><td class="cell-fix cell-fix-2" style="background:#f0f7ff"></td><td class="cell-fix cell-fix-3" style="background:#f0f7ff"></td>`;
   activePars.forEach((p)=>{
-    const vals=rows.map(r=>r.params[p.key]?.diff).filter(v=>v!=null&&!isNaN(v));
+    const vals=avgRows.map(r=>r.params[p.key]?.diff).filter(v=>v!=null&&!isNaN(v));
     const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
     const aStr=avg!=null?(avg>=0?'+':'')+parseFloat(avg).toFixed(DEC[p.key]??2):'—';
-    const aCls=avg!=null?(avg>0?'cell-pos':'cell-neg'):'';
-    foot+=`<td class="grp-sep"></td><td></td><td class="${aCls}">${aStr}</td>`;
+    const aCls=avg!=null?(avg>0.001?'cell-pos':avg<-0.001?'cell-neg':''):'';
+    foot+=`<td class="grp-sep"></td><td></td><td class="${aCls}" style="font-size:12px;font-weight:800">${aStr}</td>`;
   });
   foot+='</tr>';
   document.getElementById('rawTfoot').innerHTML=foot;
