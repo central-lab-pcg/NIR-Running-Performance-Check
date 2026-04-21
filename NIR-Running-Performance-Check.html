@@ -606,10 +606,18 @@ async function loadData() {
       let allRows = [...json.rows];
       if (json2?.rows) allRows = [...allRows, ...json2.rows];
 
-      // Deduplicate ก่อน wideToLong
+      // Deduplicate ก่อน wideToLong — ใช้ Plant+Equipment ด้วยเพื่อป้องกัน false dup
       const seen = new Set();
       allRows = allRows.filter(r => {
-        const k = [r['No_x002e_']||r['No.']||r['no']||'', r['Month']||r['mon']||'', r['SEP']||r['sep']||'', r['Sample']||r['sample']||'', r['Product']||r['prd']||''].join('|');
+        const k = [
+          r['No_x002e_']||r['No.']||r['no']||'',
+          r['Month']||r['mon']||'',
+          r['SEP']||r['sep']||'',
+          r['Sample']||r['sample']||'',
+          r['Product']||r['prd']||'',
+          r['Plant']||r['pla']||'',
+          r['Equipment']||r['eqp']||'',
+        ].join('|');
         if (seen.has(k)) return false;
         seen.add(k); return true;
       });
@@ -619,10 +627,10 @@ async function loadData() {
       longRecords = [...(json.records||[]), ...(json2?.records||[])];
     }
 
-    // Deduplicate long records
+    // Deduplicate long records — ใช้ sample+prd+par+mon+pla+eqp เพื่อป้องกัน false dup เมื่อ no ว่าง
     const seenRec = new Set();
     longRecords = longRecords.filter(r => {
-      const k = [r.no, r.mon, r.sep, r.sample, r.prd, r.par].join('|');
+      const k = [r.no||'', r.mon, r.sep||'', r.sample||'', r.prd, r.par, r.pla||'', r.eqp||''].join('|');
       if (seenRec.has(k)) return false;
       seenRec.add(k); return true;
     });
