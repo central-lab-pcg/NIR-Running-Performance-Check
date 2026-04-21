@@ -549,13 +549,25 @@ function wideToLong(wideRows) {
     };
     WIDE_PARAM_MAP.forEach(pm => {
       const diff = row[pm.diff];
-      if (diff === undefined || diff === null || diff === '') return; // ไม่มีข้อมูล param นี้ใน row นี้
+      const wc   = row[pm.wc];
+      const nir  = row[pm.nir];
+      // skip ถ้าไม่มีข้อมูลเลย (diff, wc, nir ล้วนว่าง)
+      const hasDiff = diff !== undefined && diff !== null && diff !== '';
+      const hasWC   = wc  !== undefined && wc  !== null && wc  !== '';
+      const hasNIR  = nir !== undefined && nir !== null && nir !== '';
+      if (!hasDiff && !hasWC && !hasNIR) return;
+      // คำนวณ diff จาก WC-NIR ถ้า diff ว่างแต่มี WC และ NIR
+      let diffVal = hasDiff ? (parseFloat(diff) || 0) : null;
+      if (diffVal === null && hasWC && hasNIR) {
+        diffVal = Math.round((parseFloat(wc) - parseFloat(nir)) * 10000) / 10000;
+      }
+      if (diffVal === null) return; // ยังไม่มี diff ให้คำนวณ ข้ามไป
       long.push({
         ...base,
         par:  pm.par,
-        diff: parseFloat(diff) || 0,
-        wc:   row[pm.wc]  != null && row[pm.wc]  !== '' ? parseFloat(row[pm.wc])  : null,
-        nir:  row[pm.nir] != null && row[pm.nir] !== '' ? parseFloat(row[pm.nir]) : null,
+        diff: diffVal,
+        wc:   hasWC  ? parseFloat(wc)  : null,
+        nir:  hasNIR ? parseFloat(nir) : null,
         u2:   row[pm.u2] != null && row[pm.u2] !== '' ? parseFloat(row[pm.u2]) : null,
         l2:   row[pm.l2] != null && row[pm.l2] !== '' ? parseFloat(row[pm.l2]) : null,
         u3:   row[pm.u3] != null && row[pm.u3] !== '' ? parseFloat(row[pm.u3]) : null,
