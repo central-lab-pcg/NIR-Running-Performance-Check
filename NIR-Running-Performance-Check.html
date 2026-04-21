@@ -542,7 +542,7 @@ function wideToLong(wideRows) {
       pla:    row['Plant']     || row['pla']       || '',
       typ:    row['Type']      || row['typ']       || '',
       eqp:    row['Equipment'] || row['eqp']       || '',
-      src:    (()=>{const s=row['Source']||row['src']||'';const valid=['LAB','QC','Portal','Import','Lab','lab','qc'];return valid.some(v=>s.toLowerCase()===v.toLowerCase())?s:'';})()
+      src:    (function(s){return['LAB','QC','Portal','Import'].indexOf(s)>=0?s:'';})(row['Source']||row['src']||''),
       sep:    row['SEP']       || row['sep']       || '',
       prd:    row['Product']   || row['prd']       || '',
       sample: row['Sample']    || row['sample']    || '',
