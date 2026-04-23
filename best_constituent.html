@@ -95,8 +95,7 @@
   <div style="display:flex;align-items:center;gap:10px;">
     <button class="btn-clear" onclick="exportPNG()" id="btn-export-png" style="font-size:11px;padding:6px 14px;display:none;">🖼 Save PNG</button>
     <button class="btn-clear" onclick="exportPDF()" id="btn-export-pdf" style="font-size:11px;padding:6px 14px;display:none;">📄 Save PDF</button>
-    <button class="btn-clear" onclick="copyClipboard()" id="btn-copy-clip" style="font-size:11px;padding:6px 14px;display:none;">📋 Copy</button>
-    <button class="btn-clear" onclick="copyExcel()" id="btn-copy-excel" style="font-size:11px;padding:6px 14px;display:none;">📊 Copy Excel</button>
+    <button class="btn-clear" onclick="copyClipboard()" id="btn-copy-clip" style="font-size:11px;padding:6px 14px;display:none;">📋 Copy Clipboard</button>
     <button class="btn-clear" onclick="openHistory()" style="font-size:11px;padding:6px 14px;position:relative;">
       📋 ประวัติ
       <span id="history-badge" style="display:none;position:absolute;top:-5px;right:-5px;background:#1a6fbf;color:#fff;font-size:9px;border-radius:10px;padding:1px 5px;font-weight:600;"></span>
@@ -383,7 +382,6 @@ function clearAll() {
   document.getElementById("btn-export-png").style.display = "none";
   document.getElementById("btn-export-pdf").style.display = "none";
   document.getElementById("btn-copy-clip").style.display = "none";
-  document.getElementById("btn-copy-excel").style.display = "none";
 }
 
 function filterCards() {
@@ -537,7 +535,6 @@ function analyze() {
     document.getElementById("btn-export-png").style.display = "inline-block";
     document.getElementById("btn-export-pdf").style.display = "inline-block";
     document.getElementById("btn-copy-clip").style.display = "inline-block";
-    document.getElementById("btn-copy-excel").style.display = "inline-block";
   } catch(e) {
     errEl.textContent = "❌ " + (e.message || "ไม่สามารถอ่านข้อมูลได้ — ลองวางข้อมูลทั้งหมดจากไฟล์ .EQA");
   }
@@ -797,53 +794,7 @@ function copyClipboard() {
   });
 }
 
-// ---- Copy Excel (TSV — all raw data, flat, paste into Excel/Sheets) ----
-function copyExcel() {
-  if (!results || !allData) { alert("กรุณาวิเคราะห์ข้อมูลก่อน"); return; }
-  const TAB = "\t";
-  const NL  = "\n";
-  let rows = [];
 
-  // Header row
-  rows.push(["Constit", "Type", "N", "Mean", "SD", "SEC", "RSQ", "SECV", "1-VR", "SECV−SEC", "SELECTED"]);
-
-  // All raw data rows, all constituents, all types
-  Object.entries(allData).forEach(([constit, typeRows]) => {
-    const best = results[constit];
-    const sorted = typeRows.slice().sort((a, b) => a["Type"] - b["Type"]);
-    sorted.forEach(row => {
-      const isBest = best["Type"] === row["Type"];
-      rows.push([
-        constit,
-        row["Type"],
-        row["N"],
-        fmt(row["Mean"]),
-        fmt(row["SD"]),
-        row["SEC"].toFixed(4),
-        row["RSQ"].toFixed(4),
-        row["SECV"].toFixed(4),
-        row["1-VR"].toFixed(4),
-        (row["SECV"] - row["SEC"]).toFixed(4),
-        isBest ? "YES" : "-"
-      ]);
-    });
-  });
-
-  const tsv = rows.map(r => (r || []).join(TAB)).join(NL);
-
-  navigator.clipboard.writeText(tsv).then(() => {
-    const btn = document.getElementById("btn-copy-excel");
-    const orig = btn.textContent;
-    btn.textContent = "✓ Copied!";
-    btn.style.color = "#1a7a45";
-    setTimeout(() => { btn.textContent = orig; btn.style.color = ""; }, 1800);
-  }).catch(() => {
-    const ta = document.createElement("textarea");
-    ta.value = tsv; document.body.appendChild(ta); ta.select();
-    document.execCommand("copy"); document.body.removeChild(ta);
-    alert("คัดลอก Excel format แล้ว!");
-  });
-}
 </script>
 </body>
 </html>
