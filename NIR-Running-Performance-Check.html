@@ -959,21 +959,10 @@ let currentView = 'chart';
 let rawSortCol = null, rawSortDir = 1;
 let rawSelectedRows = new Set();
 
-function toggleRawRow(tr, ri){
+function toggleRawRow(ri){
   const idx=parseInt(ri);
-  if(rawSelectedRows.has(idx)){
-    rawSelectedRows.delete(idx);
-    tr.style.background='';tr.style.outline='';
-  }else{
-    rawSelectedRows.add(idx);
-    tr.style.background='#dbeafe';
-    tr.style.outline='2px solid #3b82f6';
-    tr.style.outlineOffset='-2px';
-  }
-  // re-render footer only
-  const tbody=document.getElementById('rawTbody');
-  const totalRows=tbody.querySelectorAll('tr').length;
-  updateSelLabel(totalRows);
+  if(rawSelectedRows.has(idx)) rawSelectedRows.delete(idx);
+  else rawSelectedRows.add(idx);
   renderRawTable();
 }
 function updateSelLabel(total){
@@ -1128,14 +1117,16 @@ function renderRawTable() {
     return 'cell-diff-gray';
   };
 
-  const tbody=rows.map(r=>{
+  const tbody=rows.map((r,ri)=>{
     const month=RAW.monthLabels[r.mon]||'';
     const pla=RAW.plants[r.pla]||'';
     const prd=RAW.products[r.prd]||'';
-    let c=`<td class="cell-fix cell-fix-0">${month}</td>`;
-    c+=`<td class="cell-fix cell-fix-1">${pla}</td>`;
-    c+=`<td class="cell-fix cell-fix-2">${prd}</td>`;
-    c+=`<td class="cell-fix cell-fix-3">${r.sample||''}</td>`;
+    const isSel=rawSelectedRows.has(ri);
+    const selStyle=isSel?'background:#dbeafe;outline:2px solid #3b82f6;outline-offset:-2px':'';
+    let c=`<td class="cell-fix cell-fix-0" style="${isSel?'background:#bfdbfe':''}">${month}</td>`;
+    c+=`<td class="cell-fix cell-fix-1" style="${isSel?'background:#bfdbfe':''}">${pla}</td>`;
+    c+=`<td class="cell-fix cell-fix-2" style="${isSel?'background:#bfdbfe':''}">${prd}</td>`;
+    c+=`<td class="cell-fix cell-fix-3" style="${isSel?'background:#bfdbfe':''}">${r.sample||''}</td>`;
     activePars.forEach((p,pi)=>{
       const pd=r.params[p.key];
       const wcv=pd?.wc, nirv=pd?.nir, dv=pd?.diff;
@@ -1145,19 +1136,11 @@ function renderRawTable() {
       const dCls=pd?diffHL(dv,pd):'';
       c+=`<td class="grp-sep">${wcStr}</td><td>${nirStr}</td><td class="${dCls}">${dStr}</td>`;
     });
-    return `<tr style="cursor:pointer" onclick="toggleRawRow(this,'${ri}')" data-ri="${ri}">${c}</tr>`;
+    return `<tr style="${selStyle};cursor:pointer" onclick="toggleRawRow(${ri})" data-ri="${ri}">${c}</tr>`;
   }).join('');
   document.getElementById('rawTbody').innerHTML=tbody;
 
-  // อัปเดต highlight ที่เลือก
-  document.querySelectorAll('#rawTbody tr').forEach(tr=>{
-    const ri=parseInt(tr.dataset.ri);
-    if(rawSelectedRows.has(ri)){
-      tr.style.background='#dbeafe';
-      tr.style.outline='2px solid #3b82f6';
-      tr.style.outlineOffset='-2px';
-    }
-  });
+  // ลบ loop ที่ซ้ำ highlight เพราะทำไปแล้วใน map
   updateSelLabel(rows.length);
 
   // Footer avg — ถ้าเลือกแล้วใช้เฉพาะที่เลือก
