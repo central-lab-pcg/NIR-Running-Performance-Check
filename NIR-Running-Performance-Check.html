@@ -311,14 +311,11 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
     <div class="card-title"><span class="bar"></span>Raw Data
       <span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <span class="f-label" id="rawCountLabel"></span>
-        <span id="rawSelLabel" style="font-size:11px;color:#3b82f6;font-weight:600;display:none"></span>
-        <button id="rawClearSelBtn" onclick="clearRawSelection()" style="display:none;font-size:11px;padding:3px 10px;border:1.5px solid #93c5fd;background:#eff6ff;color:#3b82f6;border-radius:20px;cursor:pointer;font-weight:600">✕ ล้างที่เลือก</button>
         <button class="btn-export-chart" onclick="exportRawPDF()" title="Export PDF">📄 Export PDF</button>
         <button class="btn btn-export" onclick="exportExcel()">📊 Export Excel</button>
         <button class="btn btn-export" onclick="exportCSV()">⬇ Export CSV</button>
       </span>
     </div>
-    <div style="font-size:11px;color:#94a3b8;padding:0 4px 6px;font-style:italic">💡 คลิกแถวเพื่อเลือก — แถวเฉลี่ยจะคำนวณจากที่เลือกเท่านั้น</div>
     <div class="raw-tbl-wrap" id="rawTableWrap">
       <table class="rtbl" id="rawTable">
         <thead id="rawThead"></thead>
@@ -529,6 +526,15 @@ const WIDE_PARAM_MAP = [
   { par:'Fat-C',  wc:'Fat-C-WC',      nir:'Fat-C-NIR',      diff:'Fat-C Diff , WC-NIR5',       u2:'Fat-C2SEP',          l2:'Fat-C-2SEPeqa3',      u3:'Fat-C 3SEPeqa2',      l3:'Fat-C-3SEPeqa2'       },
 ];
 
+function srcClean(s) {
+  const sl = (s || '').toLowerCase().trim();
+  if (sl === 'lab') return 'LAB';
+  if (sl === 'qc') return 'QC';
+  if (sl === 'portal') return 'Portal';
+  if (sl === 'import') return 'Import';
+  return '';
+}
+
 function wideToLong(wideRows) {
   // Debug: log column names of first row to console
   if (wideRows.length > 0) {
@@ -542,7 +548,7 @@ function wideToLong(wideRows) {
       pla:    row['Plant']     || row['pla']       || '',
       typ:    row['Type']      || row['typ']       || '',
       eqp:    row['Equipment'] || row['eqp']       || '',
-      src:    (function(s){return['LAB','QC','Portal','Import'].indexOf(s)>=0?s:'';})(row['Source']||row['src']||''),
+      src:    srcClean(row['Source']||row['src']||''),
       sep:    row['SEP']       || row['sep']       || '',
       prd:    row['Product']   || row['prd']       || '',
       sample: row['Sample']    || row['sample']    || '',
@@ -551,17 +557,14 @@ function wideToLong(wideRows) {
       const diff = row[pm.diff];
       const wc   = row[pm.wc];
       const nir  = row[pm.nir];
-      // skip ถ้าไม่มีข้อมูลเลย (diff, wc, nir ล้วนว่าง)
       const hasDiff = diff !== undefined && diff !== null && diff !== '';
-      const hasWC   = wc  !== undefined && wc  !== null && wc  !== '';
-      const hasNIR  = nir !== undefined && nir !== null && nir !== '';
+      const hasWC   = wc   !== undefined && wc   !== null && wc   !== '';
+      const hasNIR  = nir  !== undefined && nir  !== null && nir  !== '';
       if (!hasDiff && !hasWC && !hasNIR) return;
-      // คำนวณ diff จาก WC-NIR ถ้า diff ว่างแต่มี WC และ NIR
       let diffVal = hasDiff ? (parseFloat(diff) || 0) : null;
-      if (diffVal === null && hasWC && hasNIR) {
+      if (diffVal === null && hasWC && hasNIR)
         diffVal = Math.round((parseFloat(wc) - parseFloat(nir)) * 10000) / 10000;
-      }
-      if (diffVal === null) return; // ยังไม่มี diff ให้คำนวณ ข้ามไป
+      if (diffVal === null) return;
       long.push({
         ...base,
         par:  pm.par,
@@ -606,7 +609,7 @@ async function loadData() {
       let allRows = [...json.rows];
       if (json2?.rows) allRows = [...allRows, ...json2.rows];
 
-      // Deduplicate ก่อน wideToLong — ใช้ Plant+Equipment ด้วยเพื่อป้องกัน false dup
+      // Deduplicate ก่อน wideToLong — ใช้ Plant+Equipment ป้องกัน false dup
       const seen = new Set();
       allRows = allRows.filter(r => {
         const k = [
@@ -627,7 +630,7 @@ async function loadData() {
       longRecords = [...(json.records||[]), ...(json2?.records||[])];
     }
 
-    // Deduplicate long records — ใช้ sample+prd+par+mon+pla+eqp เพื่อป้องกัน false dup เมื่อ no ว่าง
+    // Deduplicate long records
     const seenRec = new Set();
     longRecords = longRecords.filter(r => {
       const k = [r.no||'', r.mon, r.sep||'', r.sample||'', r.prd, r.par, r.pla||'', r.eqp||''].join('|');
@@ -636,9 +639,7 @@ async function loadData() {
     });
 
     RAW = buildLookups(longRecords, PARAMS_DEF);
-    // ใช้ generated_at จาก data2.json ถ้ามี เพราะอัปเดตล่าสุดเสมอ
     RAW.generated_at = (json2?.generated_at) || json.generated_at || '';
-
     document.getElementById('loadingOverlay').style.display='none';
     document.getElementById('appContent').style.display='block';
     if (RAW.generated_at) {
@@ -956,17 +957,42 @@ function renderChart(){
 // =====================================================
 let currentView = 'chart';
 let rawSortCol = null, rawSortDir = 1;
-let rawSelectedKeys = new Set();
+let rawSelectedRows = new Set();
 
-function toggleRawRow(key){
-  if(rawSelectedKeys.has(key)) rawSelectedKeys.delete(key);
-  else rawSelectedKeys.add(key);
+function toggleRawRow(tr, ri){
+  const idx=parseInt(ri);
+  if(rawSelectedRows.has(idx)){
+    rawSelectedRows.delete(idx);
+    tr.style.background='';tr.style.outline='';
+  }else{
+    rawSelectedRows.add(idx);
+    tr.style.background='#dbeafe';
+    tr.style.outline='2px solid #3b82f6';
+    tr.style.outlineOffset='-2px';
+  }
+  // re-render footer only
+  const tbody=document.getElementById('rawTbody');
+  const totalRows=tbody.querySelectorAll('tr').length;
+  updateSelLabel(totalRows);
   renderRawTable();
 }
-
-function clearRawSelection(){
-  rawSelectedKeys.clear();
-  renderRawTable();
+function updateSelLabel(total){
+  const n=rawSelectedRows.size;
+  let el=document.getElementById('rawSelLabel');
+  if(!el){
+    el=document.createElement('span');
+    el.id='rawSelLabel';
+    el.style.cssText='font-size:11px;color:#3b82f6;font-weight:600;margin-left:8px';
+    const lbl=document.getElementById('rawCountLabel');
+    if(lbl)lbl.parentNode.insertBefore(el,lbl.nextSibling);
+  }
+  if(n>0){
+    el.textContent=`เลือก ${n} แถว`;
+    el.innerHTML+=` <button onclick="rawSelectedRows.clear();renderRawTable()" style="font-size:10px;padding:1px 8px;border:1px solid #93c5fd;background:#eff6ff;color:#3b82f6;border-radius:10px;cursor:pointer;margin-left:4px">✕ ล้าง</button>`;
+  } else {
+    el.textContent='💡 คลิกแถวเพื่อเลือกคำนวณเฉลี่ย';
+    el.style.color='#94a3b8';el.style.fontWeight='400';
+  }
 }
 
 function switchView(v) {
@@ -1063,15 +1089,6 @@ function renderRawTable() {
   }
 
   document.getElementById('rawCountLabel').textContent = rows.length + ' แถว';
-  // อัปเดต selection UI
-  const nSel = rawSelectedKeys.size;
-  const selLabel = document.getElementById('rawSelLabel');
-  const clearBtn = document.getElementById('rawClearSelBtn');
-  if(selLabel && clearBtn){
-    selLabel.style.display = nSel>0?'':'none';
-    selLabel.textContent = nSel>0?`เลือก ${nSel} แถว`:'';
-    clearBtn.style.display = nSel>0?'':'none';
-  }
 
   const fixCols=[
     {label:'Month', cls:'col-fix col-fix-0'},
@@ -1111,19 +1128,14 @@ function renderRawTable() {
     return 'cell-diff-gray';
   };
 
-  const selectedKeys = new Set(rawSelectedKeys);
-  const tbody=rows.map((r,ri)=>{
+  const tbody=rows.map(r=>{
     const month=RAW.monthLabels[r.mon]||'';
     const pla=RAW.plants[r.pla]||'';
     const prd=RAW.products[r.prd]||'';
-    const rKey=[r.no,r.mon,r.sep,r.prd,r.eqp,r.pla,r.src,r.sample].join('|');
-    const isSel=selectedKeys.has(rKey);
-    r._selected=isSel;
-    const selStyle=isSel?'background:#dbeafe!important;outline:2px solid #3b82f6;outline-offset:-2px':'';
-    let c=`<td class="cell-fix cell-fix-0" style="${isSel?'background:#bfdbfe!important':''}">${month}</td>`;
-    c+=`<td class="cell-fix cell-fix-1" style="${isSel?'background:#bfdbfe!important':''}">${pla}</td>`;
-    c+=`<td class="cell-fix cell-fix-2" style="${isSel?'background:#bfdbfe!important':''}">${prd}</td>`;
-    c+=`<td class="cell-fix cell-fix-3" style="${isSel?'background:#bfdbfe!important':''}">${r.sample||''}</td>`;
+    let c=`<td class="cell-fix cell-fix-0">${month}</td>`;
+    c+=`<td class="cell-fix cell-fix-1">${pla}</td>`;
+    c+=`<td class="cell-fix cell-fix-2">${prd}</td>`;
+    c+=`<td class="cell-fix cell-fix-3">${r.sample||''}</td>`;
     activePars.forEach((p,pi)=>{
       const pd=r.params[p.key];
       const wcv=pd?.wc, nirv=pd?.nir, dv=pd?.diff;
@@ -1133,14 +1145,25 @@ function renderRawTable() {
       const dCls=pd?diffHL(dv,pd):'';
       c+=`<td class="grp-sep">${wcStr}</td><td>${nirStr}</td><td class="${dCls}">${dStr}</td>`;
     });
-    return `<tr style="${selStyle};cursor:pointer" onclick="toggleRawRow('${rKey.replace(/'/g,"\\'")}')">${c}</tr>`;
+    return `<tr style="cursor:pointer" onclick="toggleRawRow(this,'${ri}')" data-ri="${ri}">${c}</tr>`;
   }).join('');
   document.getElementById('rawTbody').innerHTML=tbody;
 
-  // rows ที่ใช้คำนวณ avg — ถ้ามี row ถูก highlight ให้ใช้เฉพาะนั้น
-  const selectedRows = rows.filter(r => r._selected);
-  const avgRows = selectedRows.length > 0 ? selectedRows : rows;
-  const avgLabel = selectedRows.length > 0 ? `เฉลี่ย ${selectedRows.length} ที่เลือก` : `เฉลี่ย (${rows.length})`;
+  // อัปเดต highlight ที่เลือก
+  document.querySelectorAll('#rawTbody tr').forEach(tr=>{
+    const ri=parseInt(tr.dataset.ri);
+    if(rawSelectedRows.has(ri)){
+      tr.style.background='#dbeafe';
+      tr.style.outline='2px solid #3b82f6';
+      tr.style.outlineOffset='-2px';
+    }
+  });
+  updateSelLabel(rows.length);
+
+  // Footer avg — ถ้าเลือกแล้วใช้เฉพาะที่เลือก
+  const selRows=rows.filter((_,i)=>rawSelectedRows.has(i));
+  const avgRows=selRows.length>0?selRows:rows;
+  const avgLabel=selRows.length>0?`เฉลี่ย ${selRows.length} ที่เลือก`:`เฉลี่ย (${rows.length})`;
 
   let foot=`<tr style="background:#f0f7ff;font-weight:700;border-top:2px solid #93c5fd">`;
   foot+=`<td class="cell-fix cell-fix-0" style="text-align:left;font-family:var(--font);color:#1d4ed8;font-size:11px">${avgLabel}</td>`;
