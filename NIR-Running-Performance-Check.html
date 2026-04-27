@@ -526,6 +526,34 @@ const WIDE_PARAM_MAP = [
   { par:'Fat-C',  wc:'Fat-C-WC',      nir:'Fat-C-NIR',      diff:'Fat-C Diff , WC-NIR5',       u2:'Fat-C2SEP',          l2:'Fat-C-2SEPeqa3',      u3:'Fat-C 3SEPeqa2',      l3:'Fat-C-3SEPeqa2'       },
 ];
 
+// Normalize Product names (case-insensitive merge)
+function normProduct(s) {
+  if (!s) return s;
+  const t = s.trim();
+  const tl = t.toLowerCase();
+  // SBM variants
+  if (tl === 'sbm' || tl === 'sbm,' || tl === 'sbm2') return 'SBM';
+  if (tl === 'sbc') return 'SBM, SBC';
+  if (/^sbm[,\s]/.test(tl) && tl.includes('sbc')) return 'SBM, SBC';
+  // SBH variants
+  if (tl === 'sb h' || tl === 'sbh' || tl === 'sb-h') return 'SBH';
+  // CGM variants
+  if (tl === 'cgm') return 'CGM';
+  // FM variants
+  if (tl === 'fm' || tl === 'fm2') return 'FM';
+  return t;
+}
+
+// Normalize SEP names (case-insensitive merge)
+function normSEP(s) {
+  if (!s) return s;
+  const t = s.trim();
+  const tl = t.toLowerCase();
+  if (tl === 'af2' || tl === 'af-2') return 'AF2';
+  if (tl === 'dom2' || tl === 'dom-2') return 'DOM2';
+  return t;
+}
+
 function srcClean(s) {
   const sl = (s || '').toLowerCase().trim();
   if (sl === 'lab') return 'LAB';
@@ -549,8 +577,8 @@ function wideToLong(wideRows) {
       typ:    row['Type']      || row['typ']       || '',
       eqp:    row['Equipment'] || row['eqp']       || '',
       src:    srcClean(row['Source']||row['src']||''),
-      sep:    row['SEP']       || row['sep']       || '',
-      prd:    row['Product']   || row['prd']       || '',
+      sep:    normSEP(row['SEP']       || row['sep']       || ''),
+      prd:    normProduct(row['Product']   || row['prd']       || ''),
       sample: row['Sample']    || row['sample']    || '',
     };
     WIDE_PARAM_MAP.forEach(pm => {
@@ -1075,6 +1103,9 @@ function renderRawTable() {
       if(typeof va==='string') return va.localeCompare(vb)*rawSortDir;
       return ((va??-Infinity)-(vb??-Infinity))*rawSortDir;
     });
+  } else {
+    // default: เรียงตามเดือน (serial number) จากเก่าไปใหม่
+    rows = [...rows].sort((a,b) => parseInt(a.mon||0) - parseInt(b.mon||0));
   }
 
   document.getElementById('rawCountLabel').textContent = rows.length + ' แถว';
