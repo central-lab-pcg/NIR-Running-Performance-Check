@@ -666,6 +666,19 @@ async function loadData() {
       seenRec.add(k); return true;
     });
 
+    // Sort ก่อน buildLookups — เรียงตาม No. เหมือน Excel, row ที่ไม่มี No. ไปท้าย
+    longRecords.sort((a,b) => {
+      const aNo = parseInt(a.no||0), bNo = parseInt(b.no||0);
+      const aHas = !!a.no, bHas = !!b.no;
+      if(aHas && bHas) return aNo - bNo;
+      if(aHas) return -1;  // a มี No. ขึ้นก่อน
+      if(bHas) return 1;   // b มี No. ขึ้นก่อน
+      // ทั้งคู่ไม่มี No. → เรียงตาม month → sample
+      const mDiff = parseInt(a.mon||0) - parseInt(b.mon||0);
+      if(mDiff !== 0) return mDiff;
+      return (a.sample||'').localeCompare(b.sample||'', undefined, {numeric:true});
+    });
+
     RAW = buildLookups(longRecords, PARAMS_DEF);
     RAW.generated_at = (json2?.generated_at) || json.generated_at || '';
     document.getElementById('loadingOverlay').style.display='none';
@@ -1062,7 +1075,17 @@ function buildRawWide() {
     map.get(k).params[pk] = {diff,wc,nir,u2:r[I.U2],l2:r[I.L2],u3:r[I.U3],l3:r[I.L3]};
   });
   const rows = [...map.values()];
-  rows.sort((a,b)=>(a.no+'').localeCompare(b.no+'',undefined,{numeric:true}));
+  // เรียงตาม No. เหมือน Excel, row ที่ไม่มี No. ไปท้าย
+  rows.sort((a,b) => {
+    const aNo = parseInt(a.no||0), bNo = parseInt(b.no||0);
+    const aHas = !!a.no, bHas = !!b.no;
+    if(aHas && bHas) return aNo - bNo;
+    if(aHas) return -1;
+    if(bHas) return 1;
+    const mDiff = (a.mon||0) - (b.mon||0);
+    if(mDiff !== 0) return mDiff;
+    return (a.sample||'').localeCompare(b.sample||'', undefined, {numeric:true});
+  });
   return rows;
 }
 
@@ -1104,8 +1127,8 @@ function renderRawTable() {
       return ((va??-Infinity)-(vb??-Infinity))*rawSortDir;
     });
   } else {
-    // default: เรียงตามเดือน (serial number) จากเก่าไปใหม่
-    rows = [...rows].sort((a,b) => parseInt(a.mon||0) - parseInt(b.mon||0));
+    // ใช้ลำดับจาก RAW.records โดยตรง (sort แล้วตอน load: mon → SEP → Sample)
+    // ไม่ต้อง sort ซ้ำ
   }
 
   document.getElementById('rawCountLabel').textContent = rows.length + ' แถว';
@@ -1116,27 +1139,31 @@ function renderRawTable() {
     {label:'Prod.', cls:'col-fix col-fix-2'},
     {label:'Sample',cls:'col-fix col-fix-3'},
   ];
+
+  const sortIcon=(colIdx)=>{
+    if(colIdx!==rawSortCol) return ' <span style="opacity:.3;font-size:9px">↕</span>';
+    return rawSortDir===1?' <span style="color:#3b82f6;font-size:10px">↑</span>':' <span style="color:#3b82f6;font-size:10px">↓</span>';
+  };
+
   let h1='<tr class="rtbl-row1">';
-  fixCols.forEach((c,i)=>{ h1+=`<th rowspan="2" class="${c.cls}" style="top:0" data-col="${i}" onclick="sortRaw(${i})">${c.label}</th>`; });
-  activePars.forEach((p)=>{
-    h1+=`<th colspan="3" class="grp-header grp-sep" style="background:#c8e0f8;color:#1a3a5c;position:sticky;top:0;z-index:5">${p.label}</th>`;
+  fixCols.forEach((c,i)=>{
+    h1+=`<th rowspan="2" class="${c.cls}" style="top:0;cursor:pointer" data-col="${i}" onclick="sortRaw(${i})">${c.label}${sortIcon(i)}</th>`;
+  });
+  activePars.forEach((p,pi)=>{
+    const diffCol=fixCols.length+pi*3+2;
+    // คลิกที่ชื่อ param = sort ตาม Diff
+    h1+=`<th colspan="3" class="grp-header grp-sep" style="background:#c8e0f8;color:#1a3a5c;position:sticky;top:0;z-index:5;cursor:pointer" onclick="sortRaw(${diffCol})">${p.label}${sortIcon(diffCol)}</th>`;
   });
   h1+='</tr>';
   let h2='<tr class="rtbl-row2">';
   activePars.forEach((p,pi)=>{
     const base=fixCols.length+pi*3;
-    h2+=`<th class="grp-sep" style="top:28px" data-col="${base}" onclick="sortRaw(${base})">WC</th>`;
-    h2+=`<th style="top:28px" data-col="${base+1}" onclick="sortRaw(${base+1})">NIR</th>`;
-    h2+=`<th style="top:28px" data-col="${base+2}" onclick="sortRaw(${base+2})">Diff</th>`;
+    h2+=`<th class="grp-sep" style="top:28px;cursor:pointer" data-col="${base}" onclick="sortRaw(${base})">WC${sortIcon(base)}</th>`;
+    h2+=`<th style="top:28px;cursor:pointer" data-col="${base+1}" onclick="sortRaw(${base+1})">NIR${sortIcon(base+1)}</th>`;
+    h2+=`<th style="top:28px;cursor:pointer" data-col="${base+2}" onclick="sortRaw(${base+2})">Diff${sortIcon(base+2)}</th>`;
   });
   h2+='</tr>';
   document.getElementById('rawThead').innerHTML = h1+h2;
-
-  document.querySelectorAll('#rawThead th[data-col]').forEach(th=>{
-    const c=parseInt(th.dataset.col);
-    th.classList.remove('sort-asc','sort-desc');
-    if(c===rawSortCol) th.classList.add(rawSortDir===1?'sort-asc':'sort-desc');
-  });
 
   const DEC={'ASH':1,'Ca':3,'P':3};
   const fmt=(v,pk)=>v!=null&&!isNaN(v)?parseFloat(v).toFixed(DEC[pk]??2):'—';
@@ -1209,8 +1236,12 @@ function rawSortVal(row,colIdx,activePars){
 }
 
 function sortRaw(col){
-  if(rawSortCol===col) rawSortDir*=-1;
-  else{rawSortCol=col;rawSortDir=1;}
+  if(rawSortCol===col){
+    if(rawSortDir===1) rawSortDir=-1;       // 2nd click: desc
+    else { rawSortCol=null; rawSortDir=1; } // 3rd click: reset default
+  } else {
+    rawSortCol=col; rawSortDir=1;           // 1st click: asc
+  }
   renderRawTable();
 }
 
