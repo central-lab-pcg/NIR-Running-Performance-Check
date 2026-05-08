@@ -149,7 +149,7 @@ table.stbl td.diff-neg{color:var(--red);font-weight:700}
 .raw-tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:72vh;border-radius:var(--r)}
 .raw-tbl-wrap::-webkit-scrollbar{width:5px;height:5px}.raw-tbl-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 table.rtbl{border-collapse:collapse;font-size:11px;font-family:var(--mono);min-width:100%}
-table.rtbl th{background:#ddeeff;color:#1a3a5c;font-weight:700;padding:7px 9px;text-align:center;border:1px solid #b8d4ee;font-size:10px;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;position:sticky;top:0;z-index:5;cursor:pointer;user-select:none}
+table.rtbl th{background:#ddeeff;color:#1a3a5c;font-weight:700;padding:7px 9px;text-align:center;border:1px solid #b8d4ee;font-size:10px;letter-spacing:0.4px;white-space:nowrap;position:sticky;top:0;z-index:5;cursor:pointer;user-select:none}
 table.rtbl th:hover{background:#c8e0f8;color:#1a3a5c}
 table.rtbl th.sort-asc::after{content:' ▲';color:#2d6bb0}
 table.rtbl th.sort-desc::after{content:' ▼';color:#2d6bb0}
@@ -413,7 +413,7 @@ function buildLookups(rawRecords, paramsDef) {
       r.wc != null && r.wc !== '' ? parseFloat(r.wc) : null,
       r.nir != null && r.nir !== '' ? parseFloat(r.nir) : null,
     ];
-  }).filter(r => r !== null && r[0] >= 0 && r[2] >= 0);
+  }).filter(r => r !== null && r[0] >= 0 && r[2] >= 0 && r[4] >= 0);
 
   return { params, paramLabels, months, monthLabels, plants, products, equipments, sources, seps, types, records };
 }
@@ -658,10 +658,14 @@ async function loadData() {
       longRecords = [...(json.records||[]), ...(json2?.records||[])];
     }
 
-    // Deduplicate long records
+    // Deduplicate long records — ใช้ no เป็น primary key ถ้ามี
     const seenRec = new Set();
     longRecords = longRecords.filter(r => {
-      const k = [r.no||'', r.mon, r.sep||'', r.sample||'', r.prd, r.par, r.pla||'', r.eqp||''].join('|');
+      // ถ้า no มีค่า ใช้ no+par เป็น key (แม่นยำ ไม่ false dup)
+      // ถ้า no ว่าง ใช้ mon+sep+sample+prd+par+pla+eqp
+      const k = r.no
+        ? [r.no, r.par].join('|')
+        : [r.mon, r.sep||'', r.sample||'', r.prd, r.par, r.pla||'', r.eqp||''].join('|');
       if (seenRec.has(k)) return false;
       seenRec.add(k); return true;
     });
@@ -1062,10 +1066,21 @@ const RAW_PARAMS_WIDE = [
 
 function buildRawWide() {
   if(!RAW) return [];
-  const keyOf = r => [r[I.NO],r[I.MON],r[I.SEP],r[I.PRD],r[I.EQP],r[I.PLA],r[I.SRC],r[I.TYP],r[I.SMP]].join('|');
+  // ใช้ no (string) โดยตรง — ถ้ามี no แต่ละ row จะ unique แน่นอน
+  // ถ้าไม่มี no ใช้ mon|sep|prd|eqp|pla|src|smp
+  const keyOf = r => {
+    const no = r[I.NO];
+    if(no) return no + '|' + r[I.PAR]; // no unique per Excel row
+    return [r[I.MON],r[I.SEP],r[I.PRD],r[I.EQP],r[I.PLA],r[I.SRC],r[I.SMP]].join('|');
+  };
+  const rowKey = r => {
+    const no = r[I.NO];
+    if(no) return no;
+    return [r[I.MON],r[I.SEP],r[I.PRD],r[I.EQP],r[I.PLA],r[I.SRC],r[I.TYP],r[I.SMP]].join('|');
+  };
   const map = new Map();
   RAW.records.forEach(r => {
-    const k = keyOf(r);
+    const k = rowKey(r);
     if(!map.has(k)) map.set(k, {
       no:r[I.NO],mon:r[I.MON],pla:r[I.PLA],typ:r[I.TYP],
       eqp:r[I.EQP],src:r[I.SRC],sep:r[I.SEP],prd:r[I.PRD],sample:r[I.SMP],params:{}
@@ -1165,14 +1180,21 @@ function renderRawTable() {
   h2+='</tr>';
   document.getElementById('rawThead').innerHTML = h1+h2;
 
-  const DEC={'ASH':1,'Ca':3,'P':3};
-  const fmt=(v,pk)=>v!=null&&!isNaN(v)?parseFloat(v).toFixed(DEC[pk]??2):'—';
+  const DEC={'ASH':1,'Ca':3,'P':3,'NaCl':3,'Aw':3,'pH':2};
+  // Diff แสดง 3 ตำแหน่งทศนิยมเสมอ, WC/NIR ตาม DEC
+  const fmtWC=(v,pk)=>v!=null&&!isNaN(v)?parseFloat(v).toFixed(DEC[pk]??2):'—';
+  const fmtD=(v,pk)=>v!=null&&!isNaN(v)?parseFloat(v).toFixed(3):'—';
   const diffHL=(dv,pd)=>{
-    if(dv==null||isNaN(dv)||!pd) return 'cell-diff-gray';
-    const abs=Math.abs(dv);
-    if(pd.u3!=null&&abs>Math.abs(pd.u3)) return 'cell-warn3';
-    if(pd.u2!=null&&abs>Math.abs(pd.u2)) return 'cell-warn2';
-    return 'cell-diff-gray';
+    if(dv==null||isNaN(dv)||!pd) return '';
+    // u3/l3 = ±3SEP bound, u2/l2 = ±2SEP bound
+    const u3=pd.u3, l3=pd.l3, u2=pd.u2, l2=pd.l2;
+    // เกิน ±3SEP → แดง
+    if(u3!=null && l3!=null && (dv>u3 || dv<l3)) return 'cell-warn3';
+    if(u3!=null && l3==null && Math.abs(dv)>Math.abs(u3)) return 'cell-warn3';
+    // เกิน ±2SEP → เหลือง
+    if(u2!=null && l2!=null && (dv>u2 || dv<l2)) return 'cell-warn2';
+    if(u2!=null && l2==null && Math.abs(dv)>Math.abs(u2)) return 'cell-warn2';
+    return '';
   };
 
   const tbody=rows.map((r,ri)=>{
@@ -1188,9 +1210,9 @@ function renderRawTable() {
     activePars.forEach((p,pi)=>{
       const pd=r.params[p.key];
       const wcv=pd?.wc, nirv=pd?.nir, dv=pd?.diff;
-      const wcStr=pd?fmt(wcv,p.key):'';
-      const nirStr=pd?fmt(nirv,p.key):'';
-      const dStr=pd&&dv!=null?(dv>=0?'+':'')+fmt(dv,p.key):'';
+      const wcStr=pd?fmtWC(wcv,p.key):'';
+      const nirStr=pd?fmtWC(nirv,p.key):'';
+      const dStr=pd&&dv!=null?(dv>=0?'+':'')+fmtD(dv,p.key):'';
       const dCls=pd?diffHL(dv,pd):'';
       c+=`<td class="grp-sep">${wcStr}</td><td>${nirStr}</td><td class="${dCls}">${dStr}</td>`;
     });
@@ -1212,7 +1234,7 @@ function renderRawTable() {
   activePars.forEach((p)=>{
     const vals=avgRows.map(r=>r.params[p.key]?.diff).filter(v=>v!=null&&!isNaN(v));
     const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
-    const aStr=avg!=null?(avg>=0?'+':'')+parseFloat(avg).toFixed(DEC[p.key]??2):'—';
+    const aStr=avg!=null?(avg>=0?'+':'')+parseFloat(avg).toFixed(3):'—';
     const aCls=avg!=null?(avg>0.001?'cell-pos':avg<-0.001?'cell-neg':''):'';
     foot+=`<td class="grp-sep"></td><td></td><td class="${aCls}" style="font-size:12px;font-weight:800">${aStr}</td>`;
   });
