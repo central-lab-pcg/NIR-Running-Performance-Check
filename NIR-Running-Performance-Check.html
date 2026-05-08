@@ -133,6 +133,32 @@ table.stbl td.diff-neg{color:var(--red);font-weight:700}
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+/* ===== Raw Data Param Popup ===== */
+#rawParamPopup{
+  position:fixed;z-index:9999;pointer-events:none;
+  background:#ffffff;border:1px solid #cde0f5;border-radius:14px;
+  box-shadow:0 8px 40px rgba(30,58,95,0.18),0 2px 8px rgba(30,58,95,0.08);
+  padding:0;width:820px;max-width:calc(100vw - 32px);overflow:hidden;
+  opacity:0;transition:opacity .15s;
+}
+#rawParamPopup.visible{opacity:1}
+.rpp-head{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 16px 10px;
+  background:#f3f8fe;border-bottom:1px solid #e0edf9;
+  font-size:13px;font-weight:700;color:#1a3a5c;font-family:var(--font);
+}
+.rpp-icon{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#5b9bd5,#90aee8);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.rpp-head-count{font-size:11px;color:#94a3b8;font-weight:500;font-family:var(--font)}
+#rppChartWrap{padding:10px 14px 6px;background:#fff;position:relative;height:220px}
+#rppChart{display:block;width:100%;height:200px}
+.rpp-stats{display:flex;justify-content:flex-start;gap:28px;padding:8px 16px 10px;border-top:1px solid #f0f6fb;background:#fff}
+.rpp-stat{display:flex;flex-direction:column;gap:2px}
+.rpp-lbl{font-size:10px;color:#8aa6c0;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;font-family:var(--font)}
+.rpp-val{font-size:15px;font-weight:700;font-family:'DM Mono',monospace}
+.rpp-val.pos{color:#e8a030}
+.rpp-val.neg{color:#e85050}
+.rpp-val.neutral{color:#5b9bd5}
 #loadingOverlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:14px}
 .spinner{width:36px;height:36px;border:3px solid var(--blue-light);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -183,6 +209,20 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
 </head>
 <body>
 
+<!-- Raw Data Param Popup -->
+<div id="rawParamPopup">
+  <div class="rpp-head">
+    <div class="rpp-icon">📊</div>
+    <span id="rppTitle">Ca</span>
+    <span class="rpp-head-count" id="rppCount"></span>
+    <span style="margin-left:auto;font-size:11px;color:#94a3b8;font-weight:400;font-family:var(--font)">Diff (WC−NIR)</span>
+  </div>
+  <div id="rppChartWrap"><canvas id="rppChart" width="788" height="200"></canvas></div>
+  <div class="rpp-stats">
+    <div class="rpp-stat"><span class="rpp-lbl">จำนวนตัวอย่าง</span><span class="rpp-val neutral" id="rppN">—</span></div>
+    <div class="rpp-stat"><span class="rpp-lbl">Bias</span><span class="rpp-val" id="rppBias">—</span></div>
+  </div>
+</div>
 <div id="loadingOverlay">
   <div class="spinner"></div>
   <div class="loading-txt">กำลังโหลดข้อมูล...</div>
@@ -1164,10 +1204,39 @@ function renderRawTable() {
   fixCols.forEach((c,i)=>{
     h1+=`<th rowspan="2" class="${c.cls}" style="top:0;cursor:pointer" data-col="${i}" onclick="sortRaw(${i})">${c.label}${sortIcon(i)}</th>`;
   });
+  // Compute per-param stats for popup + store full pts in rppDataStore
+  const paramStats={};
+  activePars.forEach(p=>{
+    const rowsWithParam=rows.filter(r=>r.params[p.key]!==undefined);
+    const validPts=rowsWithParam.filter(r=>r.params[p.key]?.diff!=null&&!isNaN(r.params[p.key].diff));
+    const diffs=validPts.map(r=>r.params[p.key].diff);
+    const n=diffs.length;
+    const bias=n?diffs.reduce((a,b)=>a+b,0)/n:null;
+    paramStats[p.key]={n,bias};
+    const firstPd=rowsWithParam.find(r=>r.params[p.key]?.u2!=null)?.params[p.key];
+    rppDataStore[p.key]={
+      pts: validPts.map(r=>({
+        sample: r.sample||'',
+        month: RAW.monthLabels[r.mon]||'',
+        diff: r.params[p.key].diff,
+        u2: r.params[p.key].u2??null,
+        l2: r.params[p.key].l2??null,
+        u3: r.params[p.key].u3??null,
+        l3: r.params[p.key].l3??null,
+      })),
+    };
+  });
+
   activePars.forEach((p,pi)=>{
     const diffCol=fixCols.length+pi*3+2;
-    // คลิกที่ชื่อ param = sort ตาม Diff
-    h1+=`<th colspan="3" class="grp-header grp-sep" style="background:#c8e0f8;color:#1a3a5c;position:sticky;top:0;z-index:5;cursor:pointer" onclick="sortRaw(${diffCol})">${p.label}${sortIcon(diffCol)}</th>`;
+    const st=paramStats[p.key];
+    const biasStr=st.bias!=null?(st.bias>=0?'+':'')+st.bias.toFixed(3):'—';
+    h1+=`<th colspan="3" class="grp-header grp-sep" style="background:#c8e0f8;color:#1a3a5c;position:sticky;top:0;z-index:5"
+      data-popup-key="${p.key}" data-popup-label="${p.label}" data-popup-n="${st.n}" data-popup-bias="${biasStr}"
+      onmouseenter="showRawPopup(event,this)" onmouseleave="hideRawPopup()">
+      <span style="cursor:pointer" onclick="sortRaw(${diffCol})">${p.label}${sortIcon(diffCol)}</span>
+      <button onclick="viewParamChart('${p.key}')" title="ดูกราฟ ${p.label}" style="margin-left:5px;background:#3b82f6;border:none;color:#fff;border-radius:4px;padding:1px 6px;font-size:10px;cursor:pointer;font-family:var(--font)">📈</button>
+    </th>`;
   });
   h1+='</tr>';
   let h2='<tr class="rtbl-row2">';
@@ -1255,6 +1324,11 @@ function rawSortVal(row,colIdx,activePars){
   if(sub===0) return pd.wc;
   if(sub===1) return pd.nir;
   return pd.diff;
+}
+
+function viewParamChart(paramKey){
+  // ปุ่ม 📈 ใน header ของ Raw Data — แสดง popup chart (hover popup)
+  // popup จะแสดงอยู่แล้วเมื่อ hover; ไม่ต้องทำอะไรเพิ่ม
 }
 
 function sortRaw(col){
@@ -1889,6 +1963,155 @@ async function exportAllChartsPDF() {
   renderChart();
   pdf.save(getExportFilename('NIR_AllCharts_'+productLabel.replace(/\s+/g,'_'))+'.pdf');
 }
+
+// =====================================================
+// RAW DATA PARAM POPUP WITH FULL CHART
+// =====================================================
+const rppDataStore={};  // key -> {pts:[{sample,month,diff}], u2,l2,u3,l3}
+let rppChartInst=null;
+
+function buildRppChart(key){
+  if(rppChartInst){rppChartInst.destroy();rppChartInst=null;}
+  const d=rppDataStore[key];
+  if(!d||!d.pts.length) return;
+
+  // Resize canvas to wrapper
+  const wrap=document.getElementById('rppChartWrap');
+  const canvas=document.getElementById('rppChart');
+  const W=Math.max(300,(wrap?.offsetWidth||788)-24);
+  canvas.width=W; canvas.height=200;
+  canvas.style.width=W+'px'; canvas.style.height='200px';
+
+  const pts=d.pts;
+  const n=pts.length;
+  const diffs=pts.map(p=>p.diff);
+
+  // Per-point SEP arrays (same pattern as main chart)
+  const u2arr=pts.map(p=>p.u2??null);
+  const l2arr=pts.map(p=>p.l2??null);
+  const u3arr=pts.map(p=>p.u3??null);
+  const l3arr=pts.map(p=>p.l3??null);
+
+  // Color per 4 rules (same logic as main renderChart)
+  const RED='#e53535',PURPLE='#7c3aed',YELLOW='#f59e0b',BLUE='#3b6ef5';
+  const beyond3=diffs.map((v,i)=>u3arr[i]!=null&&(v>u3arr[i]||v<(l3arr[i]??-u3arr[i])));
+  const beyond2=diffs.map((v,i)=>u2arr[i]!=null&&(v>u2arr[i]||v<(l2arr[i]??-u2arr[i])));
+  const ruleYellow=new Array(n).fill(false);
+  for(let i=8;i<n;i++){const w9=pts.slice(i-8,i+1);if(w9.every((_,j)=>diffs[i-8+j]>0)||w9.every((_,j)=>diffs[i-8+j]<0)){for(let j=i-8;j<=i;j++)ruleYellow[j]=true;}}
+  const rulePurple=new Array(n).fill(false);
+  for(let i=2;i<n;i++){const w3=[i-2,i-1,i];if(w3.filter(j=>beyond2[j]).length>=2){w3.filter(j=>beyond2[j]).forEach(j=>{rulePurple[j]=true;});}}
+  const colors=diffs.map((_,i)=>{if(beyond3[i])return RED;if(rulePurple[i])return PURPLE;if(ruleYellow[i])return YELLOW;return BLUE;});
+  const radii=colors.map(c=>(c===RED||c===PURPLE||c===YELLOW)?6:4);
+
+  // SEP line datasets per-point (spanGaps:false — same as main chart)
+  const flat=(arr,color,w)=>({data:arr,borderColor:color,borderWidth:w,pointRadius:0,fill:false,order:2,label:'',spanGaps:false,tension:0});
+
+  // Y axis range
+  const allVals=[...diffs,...u2arr,...l2arr,...u3arr,...l3arr].filter(v=>v!=null&&!isNaN(v));
+  const pad=(Math.max(...allVals)-Math.min(...allVals)||1)*0.22;
+  const yMin=Math.min(...allVals)-pad, yMax=Math.max(...allVals)+pad;
+
+  // No value labels on popup chart
+  const valueLabelPlugin={id:'rppValueLabel',afterDatasetsDraw(){}};
+
+  // X-axis labels: show sample name under axis
+  const xLabels=pts.map(p=>p.sample||p.month||'');
+
+  rppChartInst=new Chart(canvas,{
+    type:'line',
+    data:{
+      labels:xLabels,
+      datasets:[
+        {label:'Diff',data:diffs,
+         borderColor:'#3b6ef5',backgroundColor:'rgba(59,110,245,0.05)',
+         pointBackgroundColor:colors,pointBorderColor:colors,
+         pointBorderWidth:0,pointRadius:radii,pointHoverRadius:8,
+         borderWidth:2,tension:0.15,fill:true,order:1},
+        {data:Array(n).fill(0),borderColor:'rgba(192,197,221,0.7)',borderWidth:1,pointRadius:0,fill:false,order:2,label:'',tension:0},
+        flat(u2arr,'#e8930a',2), flat(l2arr,'#e8930a',2),
+        flat(u3arr,'#e53535',2), flat(l3arr,'#e53535',2),
+      ]
+    },
+    options:{
+      responsive:false,
+      animation:{duration:280,easing:'easeInOutQuart'},
+      layout:{padding:{top:20,right:14,bottom:4,left:4}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            title:ctx=>{const i=ctx[0].dataIndex;return pts[i].sample||pts[i].month||'';},
+            label:ctx=>{
+              if(ctx.datasetIndex!==0) return null;
+              const v=ctx.raw, c=colors[ctx.dataIndex];
+              const flag=c===RED?' ⚠ เกิน ±3SEP':c===PURPLE?' ⚡ 2/3 นอก ±2SEP':c===YELLOW?' ◆ 9 จุดฝั่งเดียว':' ✓ ในเกณฑ์';
+              return ['Diff: '+(v>=0?'+':'')+parseFloat(v).toFixed(4)+flag];
+            }
+          },
+          displayColors:false,
+          backgroundColor:'rgba(26,29,46,0.92)',titleColor:'#fff',bodyColor:'#c0c5dd',
+          titleFont:{size:11,weight:'700',family:'DM Sans'},
+          bodyFont:{size:11,family:'DM Mono'},
+          padding:10,cornerRadius:9,borderColor:'rgba(59,110,245,0.2)',borderWidth:1
+        },
+        rppValueLabel:{}
+      },
+      scales:{
+        x:{
+          ticks:{
+            font:{size:8,family:'DM Mono'},color:'#b0b8cc',
+            maxRotation:45,minRotation:30,
+            autoSkip:true,maxTicksLimit:14
+          },
+          grid:{display:false},border:{display:false}
+        },
+        y:{
+          min:yMin,max:yMax,
+          ticks:{font:{size:10,family:'DM Mono'},color:'#9095b5',padding:8},
+          grid:{color:'rgba(192,197,221,0.3)'},
+          border:{display:false,dash:[3,3]}
+        }
+      }
+    },
+    plugins:[valueLabelPlugin]
+  });
+}
+
+function showRawPopup(e,th){
+  const popup=document.getElementById('rawParamPopup');
+  const key=th.dataset.popupKey||'';
+  const label=th.dataset.popupLabel||'';
+  const n=th.dataset.popupN||'—';
+  const bias=th.dataset.popupBias||'—';
+  document.getElementById('rppTitle').textContent=label+' — Diff (WC-NIR)';
+  document.getElementById('rppCount').textContent=n+' รายการ';
+  document.getElementById('rppN').textContent=n;
+  const bEl=document.getElementById('rppBias');
+  bEl.textContent=bias;
+  const bNum=parseFloat(bias);
+  bEl.className='rpp-val '+(isNaN(bNum)?'neutral':bNum>0?'pos':bNum<0?'neg':'neutral');
+  popup.classList.add('visible');
+  positionRawPopup(e);
+  requestAnimationFrame(()=>buildRppChart(key));
+}
+function positionRawPopup(e){
+  const popup=document.getElementById('rawParamPopup');
+  const pw=popup.offsetWidth||820, ph=popup.offsetHeight||280;
+  let x=e.clientX+20, y=e.clientY-ph/2;
+  if(x+pw>window.innerWidth-8) x=e.clientX-pw-12;
+  if(y+ph>window.innerHeight-8) y=window.innerHeight-ph-8;
+  if(y<8) y=8;
+  popup.style.left=x+'px';
+  popup.style.top=y+'px';
+}
+function hideRawPopup(){
+  document.getElementById('rawParamPopup').classList.remove('visible');
+  if(rppChartInst){rppChartInst.destroy();rppChartInst=null;}
+}
+document.addEventListener('mousemove',e=>{
+  const popup=document.getElementById('rawParamPopup');
+  if(popup&&popup.classList.contains('visible')) positionRawPopup(e);
+});
 
 loadData();
 </script>
