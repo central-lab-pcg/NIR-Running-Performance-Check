@@ -157,7 +157,9 @@
     var role  = ud.role  || "";
 
     /* ── Permission Guard ── 
-       ถ้าไม่ได้ login หรือไม่มีสิทธิ์ tool นี้ → redirect กลับ index */
+       ถ้าไม่ได้ login → redirect กลับ index
+       ถ้า login แล้วและมี perms → เช็คสิทธิ์
+       ถ้า login แล้วแต่ perms ว่าง (session เก่า) → allow ผ่าน */
     var toolId = (typeof NIR_TOOL_ID !== "undefined") ? NIR_TOOL_ID : null;
     if (toolId && toolId !== "home") {
       var loggedIn = !!ud.username || !!ud.name;
@@ -165,7 +167,8 @@
         location.replace(BASE + "index.html");
         return;
       }
-      if (role !== "admin" && perms[toolId] !== true) {
+      var hasPermsData = Object.keys(perms).length > 0;
+      if (hasPermsData && role !== "admin" && perms[toolId] !== true) {
         location.replace(BASE + "index.html");
         return;
       }
