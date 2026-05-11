@@ -82,8 +82,7 @@
     ".sb-a.on::before{content:'';position:absolute;left:0;top:8px;bottom:8px;",
     "width:3px;border-radius:0 3px 3px 0;background:#1a5fbf;}",
     ".sb-a.lk{opacity:.28;cursor:not-allowed;pointer-events:none;}",
-    ".sb-a.sub{padding-left:36px;}",
-    "#nir-sb.col .sb-a.sub{padding-left:0;}",
+
     ".sb-ico{flex-shrink:0;width:22px;display:flex;align-items:center;justify-content:center;}",
     ".sb-lbl{overflow:hidden;text-overflow:ellipsis;transition:opacity .15s,width .15s;}",
     "#nir-sb.col .sb-lbl{opacity:0;width:0;}",
@@ -162,8 +161,7 @@
     var itemsHtml = TOOLS.map(function(t, i) {
       var active = isActive(t);
       var ok     = (role === "admin") || (perms[t.id] !== false);
-      var isSub  = (i === 1); // Raw Data is sub-item
-      var cls = "sb-a" + (isSub ? " sub" : "") + (active ? " on" : "") + (!ok ? " lk" : "");
+      var cls = "sb-a" + (active ? " on" : "") + (!ok ? " lk" : "");
       return '<div class="' + cls + '" data-idx="' + i + '" data-tip="' + t.label + '">' +
              '<span class="sb-ico">' + t.icon + '</span>' +
              '<span class="sb-lbl">' + t.label + '</span>' +
