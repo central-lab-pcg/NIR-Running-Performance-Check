@@ -672,6 +672,25 @@ function render(){
   const prdAliases=new Map(); // canonical → Set of original names
   prdNormMap.forEach((canonical,nk)=>{ prdAliases.set(canonical, recPrdMap.get(nk)||new Set([canonical])); });
 
+  // หา type ของแต่ละ product จาก monRecs
+  const prdTypeMap=new Map(); // canonical → type
+  const TYPE_ORDER=['FG','RM','WF','POC'];
+  products.forEach(prd=>{
+    const aliases=[...(prdAliases.get(prd)||new Set([prd]))];
+    const rec=monRecs.find(r=>aliases.includes(r.prd)&&r.typ);
+    prdTypeMap.set(prd, rec?rec.typ:'');
+  });
+
+  // เรียงตาม Type order แล้วค่อย A-Z ภายใน group
+  products.sort((a,b)=>{
+    const ta=TYPE_ORDER.indexOf(prdTypeMap.get(a));
+    const tb=TYPE_ORDER.indexOf(prdTypeMap.get(b));
+    const ia=ta===-1?99:ta;
+    const ib=tb===-1?99:tb;
+    if(ia!==ib)return ia-ib;
+    return a.localeCompare(b);
+  });
+
   const params=[...new Set(monRecs.map(r=>r.par))].filter(Boolean);
   const sortedP=PARAMS_DEF.map(p=>p.key).filter(k=>params.includes(k));
 
@@ -686,7 +705,17 @@ function render(){
 
   let body='';
   const corrSlots=[];
+  const TYPE_COLORS={'FG':'#eaf7ee','RM':'#fff8ec','WF':'#eef3ff','POC':'#f9f0ff'};
+  const TYPE_TEXT={'FG':'#2d7a4a','RM':'#a05e0a','WF':'#3a4ab0','POC':'#7c3aed'};
+  let lastType='';
   products.forEach(prd=>{
+    const prdType=prdTypeMap.get(prd)||'';
+    if(prdType&&prdType!==lastType){
+      lastType=prdType;
+      const bg=TYPE_COLORS[prdType]||'#f0f0f0';
+      const fg=TYPE_TEXT[prdType]||'#555';
+      body+=`<tr><td colspan="${sortedP.length+2}" style="background:${bg};color:${fg};font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:5px 14px;border-top:2px solid ${fg}33;">🏷 ${prdType}</td></tr>`;
+    }
     const aliases=[...(prdAliases.get(prd)||new Set([prd]))];
     body+=`<tr><td class="td-product"><span style="margin-right:5px">${getPrdIcon(prd)}</span>${prd}</td>`;
     sortedP.forEach(pk=>{
