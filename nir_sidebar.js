@@ -1,5 +1,5 @@
 /**
- * NIR Portal — Shared Sidebar Navigation v4
+ * NIR Portal — Shared Sidebar Navigation v5
  */
 (function () {
   var BASE = "https://central-lab-pcg.github.io/NIR-Running-Performance-Check/";
@@ -8,10 +8,13 @@
     { id: "running",
       label: "Running Performance Check",
       url: BASE + "NIR-Running-Performance-Check.html",
+      view: "chart",   // switchView target when already on this page
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' },
     { id: "running",
       label: "Raw Data",
-      url: BASE + "NIR-Running-Performance-Check.html#raw",
+      url: BASE + "NIR-Running-Performance-Check.html",
+      view: "raw",     // switchView target when already on this page
+      hash: "#raw",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>' },
     { id: "summary",
       label: "Summary",
@@ -27,8 +30,7 @@
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' },
   ];
 
-  /* Active detection: compare full href */
-  var pageHref = location.href.split("?")[0]; // strip query, keep hash
+  var pageUrl = (location.origin + location.pathname).replace(/\/+$/, "");
 
   function getUserData() {
     try { return JSON.parse(localStorage.getItem("nir_user") || "{}"); } catch(e) { return {}; }
@@ -43,12 +45,9 @@
     "transition:width .22s cubic-bezier(.4,0,.2,1);",
     "box-shadow:2px 0 12px rgba(0,0,0,0.06);}",
     "#nir-sb.col{width:"+C+"px;}",
-
     "body{margin-left:"+W+"px!important;",
     "transition:margin-left .22s cubic-bezier(.4,0,.2,1)!important;}",
     "body.nir-col{margin-left:"+C+"px!important;}",
-
-    /* Toggle button — fixed, independent of sidebar overflow */
     "#nir-sb-btn{position:fixed;top:15px;left:"+(W-13)+"px;",
     "width:26px;height:26px;border-radius:50%;",
     "background:#fff;border:1px solid #d4d4ce;cursor:pointer;",
@@ -59,8 +58,6 @@
     "#nir-sb-btn svg{transition:transform .22s;}",
     "body.nir-col #nir-sb-btn{left:"+(C-13)+"px;}",
     "body.nir-col #nir-sb-btn svg{transform:rotate(180deg);}",
-
-    /* Brand */
     ".sb-brand{display:flex;align-items:center;gap:10px;padding:0 14px;height:52px;",
     "border-bottom:1px solid #eeeeea;flex-shrink:0;overflow:hidden;white-space:nowrap;}",
     ".sb-logo{width:28px;height:28px;border-radius:7px;flex-shrink:0;",
@@ -68,21 +65,16 @@
     "display:flex;align-items:center;justify-content:center;",
     "font-size:11px;font-weight:700;color:#fff;}",
     ".sb-title{font-size:11px;font-weight:700;color:#1a1a1a;letter-spacing:.09em;",
-    "text-transform:uppercase;white-space:nowrap;",
-    "transition:opacity .15s,transform .15s;transform-origin:left;}",
+    "text-transform:uppercase;white-space:nowrap;transition:opacity .15s,transform .15s;transform-origin:left;}",
     "#nir-sb.col .sb-title{opacity:0;transform:scaleX(0);}",
-
-    /* Nav */
     ".sb-nav{flex:1;padding:8px 0;overflow-y:auto;overflow-x:hidden;}",
     ".sb-nav::-webkit-scrollbar{width:3px;}",
     ".sb-nav::-webkit-scrollbar-thumb{background:#d0d0cc;border-radius:2px;}",
     ".sb-sec{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;",
     "color:#b4b4ac;padding:10px 16px 4px;white-space:nowrap;transition:opacity .15s;}",
     "#nir-sb.col .sb-sec{opacity:0;}",
-
-    /* Items */
     ".sb-a{display:flex;align-items:center;gap:10px;padding:0 14px;height:42px;",
-    "text-decoration:none!important;color:#4a4a4a!important;",
+    "text-decoration:none!important;color:#4a4a4a!important;cursor:pointer;",
     "font-size:12.5px;font-weight:500;white-space:nowrap;",
     "transition:background .12s,color .12s;position:relative;overflow:hidden;}",
     ".sb-a:hover{background:#f4f4f0;color:#111!important;}",
@@ -90,29 +82,20 @@
     ".sb-a.on::before{content:'';position:absolute;left:0;top:8px;bottom:8px;",
     "width:3px;border-radius:0 3px 3px 0;background:#1a5fbf;}",
     ".sb-a.lk{opacity:.28;cursor:not-allowed;pointer-events:none;}",
-
-    /* Sub-item indent for Raw Data */
-    ".sb-a.sub{padding-left:28px;height:36px;font-size:12px;color:#666!important;}",
-    ".sb-a.sub .sb-ico{width:18px;}",
+    ".sb-a.sub{padding-left:36px;height:36px;font-size:12px;}",
     "#nir-sb.col .sb-a.sub{padding-left:0;}",
-
     ".sb-ico{flex-shrink:0;width:22px;display:flex;align-items:center;justify-content:center;}",
     ".sb-lbl{overflow:hidden;text-overflow:ellipsis;transition:opacity .15s,width .15s;}",
     "#nir-sb.col .sb-lbl{opacity:0;width:0;}",
     "#nir-sb.col .sb-a{justify-content:center;padding:0;}",
-
-    /* Tooltip collapsed */
     "#nir-sb.col .sb-a[data-tip]::after{content:attr(data-tip);",
     "position:fixed;left:"+(C+10)+"px;",
     "background:#1a1a1a;color:#fff;font-size:11px;",
     "padding:4px 10px;border-radius:5px;white-space:nowrap;",
     "pointer-events:none;opacity:0;transition:opacity .15s;z-index:9999;}",
     "#nir-sb.col .sb-a:hover[data-tip]::after{opacity:1;}",
-
     ".sb-lock{margin-left:auto;font-size:10px;}",
     "#nir-sb.col .sb-lock{display:none;}",
-
-    /* Footer */
     ".sb-foot{border-top:1px solid #eeeeea;padding:10px 14px;",
     "display:flex;align-items:center;gap:9px;overflow:hidden;white-space:nowrap;flex-shrink:0;}",
     ".sb-av{width:28px;height:28px;border-radius:50%;flex-shrink:0;",
@@ -129,11 +112,38 @@
   st.textContent = css;
   document.head.appendChild(st);
 
-  function isActive(toolUrl) {
-    // Normalize both to compare: strip trailing slash, lowercase
-    var th = toolUrl.toLowerCase();
-    var ph = pageHref.toLowerCase();
-    return ph === th || ph === th + "/" || th === ph + "/";
+  /* Detect which page we're on (filename only) */
+  var pageFile = location.pathname.split("/").pop();
+
+  function isOnSamePage(toolUrl) {
+    var toolFile = toolUrl.split("/").pop().split("?")[0].split("#")[0];
+    return pageFile === toolFile;
+  }
+
+  function isActive(t) {
+    if (!isOnSamePage(t.url)) return false;
+    if (t.view === "raw") return location.hash === "#raw";
+    if (t.view === "chart") return location.hash !== "#raw";
+    return true;
+  }
+
+  function handleClick(t, ok) {
+    if (!ok) return;
+    // If already on the same page, use switchView() directly
+    if (isOnSamePage(t.url) && t.view && typeof switchView === "function") {
+      switchView(t.view);
+      // Update hash without reload
+      history.replaceState(null, "", t.hash || location.pathname);
+      // Update active states
+      document.querySelectorAll(".sb-a").forEach(function(el) {
+        el.classList.remove("on");
+        el.style.removeProperty("font-weight");
+      });
+      return false;
+    }
+    // Otherwise navigate
+    location.href = t.url + (t.hash || "");
+    return false;
   }
 
   function build() {
@@ -146,21 +156,21 @@
     var init  = name.split(" ").map(function(w){return w[0]||"";}).join("").slice(0,2).toUpperCase()||"?";
     var col   = localStorage.getItem("nir_sb_col") === "1";
 
-    var items = TOOLS.map(function(t, i) {
-      var active  = isActive(t.url);
-      var ok      = (role === "admin") || (perms[t.id] !== false);
-      // Raw Data (index 1) is a sub-item
-      var isSub   = (i === 1);
+    var sb = document.createElement("div");
+    sb.id = "nir-sb";
+
+    var itemsHtml = TOOLS.map(function(t, i) {
+      var active = isActive(t);
+      var ok     = (role === "admin") || (perms[t.id] !== false);
+      var isSub  = (i === 1); // Raw Data is sub-item
       var cls = "sb-a" + (isSub ? " sub" : "") + (active ? " on" : "") + (!ok ? " lk" : "");
-      return '<a class="' + cls + '" href="' + (ok ? t.url : "#") + '" data-tip="' + t.label + '">' +
+      return '<div class="' + cls + '" data-idx="' + i + '" data-tip="' + t.label + '">' +
              '<span class="sb-ico">' + t.icon + '</span>' +
              '<span class="sb-lbl">' + t.label + '</span>' +
              (!ok ? '<span class="sb-lock">🔒</span>' : '') +
-             '</a>';
+             '</div>';
     }).join("");
 
-    var sb = document.createElement("div");
-    sb.id = "nir-sb";
     sb.innerHTML =
       '<div class="sb-brand">' +
         '<div class="sb-logo">NIR</div>' +
@@ -168,7 +178,7 @@
       '</div>' +
       '<nav class="sb-nav">' +
         '<div class="sb-sec">เมนู</div>' +
-        items +
+        itemsHtml +
       '</nav>' +
       '<div class="sb-foot">' +
         '<div class="sb-av">' + init + '</div>' +
@@ -192,6 +202,26 @@
       var isCol = sb.classList.toggle("col");
       document.body.classList.toggle("nir-col", isCol);
       localStorage.setItem("nir_sb_col", isCol ? "1" : "0");
+    });
+
+    /* Attach click handlers */
+    sb.querySelectorAll(".sb-a[data-idx]").forEach(function(el) {
+      var idx = parseInt(el.getAttribute("data-idx"), 10);
+      var t   = TOOLS[idx];
+      var ud2 = getUserData();
+      var ok  = (ud2.role === "admin") || ((ud2.perms || {})[t.id] !== false);
+      el.addEventListener("click", function() {
+        if (!ok) return;
+        if (isOnSamePage(t.url) && t.view && typeof switchView === "function") {
+          switchView(t.view);
+          history.replaceState(null, "", t.hash || (location.pathname + location.search));
+          // Refresh active state
+          sb.querySelectorAll(".sb-a").forEach(function(a) { a.classList.remove("on"); });
+          el.classList.add("on");
+        } else {
+          location.href = t.url + (t.hash || "");
+        }
+      });
     });
   }
 
