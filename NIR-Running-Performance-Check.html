@@ -218,6 +218,7 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
 .chip-opt.type-rm.active{background:#a05e0a;border-color:#a05e0a}
 .chip-opt.type-wf.active{background:#3a4ab0;border-color:#3a4ab0}
 .chip-opt.type-poc.active{background:#7c3aed;border-color:#7c3aed}
+.chip-opt.locked-chip{box-shadow:0 0 0 2px rgba(91,155,213,0.3);}
 </style>
 </head>
 <body>
@@ -772,20 +773,37 @@ function buildChips(selectId, chipsId, typeColors) {
   const currentVal = sel.value;
   container.innerHTML = '';
 
-  // All chip
-  const allChip = document.createElement('span');
-  allChip.className = 'chip-opt' + (currentVal === '' ? ' active' : '');
-  allChip.textContent = 'All';
-  allChip.onclick = () => setChip(selectId, chipsId, '', typeColors);
-  container.appendChild(allChip);
+  // Plant locking: if user has restricted plants, only show those
+  const isPlant = (selectId === 'fPlant');
+  const allowedPlants = isPlant ? getAllowedPlants() : null;
+  const isLocked = isPlant && allowedPlants && allowedPlants.length === 1;
+
+  // All chip — hide if plant is locked to single value
+  if (!isLocked) {
+    const allChip = document.createElement('span');
+    allChip.className = 'chip-opt' + (currentVal === '' ? ' active' : '');
+    allChip.textContent = 'All';
+    allChip.onclick = () => setChip(selectId, chipsId, '', typeColors);
+    container.appendChild(allChip);
+  }
 
   // Option chips (skip first "All" option)
   Array.from(sel.options).slice(1).forEach(opt => {
+    // If plant-restricted, skip plants not in allowed list
+    if (isPlant && allowedPlants) {
+      const nameMatch = allowedPlants.some(ap =>
+        opt.text.toLowerCase().includes(ap.toLowerCase()) ||
+        ap.toLowerCase().includes(opt.text.toLowerCase())
+      );
+      if (!nameMatch) return;
+    }
     const chip = document.createElement('span');
     const tc = typeColors && typeColors[opt.text] ? ' type-'+typeColors[opt.text] : '';
-    chip.className = 'chip-opt' + tc + (sel.value === opt.value ? ' active' : '');
+    const isActive = isLocked ? true : (sel.value === opt.value);
+    chip.className = 'chip-opt' + tc + (isActive ? ' active' : '') + (isLocked ? ' locked-chip' : '');
+    chip.style.cssText = isLocked ? 'cursor:default;opacity:1;' : '';
     chip.textContent = opt.text;
-    chip.onclick = () => setChip(selectId, chipsId, opt.value, typeColors);
+    if (!isLocked) chip.onclick = () => setChip(selectId, chipsId, opt.value, typeColors);
     container.appendChild(chip);
   });
 }
@@ -807,6 +825,17 @@ function rebuildAllChips() {
   buildChips('fSource', 'chips-fSource', null);
 }
 
+
+
+// ── Plant Permission Lock ────────────────────────────────────────────────────
+function getAllowedPlants() {
+  try {
+    var u = JSON.parse(localStorage.getItem('nir_user') || '{}');
+    if (u.role === 'admin') return null; // admin sees all
+    return (u.plants && u.plants.length > 0) ? u.plants : null;
+  } catch(e) { return null; }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ── Shared Filter Sync (sessionStorage) ─────────────────────────────────────
 var NIR_FILTER_KEY = 'nir_filters';
@@ -923,7 +952,10 @@ function clearAllFilters(){
   var _ap=null;try{var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');var _p=_u.plants;if(_p&&_p.length>0)_ap=_p;}catch(e){}
   ['fPlant','fType','fProduct','fEquip','fSource','fSep'].forEach(id=>{
     var el=document.getElementById(id);if(!el)return;
-    if(id==='fPlant'&&_ap){if(_ap.length===1){var m=Array.from(el.options).find(o=>o.text===_ap[0]);if(m)el.value=m.value;}}else el.value='';
+    if(id==='fPlant'&&_ap){
+      if(_ap.length===1){var m=Array.from(el.options).find(o=>o.text.toLowerCase().includes(_ap[0].toLowerCase())||_ap[0].toLowerCase().includes(o.text.toLowerCase()));if(m)el.value=m.value;}
+      else el.value='';
+    } else if(id!=='fPlant') el.value='';
   });
   document.getElementById('fDateFrom').value='';
   document.getElementById('fDateTo').value=RAW.months.length-1;

@@ -182,6 +182,7 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
 .chip-opt.type-rm.active{background:#a05e0a;border-color:#a05e0a}
 .chip-opt.type-wf.active{background:#3a4ab0;border-color:#3a4ab0}
 .chip-opt.type-poc.active{background:#7c3aed;border-color:#7c3aed}
+.chip-opt.locked-chip{box-shadow:0 0 0 2px rgba(91,155,213,0.3);}
 </style>
 </head>
 <body>
@@ -354,17 +355,33 @@ function buildChipsS(selectId, chipsId, typeColors) {
   if (!sel || !container) return;
   const curVal = sel.value;
   container.innerHTML = '';
-  const allChip = document.createElement('span');
-  allChip.className = 'chip-opt' + (curVal === '' ? ' active' : '');
-  allChip.textContent = 'All';
-  allChip.onclick = () => setChipS(selectId, chipsId, '', typeColors);
-  container.appendChild(allChip);
+
+  const isPlant = (selectId === 'fPlant');
+  const allowedPlants = isPlant ? getAllowedPlants() : null;
+  const isLocked = isPlant && allowedPlants && allowedPlants.length === 1;
+
+  if (!isLocked) {
+    const allChip = document.createElement('span');
+    allChip.className = 'chip-opt' + (curVal === '' ? ' active' : '');
+    allChip.textContent = 'All';
+    allChip.onclick = () => setChipS(selectId, chipsId, '', typeColors);
+    container.appendChild(allChip);
+  }
   Array.from(sel.options).slice(1).forEach(opt => {
+    if (isPlant && allowedPlants) {
+      const nameMatch = allowedPlants.some(ap =>
+        opt.text.toLowerCase().includes(ap.toLowerCase()) ||
+        ap.toLowerCase().includes(opt.text.toLowerCase())
+      );
+      if (!nameMatch) return;
+    }
     const chip = document.createElement('span');
     const tc = typeColors && typeColors[opt.text] ? ' type-'+typeColors[opt.text] : '';
-    chip.className = 'chip-opt' + tc + (curVal === opt.value ? ' active' : '');
+    const isActive = isLocked ? true : (curVal === opt.value);
+    chip.className = 'chip-opt' + tc + (isActive ? ' active' : '') + (isLocked ? ' locked-chip' : '');
+    chip.style.cssText = isLocked ? 'cursor:default;opacity:1;' : '';
     chip.textContent = opt.text;
-    chip.onclick = () => setChipS(selectId, chipsId, opt.value, typeColors);
+    if (!isLocked) chip.onclick = () => setChipS(selectId, chipsId, opt.value, typeColors);
     container.appendChild(chip);
   });
 }
@@ -382,6 +399,17 @@ function rebuildAllChipsS() {
   buildChipsS('fSource', 'chips-fSource', null);
 }
 
+
+
+// ── Plant Permission Lock ────────────────────────────────────────────────────
+function getAllowedPlants() {
+  try {
+    var u = JSON.parse(localStorage.getItem('nir_user') || '{}');
+    if (u.role === 'admin') return null; // admin sees all
+    return (u.plants && u.plants.length > 0) ? u.plants : null;
+  } catch(e) { return null; }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ── Shared Filter Sync (sessionStorage) ─────────────────────────────────────
 var NIR_FILTER_KEY = 'nir_filters';
@@ -499,6 +527,18 @@ async function loadData(){
     document.getElementById('appContent').style.display='block';
     const fM=document.getElementById('fMonth');
     ms.forEach(m=>fM.appendChild(new Option(serial2label(m),m)));
+    // Auto-lock plant if user has single plant
+    (function(){
+      var ap = getAllowedPlants();
+      if (ap && ap.length === 1) {
+        var sel = document.getElementById('fPlant');
+        var match = sel ? Array.from(sel.options).find(o =>
+          o.text.toLowerCase().includes(ap[0].toLowerCase()) ||
+          ap[0].toLowerCase().includes(o.text.toLowerCase())
+        ) : null;
+        if (match) sel.value = match.value;
+      }
+    })();
     // Restore shared filter state
     restoreFilters(function(restored) {
       if (!restored || !document.getElementById('fMonth').value) {
@@ -852,7 +892,10 @@ function clearFilters(){
   var _ap=null;try{var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');var _p=_u.plants;if(_p&&_p.length>0)_ap=_p;}catch(e){}
   ['fPlant','fType','fEquip','fSource'].forEach(id=>{
     const el=document.getElementById(id);if(!el)return;
-    if(id==='fPlant'&&_ap){if(_ap.length===1)el.value=_ap[0];}else el.value='';
+    if(id==='fPlant'&&_ap){
+      if(_ap.length===1){var m=Array.from(el.options).find(o=>o.text.toLowerCase().includes(_ap[0].toLowerCase())||_ap[0].toLowerCase().includes(o.text.toLowerCase()));if(m)el.value=m.value;}
+      else el.value='';
+    } else if(id!=='fPlant') el.value='';
   });
   refreshFilterOptions(document.getElementById('fMonth').value);
   render();
