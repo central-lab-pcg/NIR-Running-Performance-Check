@@ -155,6 +155,21 @@
     var ud    = getUserData();
     var perms = ud.perms || {};
     var role  = ud.role  || "";
+
+    /* ── Permission Guard ── 
+       ถ้าไม่ได้ login หรือไม่มีสิทธิ์ tool นี้ → redirect กลับ index */
+    var toolId = (typeof NIR_TOOL_ID !== "undefined") ? NIR_TOOL_ID : null;
+    if (toolId && toolId !== "home") {
+      var loggedIn = !!ud.username || !!ud.name;
+      if (!loggedIn) {
+        location.replace(BASE + "index.html");
+        return;
+      }
+      if (role !== "admin" && perms[toolId] !== true) {
+        location.replace(BASE + "index.html");
+        return;
+      }
+    }
     var name  = ud.name  || ud.username || "Guest";
     var init  = name.split(" ").map(function(w){return w[0]||"";}).join("").slice(0,2).toUpperCase()||"?";
     var col   = localStorage.getItem("nir_sb_col") === "1";
