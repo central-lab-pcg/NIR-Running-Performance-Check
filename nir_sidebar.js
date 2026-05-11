@@ -1,50 +1,59 @@
 /**
- * NIR Portal — Shared Sidebar Navigation v3
- * Fixed: toggle button outside sidebar (no overflow:hidden clipping)
+ * NIR Portal — Shared Sidebar Navigation v4
  */
 (function () {
+  var BASE = "https://central-lab-pcg.github.io/NIR-Running-Performance-Check/";
+
   var TOOLS = [
-    { id: "running",     label: "Running Performance Check", url: "NIR-Running-Performance-Check.html",
+    { id: "running",
+      label: "Running Performance Check",
+      url: BASE + "NIR-Running-Performance-Check.html",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' },
-    { id: "running",     label: "Raw Data",                  url: "NIR-Running-Performance-Check.html#raw",
+    { id: "running",
+      label: "Raw Data",
+      url: BASE + "NIR-Running-Performance-Check.html#raw",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>' },
-    { id: "summary",     label: "Summary",                   url: "summary_5.html",
+    { id: "summary",
+      label: "Summary",
+      url: BASE + "summary_5.html",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>' },
-    { id: "bias",        label: "Install & Bias",             url: "bias_latest.html",
+    { id: "bias",
+      label: "Install & Bias",
+      url: BASE + "bias_latest.html",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>' },
-    { id: "constituent", label: "Best Constituent Finder",   url: "best_constituent.html",
+    { id: "constituent",
+      label: "Best Constituent Finder",
+      url: BASE + "best_constituent.html",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' },
   ];
 
-  var currentFile = location.pathname.split("/").pop() + location.hash;
-  var W = 220, C = 52;
+  /* Active detection: compare full href */
+  var pageHref = location.href.split("?")[0]; // strip query, keep hash
 
   function getUserData() {
     try { return JSON.parse(localStorage.getItem("nir_user") || "{}"); } catch(e) { return {}; }
   }
 
-  /* ── CSS ── */
+  var W = 220, C = 52;
+
   var css = [
-    /* Sidebar panel — NO overflow:hidden so toggle button is never clipped */
     "#nir-sb{position:fixed;top:0;left:0;bottom:0;width:"+W+"px;",
     "background:#fff;border-right:1px solid #e4e4e0;",
     "display:flex;flex-direction:column;z-index:9990;",
     "transition:width .22s cubic-bezier(.4,0,.2,1);",
     "box-shadow:2px 0 12px rgba(0,0,0,0.06);}",
-
     "#nir-sb.col{width:"+C+"px;}",
 
-    /* Body offset */
-    "body{margin-left:"+W+"px!important;box-sizing:border-box;",
+    "body{margin-left:"+W+"px!important;",
     "transition:margin-left .22s cubic-bezier(.4,0,.2,1)!important;}",
     "body.nir-col{margin-left:"+C+"px!important;}",
 
-    /* ── Toggle button: independent fixed element, never clipped ── */
+    /* Toggle button — fixed, independent of sidebar overflow */
     "#nir-sb-btn{position:fixed;top:15px;left:"+(W-13)+"px;",
     "width:26px;height:26px;border-radius:50%;",
     "background:#fff;border:1px solid #d4d4ce;cursor:pointer;",
     "display:flex;align-items:center;justify-content:center;",
-    "box-shadow:0 1px 6px rgba(0,0,0,0.14);z-index:9991;",
+    "box-shadow:0 1px 6px rgba(0,0,0,0.14);z-index:9999;",
     "transition:left .22s cubic-bezier(.4,0,.2,1),background .15s;padding:0;}",
     "#nir-sb-btn:hover{background:#f0f0ec;}",
     "#nir-sb-btn svg{transition:transform .22s;}",
@@ -57,7 +66,7 @@
     ".sb-logo{width:28px;height:28px;border-radius:7px;flex-shrink:0;",
     "background:linear-gradient(135deg,#1a4a8a,#3a7bd5);",
     "display:flex;align-items:center;justify-content:center;",
-    "font-size:11px;font-weight:700;color:#fff;letter-spacing:.02em;}",
+    "font-size:11px;font-weight:700;color:#fff;}",
     ".sb-title{font-size:11px;font-weight:700;color:#1a1a1a;letter-spacing:.09em;",
     "text-transform:uppercase;white-space:nowrap;",
     "transition:opacity .15s,transform .15s;transform-origin:left;}",
@@ -68,8 +77,7 @@
     ".sb-nav::-webkit-scrollbar{width:3px;}",
     ".sb-nav::-webkit-scrollbar-thumb{background:#d0d0cc;border-radius:2px;}",
     ".sb-sec{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;",
-    "color:#b4b4ac;padding:10px 16px 4px;white-space:nowrap;",
-    "transition:opacity .15s;}",
+    "color:#b4b4ac;padding:10px 16px 4px;white-space:nowrap;transition:opacity .15s;}",
     "#nir-sb.col .sb-sec{opacity:0;}",
 
     /* Items */
@@ -82,13 +90,18 @@
     ".sb-a.on::before{content:'';position:absolute;left:0;top:8px;bottom:8px;",
     "width:3px;border-radius:0 3px 3px 0;background:#1a5fbf;}",
     ".sb-a.lk{opacity:.28;cursor:not-allowed;pointer-events:none;}",
+
+    /* Sub-item indent for Raw Data */
+    ".sb-a.sub{padding-left:28px;height:36px;font-size:12px;color:#666!important;}",
+    ".sb-a.sub .sb-ico{width:18px;}",
+    "#nir-sb.col .sb-a.sub{padding-left:0;}",
+
     ".sb-ico{flex-shrink:0;width:22px;display:flex;align-items:center;justify-content:center;}",
-    ".sb-lbl{overflow:hidden;text-overflow:ellipsis;",
-    "transition:opacity .15s,width .15s;width:auto;}",
+    ".sb-lbl{overflow:hidden;text-overflow:ellipsis;transition:opacity .15s,width .15s;}",
     "#nir-sb.col .sb-lbl{opacity:0;width:0;}",
     "#nir-sb.col .sb-a{justify-content:center;padding:0;}",
 
-    /* Tooltip on collapsed */
+    /* Tooltip collapsed */
     "#nir-sb.col .sb-a[data-tip]::after{content:attr(data-tip);",
     "position:fixed;left:"+(C+10)+"px;",
     "background:#1a1a1a;color:#fff;font-size:11px;",
@@ -116,7 +129,13 @@
   st.textContent = css;
   document.head.appendChild(st);
 
-  /* ── Build DOM after body ready ── */
+  function isActive(toolUrl) {
+    // Normalize both to compare: strip trailing slash, lowercase
+    var th = toolUrl.toLowerCase();
+    var ph = pageHref.toLowerCase();
+    return ph === th || ph === th + "/" || th === ph + "/";
+  }
+
   function build() {
     if (document.getElementById("nir-sb")) return;
 
@@ -127,31 +146,19 @@
     var init  = name.split(" ").map(function(w){return w[0]||"";}).join("").slice(0,2).toUpperCase()||"?";
     var col   = localStorage.getItem("nir_sb_col") === "1";
 
-    /* items html */
-    var items = TOOLS.map(function(t) {
-      var pageFile = location.pathname.split("/").pop();
-      var pageHash = location.hash; // e.g. "#raw" or ""
-      var toolFile = t.url.split("#")[0];
-      var toolHash = t.url.includes("#") ? "#" + t.url.split("#")[1] : "";
-      var active;
-      if (toolHash) {
-        // hash item: active only if file AND hash both match
-        active = (pageFile === toolFile && pageHash === toolHash);
-      } else {
-        // non-hash item: active if file matches and no conflicting hash
-        active = (pageFile === toolFile && (pageHash === "" || !TOOLS.some(function(x){ return x.url === toolFile + pageHash; })));
-      }
-      var ok     = (role === "admin") || (perms[t.id] !== false);
-      return '<a class="sb-a'+(active?" on":"")+(!ok?" lk":"")+ '"' +
-             ' href="'+(ok?t.url:"#")+'"' +
-             ' data-tip="'+t.label+'">' +
-             '<span class="sb-ico">'+t.icon+'</span>'+
-             '<span class="sb-lbl">'+t.label+'</span>'+
-             (!ok?'<span class="sb-lock">🔒</span>':'')+
+    var items = TOOLS.map(function(t, i) {
+      var active  = isActive(t.url);
+      var ok      = (role === "admin") || (perms[t.id] !== false);
+      // Raw Data (index 1) is a sub-item
+      var isSub   = (i === 1);
+      var cls = "sb-a" + (isSub ? " sub" : "") + (active ? " on" : "") + (!ok ? " lk" : "");
+      return '<a class="' + cls + '" href="' + (ok ? t.url : "#") + '" data-tip="' + t.label + '">' +
+             '<span class="sb-ico">' + t.icon + '</span>' +
+             '<span class="sb-lbl">' + t.label + '</span>' +
+             (!ok ? '<span class="sb-lock">🔒</span>' : '') +
              '</a>';
     }).join("");
 
-    /* Sidebar */
     var sb = document.createElement("div");
     sb.id = "nir-sb";
     sb.innerHTML =
@@ -164,14 +171,13 @@
         items +
       '</nav>' +
       '<div class="sb-foot">' +
-        '<div class="sb-av">'+init+'</div>' +
+        '<div class="sb-av">' + init + '</div>' +
         '<div class="sb-ui">' +
-          '<div class="sb-un">'+name+'</div>' +
-          '<div class="sb-ur">'+(role?role.charAt(0).toUpperCase()+role.slice(1):"—")+'</div>' +
+          '<div class="sb-un">' + name + '</div>' +
+          '<div class="sb-ur">' + (role ? role.charAt(0).toUpperCase() + role.slice(1) : "—") + '</div>' +
         '</div>' +
       '</div>';
 
-    /* Toggle button — separate fixed element, no clipping */
     var btn = document.createElement("button");
     btn.id = "nir-sb-btn";
     btn.title = "Toggle menu";
