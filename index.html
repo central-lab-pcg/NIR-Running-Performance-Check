@@ -615,22 +615,34 @@ window.addEventListener("popstate", function(e) {
   // Not logged in — allow normal back
 });
 // ---- Auto-restore session on page load ----
+// ---- Auto-restore session on page load ----
 (function() {
-  // Only restore if this tab was already active (prevents fresh-open skip)
+  // Clear the tab flag immediately — it will be re-set if session is valid
+  // This prevents back-navigation from tool pages from auto-skipping login
   const tabActive = sessionStorage.getItem("nir_tab_active");
+  sessionStorage.removeItem("nir_tab_active");
+
   const saved = localStorage.getItem("nir_user");
-  if (tabActive && saved) {
-    try {
-      const u = JSON.parse(saved);
-      if (u && u.username && USERS[u.username]) {
-        currentUser = u.username;
-        renderPortal();
-        document.getElementById("login-screen").style.display = "none";
-        document.getElementById("portal-screen").style.display = "block";
-        lockPortalHistory();
+  if (!tabActive || !saved) return;
+  try {
+    const u = JSON.parse(saved);
+    if (!u || !u.username || !USERS[u.username]) return;
+    // Check session not expired (12 hours)
+    if (u.loginTime) {
+      const age = Date.now() - new Date(u.loginTime).getTime();
+      if (age > 12 * 60 * 60 * 1000) {
+        localStorage.removeItem("nir_user");
+        return;
       }
-    } catch(e) {}
-  }
+    }
+    // Restore session and re-set the flag
+    currentUser = u.username;
+    sessionStorage.setItem("nir_tab_active", "1");
+    renderPortal();
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("portal-screen").style.display = "block";
+    lockPortalHistory();
+  } catch(e) {}
 })();
 </script>
 </body>
