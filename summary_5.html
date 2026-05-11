@@ -169,6 +169,19 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
 .conclude-chip.c-fail3{background:#fff0ef;color:#c53030;border-color:#f5c0bc}
 .conclude-chip.c-fail2{background:#f5f0ff;color:#6840c0;border-color:#c8b0ef}
 .conclude-chip.c-rule9{background:#fffbef;color:#b06800;border-color:#f5d888}
+
+/* ── Chip Filter ── */
+.chip-filter-block{margin-bottom:8px;display:flex;flex-direction:column;gap:2px}
+.chip-row{display:flex;align-items:center;flex-wrap:nowrap;gap:6px;padding:3px 0;overflow-x:auto}
+.chip-row::-webkit-scrollbar{height:3px}.chip-row::-webkit-scrollbar-thumb{background:#d0d0cc;border-radius:2px}
+.chip-row-label{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px;min-width:72px;width:72px;flex-shrink:0}
+.chip-opt{font-size:11px;padding:3px 11px;border-radius:20px;border:1.5px solid var(--border2);background:var(--bg2);color:var(--txt2);cursor:pointer;transition:all .12s;white-space:nowrap;font-family:var(--font);font-weight:500;line-height:1.5;flex-shrink:0}
+.chip-opt:hover{border-color:#c8d9fa;color:#5b8ef0;background:#eef3ff}
+.chip-opt.active{background:#5b8ef0;color:#fff;border-color:#5b8ef0;font-weight:700}
+.chip-opt.type-fg.active{background:#2d7a4a;border-color:#2d7a4a}
+.chip-opt.type-rm.active{background:#a05e0a;border-color:#a05e0a}
+.chip-opt.type-wf.active{background:#3a4ab0;border-color:#3a4ab0}
+.chip-opt.type-poc.active{background:#7c3aed;border-color:#7c3aed}
 </style>
 </head>
 <body>
@@ -205,16 +218,22 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
   </div>
 </div>
 
-<div class="filter-bar">
+<!-- Hidden selects for JS logic -->
+<div style="display:none">
+  <select id="fPlant"></select>
+  <select id="fType"></select>
+  <select id="fEquip"></select>
+  <select id="fSource"></select>
+</div>
+<div class="filter-bar" style="align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:8px">
   <div class="f-group"><span class="f-label">เดือน</span><select id="fMonth"></select></div>
-  <div class="f-group"><span class="f-label">Plant</span><select id="fPlant"><option value="">All</option></select></div>
-  <div class="f-group" style="display:none"><span class="f-label">Type</span><select id="fType"><option value="">All</option></select></div>
-  <div class="f-group" style="display:none"><span class="f-label">Equipment</span><select id="fEquip"><option value="">All</option></select></div>
-  <div class="f-group" style="display:none"><span class="f-label">Source</span><select id="fSource"><option value="">All</option></select></div>
-  <div class="f-group" style="justify-content:flex-end">
-    <span class="f-label">&nbsp;</span>
-    <button onclick="clearFilters()" style="font-size:11px;padding:7px 13px;border-radius:var(--r);border:1.5px solid #f5b3ad;background:#fdecea;color:#c0392b;font-weight:600;cursor:pointer;font-family:var(--font);transition:all .15s" onmouseover="this.style.background='#c0392b';this.style.color='#fff'" onmouseout="this.style.background='#fdecea';this.style.color='#c0392b'">✕ Clear</button>
-  </div>
+  <button onclick="clearFilters()" style="font-size:11px;padding:7px 13px;border-radius:var(--r);border:1.5px solid #f5b3ad;background:#fdecea;color:#c0392b;font-weight:600;cursor:pointer;font-family:var(--font);transition:all .15s;margin-left:auto" onmouseover="this.style.background='#c0392b';this.style.color='#fff'" onmouseout="this.style.background='#fdecea';this.style.color='#c0392b'">✕ Clear</button>
+</div>
+<div class="chip-filter-block">
+  <div class="chip-row"><span class="chip-row-label">Plant</span><div id="chips-fPlant" class="chip-row" style="min-width:0;flex:1"></div></div>
+  <div class="chip-row"><span class="chip-row-label">Type</span><div id="chips-fType" class="chip-row" style="min-width:0;flex:1"></div></div>
+  <div class="chip-row"><span class="chip-row-label">Equipment</span><div id="chips-fEquip" class="chip-row" style="min-width:0;flex:1"></div></div>
+  <div class="chip-row"><span class="chip-row-label">Source</span><div id="chips-fSource" class="chip-row" style="min-width:0;flex:1"></div></div>
 </div>
 
 <div class="legend-bar">
@@ -325,6 +344,75 @@ async function cSaveShared(p, m, eqp, src, text, user, extra) {
 }
 
 // ── date ────────────────────────────────────────────────────────────────────
+
+// ── Chip Filter ───────────────────────────────────────────────────────────────
+const TYPE_CHIP_COLORS_S = {'FG':'fg','RM':'rm','WF':'wf','POC':'poc'};
+
+function buildChipsS(selectId, chipsId, typeColors) {
+  const sel = document.getElementById(selectId);
+  const container = document.getElementById(chipsId);
+  if (!sel || !container) return;
+  const curVal = sel.value;
+  container.innerHTML = '';
+  const allChip = document.createElement('span');
+  allChip.className = 'chip-opt' + (curVal === '' ? ' active' : '');
+  allChip.textContent = 'All';
+  allChip.onclick = () => setChipS(selectId, chipsId, '', typeColors);
+  container.appendChild(allChip);
+  Array.from(sel.options).slice(1).forEach(opt => {
+    const chip = document.createElement('span');
+    const tc = typeColors && typeColors[opt.text] ? ' type-'+typeColors[opt.text] : '';
+    chip.className = 'chip-opt' + tc + (curVal === opt.value ? ' active' : '');
+    chip.textContent = opt.text;
+    chip.onclick = () => setChipS(selectId, chipsId, opt.value, typeColors);
+    container.appendChild(chip);
+  });
+}
+
+function setChipS(selectId, chipsId, val, typeColors) {
+  const el = document.getElementById(selectId);
+  el.value = val;
+  el.dispatchEvent(new Event('change'));
+}
+
+function rebuildAllChipsS() {
+  buildChipsS('fPlant',  'chips-fPlant',  null);
+  buildChipsS('fType',   'chips-fType',   TYPE_CHIP_COLORS_S);
+  buildChipsS('fEquip',  'chips-fEquip',  null);
+  buildChipsS('fSource', 'chips-fSource', null);
+}
+
+
+// ── Shared Filter Sync (sessionStorage) ─────────────────────────────────────
+var NIR_FILTER_KEY = 'nir_filters';
+
+function saveFilters() {
+  var state = {};
+  ['fPlant','fType','fEquip','fSource','fMonth','fProduct','fDateFrom','fDateTo'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) state[id] = el.value;
+  });
+  try { sessionStorage.setItem(NIR_FILTER_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+function restoreFilters(onRestored) {
+  try {
+    var raw = sessionStorage.getItem(NIR_FILTER_KEY);
+    if (!raw) { if(onRestored) onRestored(false); return; }
+    var state = JSON.parse(raw);
+    // Restore each select value if the option exists
+    ['fPlant','fType','fEquip','fSource','fMonth','fProduct','fDateFrom','fDateTo'].forEach(function(id) {
+      if (!state[id]) return;
+      var el = document.getElementById(id);
+      if (!el) return;
+      var exists = Array.from(el.options).some(function(o){ return o.value === state[id]; });
+      if (exists) el.value = state[id];
+    });
+    if(onRestored) onRestored(true);
+  } catch(e) { if(onRestored) onRestored(false); }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 function serial2label(s){const d=new Date((parseInt(s)-25569)*86400*1000);return d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'});}
 function serial2info(s){const d=new Date((parseInt(s)-25569)*86400*1000);return{month:d.toLocaleDateString('en-GB',{month:'long'}),year:d.getFullYear()};}
 
@@ -411,12 +499,21 @@ async function loadData(){
     document.getElementById('appContent').style.display='block';
     const fM=document.getElementById('fMonth');
     ms.forEach(m=>fM.appendChild(new Option(serial2label(m),m)));
-    fM.value=ms[ms.length-1]||'';
-    document.getElementById('fMonth').addEventListener('change',render);
+    // Restore shared filter state
+    restoreFilters(function(restored) {
+      if (!restored || !document.getElementById('fMonth').value) {
+        fM.value = ms[ms.length-1] || '';
+      }
+    });
+    if (!document.getElementById('fMonth').value) fM.value = ms[ms.length-1] || '';
+    setTimeout(rebuildAllChipsS, 50);
+    document.getElementById('fMonth').addEventListener('change', function() { saveFilters(); render(); });
     ['fPlant','fType','fEquip','fSource'].forEach(id=>{
       document.getElementById(id).addEventListener('change',()=>{
         const mon=document.getElementById('fMonth').value;
         refreshFilterOptions(mon);
+        rebuildAllChipsS();
+        saveFilters();
         render();
       });
     });
@@ -629,6 +726,7 @@ function refreshFilterOptions(selMon){
   }
 
   refill('fPlant','pla');refill('fType','typ');refill('fEquip','eqp');refill('fSource','src');
+  if(typeof rebuildAllChipsS==='function') rebuildAllChipsS();
 }
 
 function render(){
@@ -749,6 +847,8 @@ function render(){
 
 // ── clear filters ─────────────────────────────────────────────────────────────
 function clearFilters(){
+  try{sessionStorage.removeItem(NIR_FILTER_KEY);}catch(e){}
+  rebuildAllChipsS && rebuildAllChipsS();
   var _ap=null;try{var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');var _p=_u.plants;if(_p&&_p.length>0)_ap=_p;}catch(e){}
   ['fPlant','fType','fEquip','fSource'].forEach(id=>{
     const el=document.getElementById(id);if(!el)return;
