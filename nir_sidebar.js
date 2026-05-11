@@ -164,7 +164,7 @@
 
     var itemsHtml = TOOLS.map(function(t, i) {
       var active = isActive(t);
-      var ok     = (role === "admin") || (perms[t.id] !== false);
+      var ok     = (role === "admin") || (t.id === "home") || (perms[t.id] === true);
       var cls = "sb-a" + (active ? " on" : "") + (!ok ? " lk" : "");
       return '<div class="' + cls + '" data-idx="' + i + '" data-tip="' + t.label + '">' +
              '<span class="sb-ico">' + t.icon + '</span>' +
@@ -211,7 +211,7 @@
       var idx = parseInt(el.getAttribute("data-idx"), 10);
       var t   = TOOLS[idx];
       var ud2 = getUserData();
-      var ok  = (ud2.role === "admin") || ((ud2.perms || {})[t.id] !== false);
+      var ok  = (ud2.role === "admin") || (t.id === "home") || ((ud2.perms || {})[t.id] === true);
       el.addEventListener("click", function() {
         if (!ok) return;
         if (isOnSamePage(t.url) && t.view && typeof switchView === "function") {
