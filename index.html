@@ -497,12 +497,9 @@ function renderPortal() {
   grid.innerHTML = "";
   TOOLS.forEach(t => {
     const hasAccess = u.perms[t.id];
-    const card = document.createElement("a");
-    card.href = hasAccess ? t.url : "#";
-    card.className = "tool-card" + (hasAccess ? "" : " locked");
     const tagClass = hasAccess ? TAG_CLASS[t.tag] : "tag-locked";
     const tagLabel = hasAccess ? t.tagLabel : "ไม่มีสิทธิ์";
-    card.innerHTML = `
+    const inner = `
       <div class="card-icon" style="background:${t.color}; color:${t.iconColor}">${t.icon}</div>
       <div>
         <div class="card-name">${t.name}</div>
@@ -512,6 +509,17 @@ function renderPortal() {
         <span class="card-tag ${tagClass}">${tagLabel}</span>
         <span class="card-arrow">→</span>
       </div>`;
+    let card;
+    if (hasAccess) {
+      card = document.createElement("a");
+      card.href = t.url;
+      card.className = "tool-card";
+    } else {
+      card = document.createElement("div");
+      card.className = "tool-card locked";
+      card.onclick = function(e) { e.preventDefault(); e.stopPropagation(); return false; };
+    }
+    card.innerHTML = inner;
     grid.appendChild(card);
   });
 
