@@ -302,7 +302,16 @@ let USERS = (() => {
   // Add new users that don't exist in saved
   const merged = { ...saved };
   for (const [k, v] of Object.entries(DEFAULT_USERS)) {
-    if (!merged[k]) merged[k] = v;
+    if (!merged[k]) {
+      merged[k] = v;
+    } else {
+      // Ensure perms keys from DEFAULT_USERS exist (fill missing keys only)
+      for (const [permKey, permVal] of Object.entries(v.perms || {})) {
+        if (merged[k].perms[permKey] === undefined) {
+          merged[k].perms[permKey] = permVal;
+        }
+      }
+    }
   }
   return merged;
 })();
@@ -449,6 +458,7 @@ function doLogin() {
       username: u,
       name: USERS[u].name,
       role: USERS[u].role,
+      perms: USERS[u].perms || {},
       plants: USERS[u].plants || [],
       loginTime: new Date().toISOString()
     });
