@@ -2262,6 +2262,170 @@ document.addEventListener('mousemove',e=>{
 });
 
 loadData();
+// ── Bias Adjust Log — reads from JSONBin (shared with Summary) ───────────────
+const JSONBIN_ID_RAW   = '69d5c4f4856a6821890d184e';
+const JSONBIN_MASTER_RAW = '$2a$10$oCl17sk5FL69HRjvcyDZPefF/QkDJbfVDS.qpBYNwiFnb2ufVSMdi';
+let _adjCache = null;
+
+async function loadAdjEntries(){
+  if(_adjCache !== null) return _adjCache;
+  try{
+    var res=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID_RAW+'/latest',{
+      cache:'no-store',
+      headers:{'X-Master-Key':JSONBIN_MASTER_RAW,'X-Bin-Meta':'false'}
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    var json=await res.json();
+    var corrections=json.record?.corrections||json.corrections||{};
+    // Flatten all corrections that have samples into an array
+    var entries=[];
+    Object.keys(corrections).forEach(function(key){
+      var rec=corrections[key];
+      if(!rec||!rec.samples||!rec.samples.length) return;
+      // key = prd::mon::eqp::src
+      var parts=key.split('::');
+      var product=parts[0]||'';
+      var mon=parts[1]||'';
+      var adjList=rec.adjEntries||[];
+      adjList.forEach(function(adj){
+        entries.push({
+          product:product,
+          mon:mon,
+          par:adj.par,
+          val:adj.val,
+          avgBias:rec.avgBias||adj.val,
+          samples:rec.samples,
+          savedAt:rec.savedAt||'',
+          user:rec.user||''
+        });
+      });
+      // fallback: if no adjEntries, use biasAdj strings
+      if(!adjList.length && rec.biasAdj && rec.biasAdj.length){
+        rec.biasAdj.forEach(function(bStr){
+          // parse "Adjust Bias FIB +1.040"
+          var m=(typeof bStr==='string')?bStr.match(/Adjust Bias (\S+) ([+\-][\d.]+)/):null;
+          if(m){
+            entries.push({
+              product:product,mon:mon,
+              par:m[1],val:parseFloat(m[2]),avgBias:rec.avgBias||parseFloat(m[2]),
+              samples:rec.samples,savedAt:rec.savedAt||'',user:rec.user||''
+            });
+          }
+        });
+      }
+    });
+    _adjCache=entries;
+  }catch(e){
+    console.warn('loadAdjEntries error:',e);
+    _adjCache=[];
+  }
+  return _adjCache;
+}
+
+// ── Brace rendering in Raw Table ──────────────────────────────────────────────
+async function renderBraces(rows, activePars){
+  var entries=await loadAdjEntries();
+  if(!entries||!entries.length) return;
+
+  var tbody=document.getElementById('rawTbody');
+  if(!tbody) return;
+  var allTrs=tbody.querySelectorAll('tr');
+  if(!allTrs.length) return;
+
+  entries.forEach(function(entry){
+    // Find rows matching this entry's samples
+    var matchedIdxs=[];
+    rows.forEach(function(row,ri){
+      if(entry.samples.indexOf(row.sample)!==-1) matchedIdxs.push(ri);
+    });
+    if(!matchedIdxs.length) return;
+
+    // Find parameter column
+    var parIdx=activePars.findIndex(function(p){return p.key===entry.par;});
+    if(parIdx===-1) return;
+    var diffColOffset=parIdx*3+2; // WC, NIR, Diff → Diff is index 2
+
+    var firstRi=matchedIdxs[0];
+    var lastRi=matchedIdxs[matchedIdxs.length-1];
+
+    matchedIdxs.forEach(function(ri,ii){
+      var tr=allTrs[ri];if(!tr)return;
+      // 4 fixed cols + parIdx*3 cols + 2 (Diff)
+      var tds=tr.querySelectorAll('td');
+      var diffTd=tds[4+diffColOffset];
+      if(!diffTd) return;
+
+      var isFirst=ii===0;
+      var isLast=ii===matchedIdxs.length-1;
+      var isOnly=matchedIdxs.length===1;
+
+      // Wrap diff cell content with brace indicator
+      diffTd.style.position='relative';
+      diffTd.style.overflow='visible';
+
+      // Create brace element
+      var brace=document.createElement('div');
+      brace.style.cssText='position:absolute;right:-14px;top:0;bottom:0;width:12px;pointer-events:none;z-index:9';
+
+      // SVG brace line
+      var svgNS='http://www.w3.org/2000/svg';
+      var svg=document.createElementNS(svgNS,'svg');
+      var h=diffTd.offsetHeight||22;
+      svg.setAttribute('viewBox','0 0 12 '+h);
+      svg.setAttribute('width','12');
+      svg.setAttribute('height',h);
+      svg.style.cssText='display:block;overflow:visible';
+
+      var path=document.createElementNS(svgNS,'path');
+      var d='';
+      if(isOnly){
+        d='M10,'+Math.round(h/2)+' L4,'+Math.round(h/2);
+      } else if(isFirst){
+        d='M4,'+h+' L4,'+Math.round(h/2)+' M10,'+Math.round(h/2)+' L4,'+Math.round(h/2);
+      } else if(isLast){
+        d='M4,0 L4,'+Math.round(h/2)+' L10,'+Math.round(h/2);
+      } else {
+        d='M4,0 L4,'+h;
+      }
+      path.setAttribute('d',d);
+      path.setAttribute('stroke','#7c3aed');
+      path.setAttribute('stroke-width','2');
+      path.setAttribute('fill','none');
+      path.setAttribute('stroke-linecap','round');
+      svg.appendChild(path);
+      brace.appendChild(svg);
+
+      // Label on middle row (or first if only 1)
+      var midIdx=Math.floor(matchedIdxs.length/2);
+      if(ii===midIdx){
+        var lbl=document.createElement('div');
+        lbl.style.cssText='position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:9px;font-weight:700;color:#7c3aed;white-space:nowrap;background:#faf5ff;border:1px solid #ede9fe;border-radius:4px;padding:2px 6px;z-index:10;line-height:1.5;box-shadow:0 1px 4px rgba(124,58,237,.15)';
+        var biasStr=(entry.avgBias>=0?'+':'')+parseFloat(entry.avgBias).toFixed(3);
+        lbl.innerHTML='<b>'+entry.par+'</b> Bias '+biasStr+'<br>'
+          +'<span style="font-weight:400;color:#9333ea">'+entry.savedAt+'</span>';
+        brace.appendChild(lbl);
+      }
+
+      diffTd.appendChild(brace);
+    });
+  });
+}
+
+
+function saveAdjBias(){
+  if(!selectedPoints.size || !currentParam){
+    alert('กรุณาเลือกจุดในกราฟก่อน');return;
+  }
+  var bEl=document.getElementById('selBias');
+  var avgBias=parseFloat((bEl?bEl.textContent:'').replace('Bias:','').trim())||0;
+  var samples=[...selectedPoints].map(function(i){
+    return currentPts[i]?currentPts[i][I.SMP]||currentPts[i][I.NO]||'':'';
+  }).filter(Boolean);
+  var prdIdx=currentPts[[...selectedPoints][0]][I.PRD];
+  var product=RAW.products[prdIdx]||'';
+  alert('บันทึก Adjust Bias สำเร็จ\n'+product+' / '+currentParam+'\nBias: '+(avgBias>=0?'+':'')+avgBias.toFixed(3)+'\n'+samples.length+' samples');
+}
+
 </script>
 <script>
 window.addEventListener('load',function(){
@@ -2275,132 +2439,6 @@ window.addEventListener('load',function(){
   }catch(e){}
 });
 </script>
-<script src="nir_sidebar.js">
-// ── Bias Adjust Log ──────────────────────────────────────────────────────────
-var NIR_ADJ_KEY = 'nir_bias_adj';
-
-function loadAdjLog(){
-  try{ return JSON.parse(localStorage.getItem(NIR_ADJ_KEY)||'[]'); }catch(e){return [];}
-}
-function saveAdjLog(log){
-  try{ localStorage.setItem(NIR_ADJ_KEY, JSON.stringify(log)); }catch(e){}
-}
-
-function saveAdjBias(){
-  if(!selectedPoints.size || !currentParam){alert('กรุณาเลือกจุดก่อน');return;}
-  var bEl=document.getElementById('selBias');
-  var biasStr=bEl?bEl.textContent.replace('Bias:','').trim():'';
-  var bias=parseFloat(biasStr)||0;
-
-  // Get product name from first selected point
-  var firstIdx=[...selectedPoints][0];
-  var prdIdx=currentPts[firstIdx][I.PRD];
-  var product=RAW.products[prdIdx]||'?';
-
-  // Get sample IDs
-  var samples=[...selectedPoints].map(function(i){return currentPts[i][I.SMP];});
-
-  var log=loadAdjLog();
-  var now=new Date();
-  var ds=String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+now.getFullYear()+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-  log.push({product:product, param:currentParam, bias:bias, samples:samples, savedAt:ds});
-  saveAdjLog(log);
-  alert('บันทึกแล้ว: '+product+' / '+currentParam+' Bias '+(bias>=0?'+':'')+bias.toFixed(3));
-  renderRawTable(); // re-render to show brace
-}
-
-// ── Brace rendering in Raw Table ───────────────────────────────────────────────
-function renderBraces(rows, activePars){
-  var log=loadAdjLog();
-  if(!log.length) return;
-
-  var tbody=document.getElementById('rawTbody');
-  var allRows=tbody.querySelectorAll('tr');
-  if(!allRows.length) return;
-
-  // For each log entry, find matching rows
-  log.forEach(function(entry){
-    var matchedRowIdxs=[];
-    rows.forEach(function(row, ri){
-      var prd=RAW.products[row.prd]||'';
-      if(prd!==entry.product) return;
-      // check if any sample matches
-      if(entry.samples.indexOf(row.sample)!==-1) matchedRowIdxs.push(ri);
-    });
-    if(!matchedRowIdxs.length) return;
-
-    // Find param column index
-    var parIdx=activePars.findIndex(function(p){return p.key===entry.param;});
-    if(parIdx===-1) return;
-    var colStart=4+parIdx*3; // 4 fix cols + offset
-
-    // Get first and last matched row elements
-    var firstRi=matchedRowIdxs[0];
-    var lastRi=matchedRowIdxs[matchedRowIdxs.length-1];
-    var firstTr=allRows[firstRi];
-    var lastTr=allRows[lastRi];
-    if(!firstTr||!lastTr) return;
-
-    // Get the Diff cell of first matched row to position the brace
-    var diffCell=firstTr.querySelectorAll('td')[colStart+2]; // Diff is 3rd in each param group
-    if(!diffCell) return;
-
-    // Create brace overlay on the Diff column header area using absolute positioning
-    // We'll add a visual indicator on each matched row's diff cell instead
-    matchedRowIdxs.forEach(function(ri, ii){
-      var tr=allRows[ri];
-      if(!tr) return;
-      var cells=tr.querySelectorAll('td');
-      var dc=cells[colStart+2];
-      if(!dc) return;
-
-      var isFirst=ii===0;
-      var isLast=ii===matchedRowIdxs.length-1;
-      var isMid=!isFirst&&!isLast;
-
-      // Add brace-line styling
-      var brace=document.createElement('div');
-      brace.style.cssText='position:absolute;right:-12px;top:0;bottom:0;width:10px;pointer-events:none;z-index:8';
-
-      var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-      svg.setAttribute('width','10');svg.setAttribute('height','100%');
-      svg.style.cssText='position:absolute;top:0;left:0;width:10px;height:100%;overflow:visible';
-
-      var path=document.createElementNS('http://www.w3.org/2000/svg','path');
-      var h=dc.offsetHeight||24;
-      var d='';
-      if(matchedRowIdxs.length===1){
-        d='M8,'+h/2+' L2,'+h/2;
-      } else if(isFirst){
-        d='M8,'+h+' L2,'+h+' L2,'+h/2+' M8,'+h/2+' L2,'+h/2;
-      } else if(isLast){
-        d='M2,0 L2,'+h/2+' L8,'+h/2+' M2,0 L2,-1';
-      } else {
-        d='M2,0 L2,'+h;
-      }
-      path.setAttribute('d',d);
-      path.setAttribute('stroke','#7c3aed');
-      path.setAttribute('stroke-width','1.5');
-      path.setAttribute('fill','none');
-      svg.appendChild(path);
-      brace.appendChild(svg);
-
-      // Label on first row
-      if(isFirst||matchedRowIdxs.length===1){
-        var lbl=document.createElement('div');
-        var totalH=matchedRowIdxs.length*(dc.offsetHeight||24);
-        lbl.style.cssText='position:absolute;left:14px;top:'+(matchedRowIdxs.length===1?'2px':totalH/2-16+'px')+';font-size:9px;font-weight:700;color:#7c3aed;white-space:nowrap;background:#faf5ff;border:1px solid #ede9fe;border-radius:4px;padding:2px 5px;z-index:10;line-height:1.4';
-        lbl.textContent=entry.product+' / '+entry.param+' Bias '+(entry.bias>=0?'+':'')+entry.bias.toFixed(3);
-        brace.appendChild(lbl);
-      }
-
-      dc.style.position='relative';
-      dc.style.overflow='visible';
-      dc.appendChild(brace);
-    });
-  });
-}
-
-</script>
+<script src="nir_sidebar.js"></script>
 </body>
 </html>
