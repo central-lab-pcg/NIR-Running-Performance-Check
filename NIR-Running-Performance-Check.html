@@ -219,6 +219,12 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
 .chip-opt.type-wf.active{background:#3a4ab0;border-color:#3a4ab0}
 .chip-opt.type-poc.active{background:#7c3aed;border-color:#7c3aed}
 .chip-opt.locked-chip{box-shadow:0 0 0 2px rgba(91,155,213,0.3);}
+
+/* Bias Adjust Brace in Raw Table */
+.bias-brace-wrap{position:relative}
+.bias-brace-col{position:relative;width:18px;min-width:18px;padding:0!important;border:none!important;background:transparent!important;vertical-align:middle}
+.bias-brace-svg{position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.bias-brace-label{position:absolute;left:22px;font-size:9px;font-weight:700;color:#7c3aed;white-space:nowrap;background:#faf5ff;border:1px solid #ede9fe;border-radius:4px;padding:2px 6px;z-index:10;pointer-events:none;line-height:1.4}
 </style>
 </head>
 <body>
@@ -356,6 +362,7 @@ table.rtbl tfoot td.cell-neg{color:#cc3333}
       <div class="sel-bias-box">
         <span class="sel-count" id="selCount">0 จุด</span>
         <span class="sel-bias" id="selBias">Bias: —</span>
+        <button onclick="saveAdjBias()" style="margin-left:8px;background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">⚙ บันทึก Adjust Bias</button>
         <button class="btn-clear-sel" onclick="clearSelection()">✕ ล้างการเลือก</button>
       </div>
     </div>
@@ -1428,6 +1435,7 @@ function renderRawTable() {
     return `<tr style="${selStyle};cursor:pointer" onclick="toggleRawRow(${ri})" data-ri="${ri}">${c}</tr>`;
   }).join('');
   document.getElementById('rawTbody').innerHTML=tbody;
+  renderBraces(rows, activePars);
 
   // ลบ loop ที่ซ้ำ highlight เพราะทำไปแล้วใน map
   updateSelLabel(rows.length);
@@ -2267,6 +2275,132 @@ window.addEventListener('load',function(){
   }catch(e){}
 });
 </script>
-<script src="nir_sidebar.js"></script>
+<script src="nir_sidebar.js">
+// ── Bias Adjust Log ──────────────────────────────────────────────────────────
+var NIR_ADJ_KEY = 'nir_bias_adj';
+
+function loadAdjLog(){
+  try{ return JSON.parse(localStorage.getItem(NIR_ADJ_KEY)||'[]'); }catch(e){return [];}
+}
+function saveAdjLog(log){
+  try{ localStorage.setItem(NIR_ADJ_KEY, JSON.stringify(log)); }catch(e){}
+}
+
+function saveAdjBias(){
+  if(!selectedPoints.size || !currentParam){alert('กรุณาเลือกจุดก่อน');return;}
+  var bEl=document.getElementById('selBias');
+  var biasStr=bEl?bEl.textContent.replace('Bias:','').trim():'';
+  var bias=parseFloat(biasStr)||0;
+
+  // Get product name from first selected point
+  var firstIdx=[...selectedPoints][0];
+  var prdIdx=currentPts[firstIdx][I.PRD];
+  var product=RAW.products[prdIdx]||'?';
+
+  // Get sample IDs
+  var samples=[...selectedPoints].map(function(i){return currentPts[i][I.SMP];});
+
+  var log=loadAdjLog();
+  var now=new Date();
+  var ds=String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+now.getFullYear()+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  log.push({product:product, param:currentParam, bias:bias, samples:samples, savedAt:ds});
+  saveAdjLog(log);
+  alert('บันทึกแล้ว: '+product+' / '+currentParam+' Bias '+(bias>=0?'+':'')+bias.toFixed(3));
+  renderRawTable(); // re-render to show brace
+}
+
+// ── Brace rendering in Raw Table ───────────────────────────────────────────────
+function renderBraces(rows, activePars){
+  var log=loadAdjLog();
+  if(!log.length) return;
+
+  var tbody=document.getElementById('rawTbody');
+  var allRows=tbody.querySelectorAll('tr');
+  if(!allRows.length) return;
+
+  // For each log entry, find matching rows
+  log.forEach(function(entry){
+    var matchedRowIdxs=[];
+    rows.forEach(function(row, ri){
+      var prd=RAW.products[row.prd]||'';
+      if(prd!==entry.product) return;
+      // check if any sample matches
+      if(entry.samples.indexOf(row.sample)!==-1) matchedRowIdxs.push(ri);
+    });
+    if(!matchedRowIdxs.length) return;
+
+    // Find param column index
+    var parIdx=activePars.findIndex(function(p){return p.key===entry.param;});
+    if(parIdx===-1) return;
+    var colStart=4+parIdx*3; // 4 fix cols + offset
+
+    // Get first and last matched row elements
+    var firstRi=matchedRowIdxs[0];
+    var lastRi=matchedRowIdxs[matchedRowIdxs.length-1];
+    var firstTr=allRows[firstRi];
+    var lastTr=allRows[lastRi];
+    if(!firstTr||!lastTr) return;
+
+    // Get the Diff cell of first matched row to position the brace
+    var diffCell=firstTr.querySelectorAll('td')[colStart+2]; // Diff is 3rd in each param group
+    if(!diffCell) return;
+
+    // Create brace overlay on the Diff column header area using absolute positioning
+    // We'll add a visual indicator on each matched row's diff cell instead
+    matchedRowIdxs.forEach(function(ri, ii){
+      var tr=allRows[ri];
+      if(!tr) return;
+      var cells=tr.querySelectorAll('td');
+      var dc=cells[colStart+2];
+      if(!dc) return;
+
+      var isFirst=ii===0;
+      var isLast=ii===matchedRowIdxs.length-1;
+      var isMid=!isFirst&&!isLast;
+
+      // Add brace-line styling
+      var brace=document.createElement('div');
+      brace.style.cssText='position:absolute;right:-12px;top:0;bottom:0;width:10px;pointer-events:none;z-index:8';
+
+      var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+      svg.setAttribute('width','10');svg.setAttribute('height','100%');
+      svg.style.cssText='position:absolute;top:0;left:0;width:10px;height:100%;overflow:visible';
+
+      var path=document.createElementNS('http://www.w3.org/2000/svg','path');
+      var h=dc.offsetHeight||24;
+      var d='';
+      if(matchedRowIdxs.length===1){
+        d='M8,'+h/2+' L2,'+h/2;
+      } else if(isFirst){
+        d='M8,'+h+' L2,'+h+' L2,'+h/2+' M8,'+h/2+' L2,'+h/2;
+      } else if(isLast){
+        d='M2,0 L2,'+h/2+' L8,'+h/2+' M2,0 L2,-1';
+      } else {
+        d='M2,0 L2,'+h;
+      }
+      path.setAttribute('d',d);
+      path.setAttribute('stroke','#7c3aed');
+      path.setAttribute('stroke-width','1.5');
+      path.setAttribute('fill','none');
+      svg.appendChild(path);
+      brace.appendChild(svg);
+
+      // Label on first row
+      if(isFirst||matchedRowIdxs.length===1){
+        var lbl=document.createElement('div');
+        var totalH=matchedRowIdxs.length*(dc.offsetHeight||24);
+        lbl.style.cssText='position:absolute;left:14px;top:'+(matchedRowIdxs.length===1?'2px':totalH/2-16+'px')+';font-size:9px;font-weight:700;color:#7c3aed;white-space:nowrap;background:#faf5ff;border:1px solid #ede9fe;border-radius:4px;padding:2px 5px;z-index:10;line-height:1.4';
+        lbl.textContent=entry.product+' / '+entry.param+' Bias '+(entry.bias>=0?'+':'')+entry.bias.toFixed(3);
+        brace.appendChild(lbl);
+      }
+
+      dc.style.position='relative';
+      dc.style.overflow='visible';
+      dc.appendChild(brace);
+    });
+  });
+}
+
+</script>
 </body>
 </html>
