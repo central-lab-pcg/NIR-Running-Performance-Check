@@ -1703,44 +1703,35 @@ async function doAdjustBias(){
   const selEqp=document.getElementById('fEquip')?.value||'';
   const selSrc=document.getElementById('fSource')?.value||'';
 
-  // Build correction text: "Adjust Bias FIB +1.040, CP -0.185"
-  const lines=params.map(({par,val})=>`Adjust Bias ${par} ${val>=0?'+':''}${val.toFixed(3)}`).join(', ');
+  // Build new lines
+  const newLines=params.map(({par,val})=>`Adjust Bias ${par} ${val>=0?'+':''}${val.toFixed(3)}`).join(', ');
+
+  // Read existing text from DOM (already loaded) — avoid extra fetch
+  let existingText='';
+  const corrEl=document.querySelector(`.td-corr [data-prd="${CSS.escape(prd)}"][data-mon="${mon}"]`);
+  if(corrEl){
+    const textEl=corrEl.querySelector('.corr-text');
+    if(textEl) existingText=textEl.innerText.trim();
+  }
+  const finalText=existingText ? existingText+'\n'+newLines : newLines;
 
   const btn=document.getElementById('cmAdjSaveBtn');
   btn.textContent='⏳ กำลังบันทึก...';btn.disabled=true;
 
   try{
-    // Read existing correction to append, not overwrite
-    let existing=null;
-    try{existing=await cLoad(prd,mon,selEqp,selSrc);}catch{}
-    let finalText=lines;
-    if(existing&&existing.text){
-      // Append new adjust lines if not already there
-      finalText=existing.text+'\n'+lines;
-    }
-
     const saved=await cSaveShared(prd,mon,selEqp,selSrc,finalText,user,{
-      biasAdj:params,  // store structured data
+      biasAdj:params,
       plant:document.getElementById('fPlant')?.value||'',
       type_val:document.getElementById('fType')?.value||'',
       equip:selEqp,
       source_val:selSrc
     });
 
-    // Track in memory for badge display
-    const key=cKey(prd,mon,selEqp,selSrc);
-    if(!_biasAdjustLog[key])_biasAdjustLog[key]=[];
-    _biasAdjustLog[key].push({params,user,savedAt:saved.savedAt});
-
-    // Re-render correction cell
-    const corrCells=[...document.querySelectorAll('.td-corr [data-prd]')];
-    corrCells.forEach(async el=>{
-      if(el.dataset.prd===prd&&el.dataset.mon===mon){
-        const cell=el.closest('td');
-        if(!cell)return;
-        cell.innerHTML=await corrHTML2(prd,mon,selEqp,selSrc);
-      }
-    });
+    // Re-render correction cell — replace outerHTML of the corr-inner div
+    if(corrEl){
+      const newHtml=await corrHTML2(prd,mon,selEqp,selSrc);
+      corrEl.outerHTML=newHtml;
+    }
 
     // Refresh summary table bias badges
     refreshBiasAdjBadges();
