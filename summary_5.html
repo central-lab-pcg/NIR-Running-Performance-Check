@@ -873,6 +873,8 @@ function render(){
   });
   document.getElementById('summaryBody').innerHTML=body;
   renderConclude();
+  // Show bias-adjusted badges async
+  setTimeout(refreshBiasAdjBadges, 500);
 
   // โหลด correction แบบ async หลัง render เสร็จ
   (async()=>{
@@ -1315,9 +1317,9 @@ async function corrHTML2(prd,mon,eqp,src){
   const viewH=d
     ?`<div class="corr-view" id="${id}v">
         <div style="flex:1">
-          <div class="corr-text">${d.text.replace(/</g,'&lt;')}</div>
+          <div class="corr-text">${d.text.replace(/</g,'&lt;').replace(/Adjust Bias ([A-Za-z\-]+) ([+\-]\d+\.\d+)/g,(m,p,v)=>`<a href="bias_latest.html" class="corr-bias-link" title="ดู Bias History">⚙ Adjust Bias ${p} ${v}</a>`)}</div>
           <div class="corr-meta">
-            💾 ${d.savedAt} · ${d.user}
+            💾 ${d.savedAt} · <a href="bias_latest.html" class="corr-bias-link" title="ดูประวัติ Bias">${d.user}</a>
             ${d.plant?`<span style="margin-left:6px;background:#e8f2fc;color:#3b82f6;border-radius:4px;padding:1px 6px;font-size:10px">${d.plant}</span>`:''}
             ${d.type_val?`<span style="margin-left:3px;background:#f0fdf4;color:#16a34a;border-radius:4px;padding:1px 6px;font-size:10px">${d.type_val}</span>`:''}
             ${d.equip?`<span style="margin-left:3px;background:#fdf4ff;color:#7c3aed;border-radius:4px;padding:1px 6px;font-size:10px">${d.equip}</span>`:''}
@@ -1380,11 +1382,12 @@ async function doSave2(id){
     ].filter(Boolean).join(' ');
     document.getElementById(id+'v').innerHTML=
       `<div style="flex:1">
-        <div class="corr-text">${saved.text.replace(/</g,'&lt;')}</div>
-        <div class="corr-meta">💾 ${saved.savedAt} · ${saved.user} ${badges}</div>
+        <div class="corr-text">${saved.text.replace(/</g,'&lt;').replace(/Adjust Bias ([A-Za-z\-]+) ([+\-]\d+\.\d+)/g,(m,p,v)=>`<a href="bias_latest.html" class="corr-bias-link" title="ดู Bias History">⚙ Adjust Bias ${p} ${v}</a>`)}</div>
+        <div class="corr-meta">💾 ${saved.savedAt} · <a href="bias_latest.html" class="corr-bias-link">${saved.user}</a> ${badges}</div>
        </div>
        <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">✏️ แก้ไข</button></div>`;
     cancelE(id);
+    setTimeout(refreshBiasAdjBadges, 300);
   }catch(e){
     alert('บันทึกไม่สำเร็จ: '+e.message);
     if(btn){btn.textContent='💾 Save';btn.disabled=false;}
@@ -1424,6 +1427,34 @@ async function doSave2(id){
 .cm-sel-tbl td{padding:5px 10px;border:1px solid #e3e7f0;color:#2d3552}
 .cm-sel-tbl .td-diff-pos{color:#1a8a50;font-weight:700}
 .cm-sel-tbl .td-diff-neg{color:#c0392b;font-weight:700}
+
+/* ── Adjust Bias Button & Panel ── */
+.cm-adj-btn{margin-top:10px;width:100%;padding:9px 0;background:linear-gradient(135deg,#4a6fa5,#5b8ef0);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;letter-spacing:.2px}
+.cm-adj-btn:hover{background:linear-gradient(135deg,#3a5a9a,#4a7ee0);box-shadow:0 4px 16px rgba(91,142,240,0.35)}
+.cm-adj-btn:disabled{background:#b0b8d0;cursor:not-allowed}
+
+/* Adjust Bias sub-panel */
+.cm-adj-panel{display:none;margin-top:10px;border:1.5px solid #c8d9fa;border-radius:12px;overflow:hidden}
+.cm-adj-panel.open{display:block}
+.cm-adj-header{background:linear-gradient(135deg,#4a6fa5,#7097d4);color:#fff;padding:9px 14px;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+.cm-adj-body{padding:12px 14px;background:#f8faff;display:flex;flex-direction:column;gap:10px}
+.cm-adj-params{display:flex;flex-direction:column;gap:6px}
+.cm-adj-param-row{display:grid;grid-template-columns:80px 1fr 30px;gap:6px;align-items:center}
+.cm-adj-param-row select,.cm-adj-param-row input{font-size:12px;padding:5px 8px;border:1.5px solid #c8d9fa;border-radius:6px;background:#fff;font-family:var(--font);color:var(--txt)}
+.cm-adj-param-row select:focus,.cm-adj-param-row input:focus{outline:none;border-color:#5b8ef0}
+.cm-adj-param-row .btn-rm{background:none;border:none;cursor:pointer;color:#c0392b;font-size:16px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center}
+.cm-adj-add-btn{font-size:11px;padding:4px 10px;background:#eef3ff;color:#5b8ef0;border:1.5px solid #c8d9fa;border-radius:6px;cursor:pointer;font-weight:600;font-family:var(--font);align-self:flex-start}
+.cm-adj-add-btn:hover{background:#5b8ef0;color:#fff}
+.cm-adj-user-row{display:flex;gap:8px;align-items:center}
+.cm-adj-user-row input{flex:1;font-size:12px;padding:5px 8px;border:1.5px solid #c8d9fa;border-radius:6px;background:#fff;font-family:var(--font)}
+.cm-adj-save-btn{font-size:12px;padding:6px 16px;background:#5b8ef0;color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:700;font-family:var(--font);white-space:nowrap}
+.cm-adj-save-btn:hover{background:#4475d8}
+.cm-adj-save-btn:disabled{background:#b0b8d0;cursor:not-allowed}
+
+/* Bias-adjusted indicator in table */
+.bias-adj-tag{display:inline-flex;align-items:center;gap:3px;background:#fffbeb;color:#d97706;border:1px solid #fde68a;border-radius:5px;padding:2px 6px;font-size:9px;font-weight:700;font-family:var(--font);cursor:help;white-space:nowrap;margin-left:4px}
+.corr-bias-link{color:#5b8ef0;text-decoration:none;font-weight:700}
+.corr-bias-link:hover{text-decoration:underline}
 </style>
 
 <!-- ── Chart Modal HTML ── -->
@@ -1457,6 +1488,24 @@ async function doSave2(id){
         <div style="overflow-x:auto;max-height:160px;overflow-y:auto">
           <table class="cm-sel-tbl"><thead><tr><th>Sample</th><th>Diff</th><th>SEP</th><th>Flag</th></tr></thead><tbody id="cmSelBody"></tbody></table>
         </div>
+        <!-- Adjust Bias Button -->
+        <button class="cm-adj-btn" id="cmAdjBtn" onclick="toggleAdjPanel()">⚙️ Adjust Bias จากจุดที่เลือก</button>
+        <!-- Adjust Bias Panel -->
+        <div class="cm-adj-panel" id="cmAdjPanel">
+          <div class="cm-adj-header">
+            <span>⚙️ Adjust Bias — <span id="cmAdjParName" style="font-family:var(--mono)"></span></span>
+            <span style="font-size:10px;opacity:.75">Bias: <span id="cmAdjBiasVal" style="font-family:var(--mono);font-weight:800"></span></span>
+          </div>
+          <div class="cm-adj-body">
+            <div style="font-size:11px;color:#6370a0;line-height:1.5">บันทึกการปรับ Bias ลงใน Correction อัตโนมัติ สามารถเพิ่มได้หลาย Parameter</div>
+            <div class="cm-adj-params" id="cmAdjParams"></div>
+            <button class="cm-adj-add-btn" onclick="addAdjParam()">+ เพิ่ม Parameter</button>
+            <div class="cm-adj-user-row">
+              <input type="text" id="cmAdjUser" placeholder="ชื่อผู้บันทึก">
+              <button class="cm-adj-save-btn" id="cmAdjSaveBtn" onclick="doAdjustBias()">💾 บันทึก Adjust Bias</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1468,7 +1517,7 @@ let _cmChart=null,_cmAll=[],_cmSelected=new Set(),_cmBaseColors=[],_cmBaseRadii=
 function cmClearSel(){_cmSelected.clear();cmUpdateSel();cmUpdateColors();}
 function cmUpdateSel(){
   const panel=document.getElementById('cmSelPanel');
-  if(!_cmSelected.size){panel.classList.remove('open');return;}
+  if(!_cmSelected.size){panel.classList.remove('open');document.getElementById('cmAdjPanel').classList.remove('open');return;}
   panel.classList.add('open');
   document.getElementById('cmSelCount').textContent=_cmSelected.size+' จุด';
   const vals=[..._cmSelected].map(i=>_cmAll[i].diff);
@@ -1476,6 +1525,14 @@ function cmUpdateSel(){
   const bEl=document.getElementById('cmSelBias');
   bEl.textContent='Bias: '+(bias>=0?'+':'')+bias.toFixed(3);
   bEl.style.color=bias>0.05?'#e89090':bias<-0.05?'#5b9bd5':'#4a6fa5';
+  // sync adj panel if open
+  const adjPanel=document.getElementById('cmAdjPanel');
+  if(adjPanel.classList.contains('open')){
+    document.getElementById('cmAdjBiasVal').textContent=(bias>=0?'+':'')+bias.toFixed(3);
+    // update first row value if it matches current par
+    const firstRow=document.getElementById('cmAdjParams')?.querySelector('.cm-adj-param-row input');
+    if(firstRow)firstRow.value=(bias>=0?'+':'')+bias.toFixed(3);
+  }
   const flagLabel={f3:'⚠ ±3SEP',f2:'◉ 2/3',f9:'◆ 9จุด',ok:'✓ Pass'};
   document.getElementById('cmSelBody').innerHTML=[..._cmSelected].sort((a,b)=>a-b).map(i=>{
     const r=_cmAll[i];const dCls=r.diff>0?'td-diff-pos':'td-diff-neg';
@@ -1494,6 +1551,17 @@ function cmUpdateColors(){
 
 function openChartModal(el){
   if(!el.dataset.det)return;
+
+  // Capture current product / month / parameter for Adjust Bias
+  try{
+    const row=el.closest('tr');
+    const td=row?.querySelector('td.td-product');
+    if(td) _cmCurrentPrd=td.textContent.trim().replace(/^[\u{1F000}-\u{1FFFF}\u2600-\u26FF\u2700-\u27BF\s]+/u,'').trim();
+    const detPre=JSON.parse(el.dataset.det.replace(/&quot;/g,'"'));
+    _cmCurrentPar=detPre.par||'';
+    _cmCurrentMon=document.getElementById('fMonth')?.value||'';
+  }catch(e){}
+
   const det=JSON.parse(el.dataset.det.replace(/&quot;/g,'"'));
   const pts=det.allPts&&det.allPts.length?det.allPts:
     [...(det.f3||[]).map(r=>({...r,flag:'f3'})),...(det.f2||[]).map(r=>({...r,flag:'f2'})),...(det.f9||[]).map(r=>({...r,flag:'f9'}))];
@@ -1574,10 +1642,148 @@ function openChartModal(el){
 function closeChartModal(){
   document.getElementById('chartModal').classList.remove('open');
   document.getElementById('cmSelPanel').classList.remove('open');
-  _cmSelected.clear();_cmAll=[];
+  document.getElementById('cmAdjPanel').classList.remove('open');
+  _cmSelected.clear();_cmAll=[];_cmCurrentPrd='';_cmCurrentMon='';_cmCurrentPar='';
   if(_cmChart){_cmChart.destroy();_cmChart=null;}
 }
 document.getElementById('chartModal').addEventListener('click',function(e){if(e.target===this)closeChartModal();});
+
+// ── Adjust Bias ──────────────────────────────────────────────────────────────
+let _cmCurrentPrd='',_cmCurrentMon='',_cmCurrentPar='';
+
+// Store bias adjust metadata per correction key so we can flag rows
+let _biasAdjustLog={}; // key → [{par,val,user,savedAt}]
+
+function toggleAdjPanel(){
+  const panel=document.getElementById('cmAdjPanel');
+  if(panel.classList.contains('open')){panel.classList.remove('open');return;}
+  // sync bias & par name
+  const bEl=document.getElementById('cmSelBias');
+  const biasText=bEl?bEl.textContent:'Bias: —';
+  const biasNum=biasText.replace('Bias:','').trim();
+  document.getElementById('cmAdjBiasVal').textContent=biasNum;
+  document.getElementById('cmAdjParName').textContent=_cmCurrentPar||'?';
+  // Pre-populate with the current parameter at the calculated bias
+  const adjParams=document.getElementById('cmAdjParams');
+  adjParams.innerHTML='';
+  addAdjParam(_cmCurrentPar, biasNum);
+  panel.classList.add('open');
+}
+
+const ADJ_PARAMS=['M','CP','EE','AH','FIB','ASH','Ca','P','Aw','NaCl','PD','TVBN','Sand','Starch','BHT','pH','Fat-C'];
+
+function addAdjParam(par, val){
+  const container=document.getElementById('cmAdjParams');
+  const row=document.createElement('div');
+  row.className='cm-adj-param-row';
+  const selHtml=`<select>${ADJ_PARAMS.map(p=>`<option value="${p}"${p===(par||_cmCurrentPar)?'selected':''}>${p}</option>`).join('')}</select>`;
+  const valInput=`<input type="number" step="0.001" placeholder="±Value" value="${val||''}">`;
+  row.innerHTML=selHtml+valInput+`<button class="btn-rm" onclick="this.closest('.cm-adj-param-row').remove()" title="ลบ">×</button>`;
+  container.appendChild(row);
+}
+
+async function doAdjustBias(){
+  const rows=[...document.getElementById('cmAdjParams').querySelectorAll('.cm-adj-param-row')];
+  if(!rows.length){alert('กรุณาเพิ่ม Parameter อย่างน้อย 1 รายการ');return;}
+  const user=document.getElementById('cmAdjUser').value.trim()||'ไม่ระบุชื่อ';
+  const params=[];
+  let valid=true;
+  rows.forEach(row=>{
+    const sel=row.querySelector('select');
+    const inp=row.querySelector('input');
+    const par=sel?sel.value:'';
+    const val=parseFloat(inp?inp.value:0);
+    if(!par||isNaN(val)||val===0){valid=false;return;}
+    params.push({par,val});
+  });
+  if(!valid||!params.length){alert('กรุณากรอกค่า Parameter และ Value ให้ครบ (ค่าต้องไม่เป็น 0)');return;}
+
+  const prd=_cmCurrentPrd;
+  const mon=_cmCurrentMon;
+  const selEqp=document.getElementById('fEquip')?.value||'';
+  const selSrc=document.getElementById('fSource')?.value||'';
+
+  // Build correction text: "Adjust Bias FIB +1.040, CP -0.185"
+  const lines=params.map(({par,val})=>`Adjust Bias ${par} ${val>=0?'+':''}${val.toFixed(3)}`).join(', ');
+
+  const btn=document.getElementById('cmAdjSaveBtn');
+  btn.textContent='⏳ กำลังบันทึก...';btn.disabled=true;
+
+  try{
+    // Read existing correction to append, not overwrite
+    let existing=null;
+    try{existing=await cLoad(prd,mon,selEqp,selSrc);}catch{}
+    let finalText=lines;
+    if(existing&&existing.text){
+      // Append new adjust lines if not already there
+      finalText=existing.text+'\n'+lines;
+    }
+
+    const saved=await cSaveShared(prd,mon,selEqp,selSrc,finalText,user,{
+      biasAdj:params,  // store structured data
+      plant:document.getElementById('fPlant')?.value||'',
+      type_val:document.getElementById('fType')?.value||'',
+      equip:selEqp,
+      source_val:selSrc
+    });
+
+    // Track in memory for badge display
+    const key=cKey(prd,mon,selEqp,selSrc);
+    if(!_biasAdjustLog[key])_biasAdjustLog[key]=[];
+    _biasAdjustLog[key].push({params,user,savedAt:saved.savedAt});
+
+    // Re-render correction cell
+    const corrCells=[...document.querySelectorAll('.td-corr [data-prd]')];
+    corrCells.forEach(async el=>{
+      if(el.dataset.prd===prd&&el.dataset.mon===mon){
+        const cell=el.closest('td');
+        if(!cell)return;
+        cell.innerHTML=await corrHTML2(prd,mon,selEqp,selSrc);
+      }
+    });
+
+    // Refresh summary table bias badges
+    refreshBiasAdjBadges();
+
+    btn.textContent='✅ บันทึกแล้ว!';
+    setTimeout(()=>{
+      btn.textContent='💾 บันทึก Adjust Bias';
+      btn.disabled=false;
+      document.getElementById('cmAdjPanel').classList.remove('open');
+    },1400);
+  }catch(e){
+    alert('บันทึกไม่สำเร็จ: '+e.message);
+    btn.textContent='💾 บันทึก Adjust Bias';btn.disabled=false;
+  }
+}
+
+// ── Bias-Adjusted Badge in Summary Table ─────────────────────────────────────
+async function refreshBiasAdjBadges(){
+  // Pull all corrections and mark product rows that have biasAdj entries
+  try{
+    const all=await corrGetAll();
+    Object.entries(all).forEach(([key,val])=>{
+      if(!val||!val.biasAdj||!val.biasAdj.length)return;
+      // key format: prd::mon::eqp::src
+      const [prd]=key.split('::');
+      // Find all td-product cells matching this product
+      document.querySelectorAll('td.td-product').forEach(td=>{
+        const text=td.textContent.trim().replace(/^\p{Emoji}\s*/u,'');
+        if(normPrd(text)===normPrd(prd)){
+          if(!td.querySelector('.bias-adj-tag')){
+            const adj=document.createElement('span');
+            adj.className='bias-adj-tag';
+            adj.title=`ปรับ Bias: ${val.biasAdj.map(p=>`${p.par} ${p.val>=0?'+':''}${typeof p.val==='number'?p.val.toFixed(3):p.val}`).join(', ')} (${val.user||''})`;
+            adj.innerHTML='⚙ Bias Adj';
+            td.appendChild(adj);
+          }
+        }
+      });
+    });
+  }catch(e){}
+}
+
+
 </script>
 <script>
 window.addEventListener('load',function(){
