@@ -310,6 +310,15 @@ async function corrGetAll() {
 
 async function corrSaveAll(data) {
   try {
+    // Read existing bin first to preserve manual_records and other fields
+    const rr = await fetch(JSONBIN_URL + '/latest', {
+      cache: 'no-store',
+      headers: { 'X-Master-Key': JSONBIN_MASTER, 'X-Bin-Meta': 'false' }
+    });
+    const existing = rr.ok ? (await rr.json()) : {};
+    const existingData = existing.record || existing;
+    // Merge: keep all existing fields, only update corrections
+    const merged = Object.assign({}, existingData, { corrections: data });
     const res = await fetch(JSONBIN_URL, {
       method: 'PUT',
       headers: {
@@ -317,7 +326,7 @@ async function corrSaveAll(data) {
         'X-Master-Key': JSONBIN_MASTER,
         'X-Access-Key': JSONBIN_ACCESS
       },
-      body: JSON.stringify({ corrections: data })
+      body: JSON.stringify(merged)
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return true;
