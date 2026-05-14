@@ -1541,7 +1541,7 @@ function cmUpdateColors(){
 var _adjPrd='',_adjMon='',_adjPar='';
 function openChartModal(el){
   if(!el.dataset.det)return;
-  try{var _r=el.closest('tr'),_td=_r&&_r.querySelector('td.td-product');_adjPrd=_td?(_td.textContent||'').replace(/^[^ ]+ /,'').trim():'';var _dp=JSON.parse(el.dataset.det.replace(/&quot;/g,'"'));_adjPar=_dp.par||'';var _fm=document.getElementById('fMonth');_adjMon=_fm?_fm.value:'';}catch(e){}
+  try{var _r=el.closest('tr'),_td=_r&&_r.querySelector('td.td-product');if(_td){var _c=_td.cloneNode(true);var _b=_c.querySelector('.bias-adj-tag');if(_b)_b.remove();_adjPrd=_c.textContent.replace(/^[^ ]+ /,'').trim();}else{_adjPrd='';}var _dp=JSON.parse(el.dataset.det.replace(/&quot;/g,'"'));_adjPar=_dp.par||'';var _fm=document.getElementById('fMonth');_adjMon=_fm?_fm.value:'';}catch(e){}
   const det=JSON.parse(el.dataset.det.replace(/&quot;/g,'"'));
   const pts=det.allPts&&det.allPts.length?det.allPts:
     [...(det.f3||[]).map(r=>({...r,flag:'f3'})),...(det.f2||[]).map(r=>({...r,flag:'f2'})),...(det.f9||[]).map(r=>({...r,flag:'f9'}))];
