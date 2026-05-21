@@ -731,10 +731,10 @@ async function loadData() {
     // Deduplicate long records — ใช้ no เป็น primary key ถ้ามี
     const seenRec = new Set();
     longRecords = longRecords.filter(r => {
-      // ถ้า no มีค่า ใช้ no+par เป็น key (แม่นยำ ไม่ false dup)
+      // ถ้า no มีค่า ใช้ no+sep+par เป็น key (เพิ่ม sep ป้องกัน no ซ้ำต่าง product)
       // ถ้า no ว่าง ใช้ mon+sep+sample+prd+par+pla+eqp
       const k = r.no
-        ? [r.no, r.par].join('|')
+        ? [r.no, r.sep||'', r.par].join('|')
         : [r.mon, r.sep||'', r.sample||'', r.prd, r.par, r.pla||'', r.eqp||''].join('|');
       if (seenRec.has(k)) return false;
       seenRec.add(k); return true;
