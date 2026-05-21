@@ -1257,12 +1257,12 @@ function buildRawWide() {
   // ถ้าไม่มี no ใช้ mon|sep|prd|eqp|pla|src|smp
   const keyOf = r => {
     const no = r[I.NO];
-    if(no) return no + '|' + r[I.PAR]; // no unique per Excel row
+    if(no) return no + '|' + (r[I.SEP]||'') + '|' + r[I.PAR]; // รวม sep ป้องกัน no ซ้ำต่าง product
     return [r[I.MON],r[I.SEP],r[I.PRD],r[I.EQP],r[I.PLA],r[I.SRC],r[I.SMP]].join('|');
   };
   const rowKey = r => {
     const no = r[I.NO];
-    if(no) return no;
+    if(no) return no + '|' + (r[I.SEP]||''); // รวม sep ป้องกัน no ซ้ำต่าง product
     return [r[I.MON],r[I.SEP],r[I.PRD],r[I.EQP],r[I.PLA],r[I.SRC],r[I.TYP],r[I.SMP]].join('|');
   };
   const map = new Map();
