@@ -731,10 +731,10 @@ async function loadData() {
     // Deduplicate long records — ใช้ no เป็น primary key ถ้ามี
     const seenRec = new Set();
     longRecords = longRecords.filter(r => {
-      // ถ้า no มีค่า ใช้ no+sep+par เป็น key (เพิ่ม sep ป้องกัน no ซ้ำต่าง product)
+      // ใช้ no+sep+sample+par เป็น key ครอบทุกกรณี no ซ้ำ (ต่าง SEP / ต่าง Sample / ต่าง Product)
       // ถ้า no ว่าง ใช้ mon+sep+sample+prd+par+pla+eqp
       const k = r.no
-        ? [r.no, r.sep||'', r.par].join('|')
+        ? [r.no, r.sep||'', r.sample||'', r.par].join('|')
         : [r.mon, r.sep||'', r.sample||'', r.prd, r.par, r.pla||'', r.eqp||''].join('|');
       if (seenRec.has(k)) return false;
       seenRec.add(k); return true;
@@ -1257,12 +1257,12 @@ function buildRawWide() {
   // ถ้าไม่มี no ใช้ mon|sep|prd|eqp|pla|src|smp
   const keyOf = r => {
     const no = r[I.NO];
-    if(no) return no + '|' + (r[I.SEP]||'') + '|' + r[I.PAR]; // รวม sep ป้องกัน no ซ้ำต่าง product
+    if(no) return no + '|' + (r[I.SEP]||'') + '|' + (r[I.SMP]||'') + '|' + r[I.PAR]; // ครอบทุกกรณี no ซ้ำ
     return [r[I.MON],r[I.SEP],r[I.PRD],r[I.EQP],r[I.PLA],r[I.SRC],r[I.SMP]].join('|');
   };
   const rowKey = r => {
     const no = r[I.NO];
-    if(no) return no + '|' + (r[I.SEP]||''); // รวม sep ป้องกัน no ซ้ำต่าง product
+    if(no) return no + '|' + (r[I.SEP]||'') + '|' + (r[I.SMP]||''); // ครอบทุกกรณี no ซ้ำ
     return [r[I.MON],r[I.SEP],r[I.PRD],r[I.EQP],r[I.PLA],r[I.SRC],r[I.TYP],r[I.SMP]].join('|');
   };
   const map = new Map();
