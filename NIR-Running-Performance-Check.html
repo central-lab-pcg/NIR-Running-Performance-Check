@@ -688,7 +688,11 @@ function wideToLong(wideRows) {
 async function loadData() {
   try {
     // โหลดไฟล์แรก
-    const res = await fetch(DATA_URL, {cache:'no-cache'});
+    // หมายเหตุ: raw.githubusercontent.com แคชไฟล์ไว้ที่ CDN (Fastly) ~5 นาที
+    // โดยไม่สนใจ Cache-Control ที่ฝั่ง client ส่งไป (cache:'no-cache' มีผลแค่ browser cache เท่านั้น)
+    // จึงต้องเติม query string แบบ cache-busting เพื่อให้ CDN มองว่าเป็น URL ใหม่ -> ไปดึงจาก origin จริงเสมอ
+    const _cb = Date.now();
+    const res = await fetch(DATA_URL + (DATA_URL.includes('?') ? '&' : '?') + '_cb=' + _cb, {cache:'no-cache'});
     if (!res.ok) throw new Error('HTTP '+res.status);
     const json = await res.json();
 
@@ -696,7 +700,7 @@ async function loadData() {
     let json2 = null;
     if (DATA_URL2) {
       try {
-        const res2 = await fetch(DATA_URL2, {cache:'no-cache'});
+        const res2 = await fetch(DATA_URL2 + (DATA_URL2.includes('?') ? '&' : '?') + '_cb=' + _cb, {cache:'no-cache'});
         if (res2.ok) json2 = await res2.json();
       } catch(e) {}
     }
