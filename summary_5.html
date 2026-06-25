@@ -26,6 +26,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;backgroun
 .last-updated{font-size:10px;color:var(--txt3);font-family:var(--mono);margin-top:3px}
 .nav-link{font-size:12px;color:#5b8ef0;text-decoration:none;font-weight:600;padding:6px 12px;border:1.5px solid #c8d9fa;border-radius:var(--r);background:#eef3ff;transition:all .15s;white-space:nowrap}
 .nav-link:hover{background:#5b8ef0;color:#fff}
+.btn-savepdf{font-size:12px;font-weight:700;color:#fff;background:linear-gradient(135deg,#5b8ef0,#7eb3f7);border:none;border-radius:var(--r);padding:8px 16px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(91,142,240,.35);display:inline-flex;align-items:center;gap:6px;transition:all .15s;flex-shrink:0;font-family:var(--font)}
+.btn-savepdf:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(91,142,240,.45)}
+.btn-savepdf:disabled{opacity:.65;cursor:not-allowed;transform:none;box-shadow:none}
 /* Form card */
 .form-card{background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--r-lg);margin-bottom:14px;box-shadow:var(--shadow);overflow:hidden}
 .form-top{background:linear-gradient(135deg,#4a6fa5 0%,#7097d4 100%);color:#fff;display:flex;align-items:stretch}
@@ -195,7 +198,7 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
     <div class="page-title">Summary Running Performance Check <span class="chip">WC − NIR</span></div>
     <div class="last-updated" id="lastUpdated"></div>
   </div>
-  
+  <button id="btnSavePdf" class="btn-savepdf" onclick="exportToPDF()">💾 Save PDF</button>
 </div>
 
 <div class="form-card">
@@ -890,6 +893,341 @@ function render(){
   })();
 }
 
+// ── Export to PDF (ครบทุกคอลัมน์/แถว สีสถานะตามเกณฑ์ ไม่ตัดข้อมูล) ───────────
+function arrayBufferToBase64(buffer){
+  let binary='';
+  const bytes=new Uint8Array(buffer);
+  const chunk=0x8000;
+  for(let i=0;i<bytes.length;i+=chunk){
+    binary+=String.fromCharCode.apply(null, bytes.subarray(i,i+chunk));
+  }
+  return btoa(binary);
+}
+
+function hexToRgbArrPdf(hex){
+  const h=hex.replace('#','');
+  return [parseInt(h.substring(0,2),16), parseInt(h.substring(2,4),16), parseInt(h.substring(4,6),16)];
+}
+
+// สีและรหัสย่อของสถานะ — ตรงตามเกณฑ์/legend บนหน้าเว็บ
+const STATUS_COLOR_CODE_PDF={
+  pass:  {code:'Pass',  bg:'#e6f9f0', fg:'#1e8a56', label:'Pass — ผ่านเกณฑ์'},
+  fail3: {code:'>3SEP', bg:'#fce8e6', fg:'#c53030', label:'>3SEP — เกิน ±3SEP'},
+  fail2: {code:'2/3pt', bg:'#eeeafa', fg:'#6840c0', label:'2/3pt — 2/3 Points'},
+  rule9: {code:'≥9pt',  bg:'#fef5e0', fg:'#b06800', label:'≥9pt — ≥9 จุดฝั่งเดียว'},
+  none:  {code:'-',     bg:'#f2f4f9', fg:'#a8afc6', label:'- — ไม่มีข้อมูล'}
+};
+const STATUS_KEYS_PDF=['pass','fail3','rule9','fail2','none'];
+
+// รอให้ correction cells โหลดเสร็จก่อน export เพื่อให้ข้อมูลครบถ้วน
+async function waitForCorrectionsReady(maxWaitMs){
+  maxWaitMs=maxWaitMs||6000;
+  const start=Date.now();
+  while(Date.now()-start<maxWaitMs){
+    const pending=[...document.querySelectorAll('#summaryBody td.td-corr')]
+      .some(td=>!td.querySelector('.corr-inner'));
+    if(!pending) return;
+    await new Promise(r=>setTimeout(r,200));
+  }
+}
+
+async function ensurePdfThaiFont(doc){
+  try{
+    if(!(window._sarabunRegB64 && window._sarabunBoldB64)){
+      const [r1,r2]=await Promise.all([
+        fetch('https://raw.githubusercontent.com/google/fonts/main/ofl/sarabun/Sarabun-Regular.ttf'),
+        fetch('https://raw.githubusercontent.com/google/fonts/main/ofl/sarabun/Sarabun-Bold.ttf')
+      ]);
+      if(!r1.ok||!r2.ok) throw new Error('font fetch failed');
+      const [b1,b2]=await Promise.all([r1.arrayBuffer(), r2.arrayBuffer()]);
+      window._sarabunRegB64=arrayBufferToBase64(b1);
+      window._sarabunBoldB64=arrayBufferToBase64(b2);
+    }
+    doc.addFileToVFS('Sarabun-Regular.ttf', window._sarabunRegB64);
+    doc.addFileToVFS('Sarabun-Bold.ttf', window._sarabunBoldB64);
+    doc.addFont('Sarabun-Regular.ttf','Sarabun','normal');
+    doc.addFont('Sarabun-Bold.ttf','Sarabun','bold');
+    return true;
+  }catch(e){
+    console.warn('ไม่สามารถโหลดฟอนต์ไทยสำหรับ PDF ได้:', e);
+    return false;
+  }
+}
+
+// ดึงข้อมูลทั้งหมดจากตารางที่แสดงอยู่ (ตามตัวกรองปัจจุบัน) แบบครบทุกแถว/คอลัมน์
+// — สถานะ: เก็บ class (pass/fail3/rule9/fail2/none) ไว้ใน statusMeta สำหรับวาดสีตามเกณฑ์
+// — correction: ถ้าไม่มีบันทึกหรือว่าง จะกรอกเป็น "-"
+function scrapeSummaryForPdf(){
+  const headRow=document.querySelector('#summaryHead tr');
+  if(!headRow) return null;
+  const headers=[...headRow.children].map(th=>th.textContent.trim());
+  const lastIdx=headers.length-1;
+
+  const TYPE_BG_PDF={FG:'#eaf7ee',RM:'#fff8ec',WF:'#eef3ff',POC:'#f9f0ff'};
+  const TYPE_FG_PDF={FG:'#2d7a4a',RM:'#a05e0a',WF:'#3a4ab0',POC:'#7c3aed'};
+
+  const bodyRows=[];
+  const statusMeta={}; // key `${rowIdx}_${colIdx}` -> array of status keys (pass/fail3/...)
+
+  [...document.querySelectorAll('#summaryBody tr')].forEach(tr=>{
+    const tds=[...tr.children];
+    if(tds.length===1 && tds[0].hasAttribute('colspan')){
+      const label=tds[0].textContent.trim();
+      const typ=label.replace(/^\S+\s*/,'').trim();
+      bodyRows.push([{
+        content:label,
+        colSpan:headers.length,
+        styles:{
+          fillColor:TYPE_BG_PDF[typ]||'#f0f0f0',
+          textColor:TYPE_FG_PDF[typ]||'#555555',
+          fontStyle:'bold',
+          halign:'left',
+          fontSize:7
+        }
+      }]);
+      return;
+    }
+    if(tds.length===1 && tds[0].classList.contains('no-data')) return;
+
+    const rowIdx=bodyRows.length;
+    const cells=tds.map((td,idx)=>{
+      if(td.classList.contains('td-product')) return td.textContent.trim()||'-';
+
+      if(idx===lastIdx || td.classList.contains('td-corr')){
+        const inner=td.querySelector('.corr-inner');
+        let s='';
+        if(inner){
+          const txtEl=inner.querySelector('.corr-view .corr-text');
+          const metaEl=inner.querySelector('.corr-view .corr-meta');
+          if(txtEl){
+            s=txtEl.textContent.trim();
+            if(metaEl) s+=(s?'\n':'')+metaEl.textContent.trim();
+          }
+        } else {
+          s=td.textContent.replace(/⏳/g,'').trim();
+        }
+        return s || '-'; // ไม่มีบันทึก -> "-"
+      }
+
+      const statusEls=[...td.querySelectorAll('.status')];
+      if(statusEls.length){
+        const keys=statusEls.map(s=>STATUS_KEYS_PDF.find(k=>s.classList.contains(k))||'none');
+        statusMeta[rowIdx+'_'+idx]=keys;
+        return ' '; // เนื้อหาจริงจะถูกวาดเองใน didDrawCell ตามสีสถานะ
+      }
+      return td.textContent.trim()||'-';
+    });
+    bodyRows.push(cells);
+  });
+
+  return {headers, bodyRows, lastIdx, statusMeta};
+}
+
+async function exportToPDF(){
+  const btn=document.getElementById('btnSavePdf');
+  if(typeof window.jspdf==='undefined' || !window.jspdf.jsPDF){
+    alert('ไม่สามารถโหลดไลบรารีสร้าง PDF ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่');
+    return;
+  }
+  const originalLabel=btn.innerHTML;
+  btn.innerHTML='⏳ กำลังสร้าง PDF...';
+  btn.disabled=true;
+
+  try{
+    await waitForCorrectionsReady();
+    const scraped=scrapeSummaryForPdf();
+    if(!scraped || !scraped.bodyRows.length){
+      alert('ไม่พบข้อมูลในตารางสำหรับสร้าง PDF');
+      return;
+    }
+
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+    const fontOk=await ensurePdfThaiFont(doc);
+    const pdfFont=fontOk?'Sarabun':'helvetica';
+    if(!fontOk){
+      console.warn('ใช้ฟอนต์สำรอง (helvetica) — ข้อความภาษาไทยบางส่วนอาจแสดงไม่ถูกต้อง');
+    }
+
+    const selMon=document.getElementById('fMonth').value;
+    const inf=serial2info(selMon);
+    const pla=document.getElementById('fPlant').value||'All';
+    const typ=document.getElementById('fType').value||'All';
+    const eqp=document.getElementById('fEquip').value||'All';
+    const src=document.getElementById('fSource').value||'All';
+    const stamp=new Date().toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'});
+    const pageW=doc.internal.pageSize.getWidth();
+    const pageH=doc.internal.pageSize.getHeight();
+
+    const BANNER_H=32;      // ความสูงแถบหัวเรื่อง (น้ำเงิน) — เพิ่มระยะให้บรรทัดไม่ซ้อนกัน
+    const RIGHT_BLOCK_X=pageW-8;
+    const PAGE_LINE_Y=28.4; // ตำแหน่งบรรทัด "หน้า X / Y" ในกล่องขวาบน — ใช้ตอน fix เลขหน้าตอนจบ
+
+    // กล่องข้อมูลเอกสาร (มุมขวาบน) — กรอกครบตามฟอร์มต้นฉบับ (เว้นระยะห่างแต่ละบรรทัดให้พอ ไม่ให้ตัวอักษรซ้อน/ขาด)
+    function drawTopRightBlock(){
+      doc.setFont(pdfFont,'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(225,232,250);
+      doc.text('ห้องปฏิบัติการทดสอบ', RIGHT_BLOCK_X, 6.5, {align:'right'});
+      doc.text('บริษัท เพอร์เฟค คอมพาเนียน กรุ๊ป จำกัด', RIGHT_BLOCK_X, 10.3, {align:'right'});
+      doc.setFont(pdfFont,'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(255,255,255);
+      doc.text('F-LAB-17-26', RIGHT_BLOCK_X, 15.2, {align:'right'});
+      doc.setFont(pdfFont,'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(225,232,250);
+      doc.text('เริ่มใช้วันที่ 11/03/2024', RIGHT_BLOCK_X, 19.4, {align:'right'});
+      doc.text('แก้ไขครั้งที่ : 00', RIGHT_BLOCK_X, 23.2, {align:'right'});
+      // บรรทัดเลขหน้า — ใส่เลขหน้าปัจจุบันไปก่อน แล้วค่อย fix เป็น "X / Y" ทีหลังหลัง autoTable เสร็จ (รู้จำนวนหน้าทั้งหมด)
+      doc.setFontSize(7);
+      doc.text(`หน้า ${doc.internal.getCurrentPageInfo().pageNumber}`, RIGHT_BLOCK_X, PAGE_LINE_Y, {align:'right'});
+    }
+
+    function drawLegendLine(y){
+      let x=8;
+      Object.values(STATUS_COLOR_CODE_PDF).forEach(it=>{
+        doc.setFillColor(...hexToRgbArrPdf(it.bg));
+        doc.roundedRect(x, y-2.7, 11, 3.6, 0.6, 0.6, 'F');
+        doc.setFont(pdfFont,'bold');
+        doc.setFontSize(6.3);
+        doc.setTextColor(...hexToRgbArrPdf(it.fg));
+        doc.text(it.code, x+5.5, y-0.9, {align:'center'});
+        x+=13.5;
+        doc.setFont(pdfFont,'normal');
+        doc.setFontSize(6.8);
+        doc.setTextColor(99,112,160);
+        doc.text(it.label, x, y);
+        x+=doc.getTextWidth(it.label)+7;
+      });
+    }
+
+    function drawHeaderFooter(){
+      // แถบหัวเรื่องสีน้ำเงิน
+      doc.setFillColor(74,111,165);
+      doc.rect(0,0,pageW,BANNER_H,'F');
+      doc.setFont(pdfFont,'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(255,255,255);
+      doc.text('Summary Running Performance Check', 8, 11);
+      doc.setFont(pdfFont,'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(225,232,250);
+      doc.text('แบบฟอร์ม : Running Performance Check', 8, 16.5);
+      doc.setLineWidth(0.2);
+      doc.setDrawColor(255,255,255);
+      doc.line(pageW-78, 3, pageW-78, BANNER_H-3);
+      drawTopRightBlock();
+
+      // บรรทัดตัวกรองที่ใช้ + บรรทัด legend สี
+      doc.setFontSize(8);
+      doc.setTextColor(45,53,82);
+      doc.text(`เดือน: ${inf.month} ${inf.year}   |   Plant: ${pla}   |   Type: ${typ}   |   Equipment: ${eqp}   |   Source: ${src}`, 8, BANNER_H+5.5);
+      drawLegendLine(BANNER_H+11);
+
+      // footer
+      doc.setFont(pdfFont,'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(160,169,200);
+      doc.text(`พิมพ์เมื่อ ${stamp}`, 8, pageH-6);
+    }
+
+    const lastIdx=scraped.lastIdx;
+    const columnStyles={
+      0:{cellWidth:32, halign:'left', fontStyle:'bold'},
+      [lastIdx]:{cellWidth:55, halign:'left'}
+    };
+
+    doc.autoTable({
+      head:[scraped.headers],
+      body:scraped.bodyRows,
+      startY:BANNER_H+14,
+      theme:'grid',
+      styles:{font:pdfFont, fontSize:6.8, cellPadding:1.4, valign:'middle', lineColor:[220,224,235], lineWidth:0.1, textColor:[45,53,82]},
+      headStyles:{font:pdfFont, fontStyle:'bold', fillColor:[91,125,181], textColor:255, fontSize:7, halign:'center'},
+      bodyStyles:{halign:'center'},
+      columnStyles,
+      horizontalPageBreak:true,
+      horizontalPageBreakRepeat:0,
+      margin:{top:BANNER_H+14, left:6, right:6, bottom:34},
+      didDrawPage:drawHeaderFooter,
+      didParseCell:function(data){
+        if(data.section!=='body') return;
+        const keys=scraped.statusMeta[data.row.index+'_'+data.column.index];
+        if(!keys) return;
+        data.cell.text=new Array(keys.length).fill(' '); // กันพื้นที่ไว้ วาดสีจริงทีหลัง
+      },
+      didDrawCell:function(data){
+        if(data.section!=='body') return;
+        const keys=scraped.statusMeta[data.row.index+'_'+data.column.index];
+        if(!keys || !keys.length) return;
+        const {x,y,width,height}=data.cell;
+        const pad=0.4;
+        const lineH=(height-pad*2)/keys.length;
+        keys.forEach((k,i)=>{
+          const info=STATUS_COLOR_CODE_PDF[k];
+          const cy=y+pad+lineH*i;
+          doc.setFillColor(...hexToRgbArrPdf(info.bg));
+          doc.roundedRect(x+0.8, cy+0.25, width-1.6, lineH-0.5, 0.6, 0.6, 'F');
+          doc.setFont(pdfFont,'bold');
+          doc.setFontSize(keys.length>1?5.3:6.3);
+          doc.setTextColor(...hexToRgbArrPdf(info.fg));
+          doc.text(info.code, x+width/2, cy+lineH/2, {align:'center', baseline:'middle'});
+        });
+      }
+    });
+
+    // ── ช่องลงชื่อ Approve ──────────────────────────────────────────────────
+    // ตรวจพื้นที่ว่างท้ายหน้าสุดท้าย ถ้าไม่พอ (อาจชนตาราง/แถบเลขหน้า) ให้ขึ้นหน้าใหม่ก่อน
+    const SIG_BLOCK_H=26;
+    let sigBaseY=(doc.lastAutoTable && doc.lastAutoTable.finalY)?doc.lastAutoTable.finalY:(pageH-40);
+    if(sigBaseY+SIG_BLOCK_H > pageH-12){
+      doc.addPage();
+      drawHeaderFooter(); // หน้าที่เพิ่มเอง ไม่ผ่าน autoTable ต้องวาดแถบหัวเรื่อง/มุมขวาบนเองด้วย
+      sigBaseY=BANNER_H+18;
+    }
+
+    // มุมซ้ายล่าง: Prepared by (ภาษาอังกฤษ) / มุมขวาล่าง: Approved by — พร้อมวันที่ทั้งสองฝั่ง
+    const sigY1=sigBaseY+16;
+    const sigY2=sigY1+7;
+    const sigLeftX=14;
+    const sigRightBlockW=96;
+    const sigRightX=pageW-14-sigRightBlockW;
+    doc.setFont(pdfFont,'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(45,53,82);
+    doc.text('Prepared by : ......................................................', sigLeftX, sigY1);
+    doc.text('Date : ........... / ........... / ...........', sigLeftX, sigY2);
+    doc.text('Approved by : ......................................................', sigRightX, sigY1);
+    doc.text('Date : ........... / ........... / ...........', sigRightX, sigY2);
+
+    // แก้บรรทัด "หน้า X" ในกล่องขวาบนทุกหน้าให้เป็น "หน้า X / Y" — ทำเป็นลำดับสุดท้าย
+    // เพราะถ้าช่องลงชื่อทำให้ต้องเพิ่มหน้าใหม่ จำนวนหน้ารวม (Y) จะถูกต้องครบทุกหน้า
+    const totalPages=doc.internal.getNumberOfPages();
+    for(let i=1;i<=totalPages;i++){
+      doc.setPage(i);
+      doc.setFillColor(74,111,165);
+      doc.rect(RIGHT_BLOCK_X-44, PAGE_LINE_Y-2.8, 44, 4.2, 'F');
+      doc.setFont(pdfFont,'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(225,232,250);
+      doc.text(`หน้า ${i} / ${totalPages}`, RIGHT_BLOCK_X, PAGE_LINE_Y, {align:'right'});
+    }
+    doc.setPage(totalPages);
+
+    const safePlant=(pla==='All')?'All':pla.replace(/[^a-zA-Zก-๙0-9]+/g,'');
+    const fileName=`Summary_RunningPerformance_${safePlant}_${inf.month}${inf.year}.pdf`;
+    doc.save(fileName);
+
+  }catch(e){
+    console.error(e);
+    alert('สร้าง PDF ไม่สำเร็จ: '+(e&&e.message?e.message:e));
+  }finally{
+    btn.innerHTML=originalLabel;
+    btn.disabled=false;
+  }
+}
+
 // ── clear filters ─────────────────────────────────────────────────────────────
 function clearFilters(){
   try{sessionStorage.removeItem(NIR_FILTER_KEY);}catch(e){}
@@ -1306,6 +1644,7 @@ function ttClick(el,e){
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
 <!-- ── Shared Correction Storage ── -->
 <script>
