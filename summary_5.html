@@ -5,7 +5,7 @@
 <script src="nir_auth.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Summary Running Performance Check</title>
+<title>Summary Report</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -195,7 +195,7 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
 
 <div class="page-header">
   <div>
-    <div class="page-title">Summary Running Performance Check <span class="chip">WC − NIR</span></div>
+    <div class="page-title">Summary Report <span class="chip">WC − NIR</span></div>
     <div class="last-updated" id="lastUpdated"></div>
   </div>
   <button id="btnSavePdf" class="btn-savepdf" onclick="exportToPDF()">💾 Save PDF</button>
@@ -205,15 +205,15 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
   <div class="form-top">
     <div style="width:12px"></div>
     <div class="form-top-center">
-      <div>Summary Running Performance Check</div>
+      <div>Summary Report</div>
       <div class="form-top-sub">แบบฟอร์ม : Running Performance Check</div>
     </div>
     <div class="form-top-right">
       <div class="form-doc-date">ห้องปฏิบัติการทดสอบ</div>
       <div class="form-doc-date">บริษัท เพอร์เฟค คอมพาเนียน กรุ๊ป จำกัด</div>
       <div class="form-doc-no">F-LAB-17-26</div>
-      <div class="form-doc-date">เริ่มใช้วันที่ 11/03/2024</div>
-      <div class="form-doc-date">แก้ไขครั้งที่ : 00</div>
+      <div class="form-doc-date">เริ่มใช้วันที่ 06/07/2026</div>
+      <div class="form-doc-date">แก้ไขครั้งที่ : 01</div>
       <div class="form-doc-date">1/1</div>
     </div>
   </div>
@@ -1077,8 +1077,8 @@ async function exportToPDF(){
       doc.setFont(pdfFont,'normal');
       doc.setFontSize(7);
       doc.setTextColor(225,232,250);
-      doc.text('เริ่มใช้วันที่ 11/03/2024', RIGHT_BLOCK_X, 19.4, {align:'right'});
-      doc.text('แก้ไขครั้งที่ : 00', RIGHT_BLOCK_X, 23.2, {align:'right'});
+      doc.text('เริ่มใช้วันที่ 06/07/2026', RIGHT_BLOCK_X, 19.4, {align:'right'});
+      doc.text('แก้ไขครั้งที่ : 01', RIGHT_BLOCK_X, 23.2, {align:'right'});
       // บรรทัดเลขหน้า — ใส่เลขหน้าปัจจุบันไปก่อน แล้วค่อย fix เป็น "X / Y" ทีหลังหลัง autoTable เสร็จ (รู้จำนวนหน้าทั้งหมด)
       doc.setFontSize(7);
       doc.text(`หน้า ${doc.internal.getCurrentPageInfo().pageNumber}`, RIGHT_BLOCK_X, PAGE_LINE_Y, {align:'right'});
@@ -1109,7 +1109,7 @@ async function exportToPDF(){
       doc.setFont(pdfFont,'bold');
       doc.setFontSize(13);
       doc.setTextColor(255,255,255);
-      doc.text('Summary Running Performance Check', 8, 11);
+      doc.text('Summary Report', 8, 11);
       doc.setFont(pdfFont,'normal');
       doc.setFontSize(7.5);
       doc.setTextColor(225,232,250);
