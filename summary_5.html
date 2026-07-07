@@ -574,6 +574,17 @@ async function loadData(){
       });
     });
     render();
+    // ── Second-pass filter restore ───────────────────────────────────────────
+    // fPlant/fType/fEquip/fSource ยังไม่มี option ใดๆ ตอน restoreFilters() รอบแรกด้านบน
+    // (ตัวเลือกของ select เหล่านี้ถูกเติมทีหลังใน refreshFilterOptions() ซึ่งรันอยู่ใน render())
+    // จึงทำให้ค่าที่เคยเลือกไว้ (เช่น Equipment/Source) restore ไม่ติดหลัง Refresh หน้าเว็บ
+    // ผลคือ Correction ที่บันทึกไว้ภายใต้ Equipment/Source เดิม จะหาไม่เจอ (คีย์ไม่ตรงกัน) ดูเหมือนข้อมูลหายไป
+    // จึงต้อง restore ซ้ำอีกรอบหลังจาก render() ครั้งแรก (ตอนนี้ select มี option ให้ตรวจสอบแล้ว) แล้ว render() ใหม่
+    restoreFilters(function() {
+      refreshFilterOptions(document.getElementById('fMonth').value);
+      rebuildAllChipsS();
+      render();
+    });
   }catch(e){
     document.getElementById('loadingOverlay').style.display='none';
     const eb=document.getElementById('errorBox');eb.style.display='block';
