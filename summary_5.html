@@ -1043,7 +1043,12 @@ function scrapeSummaryForPdf(){
 
     const rowIdx=bodyRows.length;
     const cells=tds.map((td,idx)=>{
-      if(td.classList.contains('td-product')) return td.textContent.trim()||'-';
+      if(td.classList.contains('td-product')){
+        // ไม่เอาป้าย "⚙ Bias Adj" (ต่อท้ายชื่อสินค้าในหน้าเว็บ) ปนไปกับชื่อสินค้าใน PDF
+        const clone=td.cloneNode(true);
+        clone.querySelectorAll('.bias-adj-tag').forEach(t=>t.remove());
+        return clone.textContent.trim()||'-';
+      }
 
       if(idx===lastIdx || td.classList.contains('td-corr')){
         const inner=td.querySelector('.corr-inner');
@@ -1052,8 +1057,15 @@ function scrapeSummaryForPdf(){
           const txtEl=inner.querySelector('.corr-view .corr-text');
           const metaEl=inner.querySelector('.corr-view .corr-meta');
           if(txtEl){
-            s=txtEl.textContent.trim();
-            if(metaEl) s+=(s?'\n':'')+metaEl.textContent.trim();
+            // ตัดคำว่า "Adjust Bias " (รวมไอคอน ⚙ ถ้ามี) ออกจากแต่ละบรรทัดสำหรับ PDF (เหลือแค่ Parameter + ค่า เช่น "EE +0.510")
+            s=txtEl.textContent.trim().replace(/⚙?\s*Adjust Bias\s+/g,'');
+            if(metaEl){
+              // เอาเฉพาะวันที่บันทึก + ผู้บันทึก ไม่เอา badge Plant/Type/Equipment/Source (สำหรับ PDF เท่านั้น)
+              const metaClone=metaEl.cloneNode(true);
+              metaClone.querySelectorAll('span').forEach(sp=>sp.remove());
+              const metaText=metaClone.textContent.trim();
+              if(metaText) s+=(s?'\n':'')+metaText;
+            }
           }
         } else {
           s=td.textContent.replace(/⏳/g,'').trim();
