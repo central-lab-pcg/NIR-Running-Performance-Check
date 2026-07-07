@@ -332,11 +332,33 @@ async function cLoad(p, m, eqp, src) {
   return all[cKey(p, m, eqp, src)] || null;
 }
 
+// ── Write queue + optimistic retry ───────────────────────────────────────────
+// JSONBin เก็บ correction ทั้งหมดเป็นก้อน JSON เดียว และการบันทึกคือ "อ่านทั้งก้อน → แก้ไข → เขียนทับทั้งก้อน"
+// ถ้ามีการบันทึก 2 ครั้งใกล้ ๆ กัน (จากแท็บ/เครื่อง/ผู้ใช้คนละคน) การเขียนที่จบทีหลังอาจทับข้อมูลที่เพิ่งบันทึกไปก่อนหน้าจนหาย (lost update)
+// วิธีแก้ที่ทำได้จากฝั่ง client (ไม่มี backend คอย lock ให้จริง ๆ):
+//   1) คิวงานเขียนของแท็บนี้ให้ทำทีละครั้งเสมอ (กันชนกันเองภายในแท็บเดียว)
+//   2) หลังเขียนเสร็จ อ่านซ้ำเพื่อยืนยันว่าค่าที่เขียนไปยังอยู่จริง ถ้าไม่ตรง (โดนคนอื่นเขียนแทรก/ทับ) ให้ลองใหม่โดย merge จากข้อมูลสดอีกครั้ง
+let _corrWriteQueue = Promise.resolve();
+function _queueCorrWrite(task) {
+  const run = _corrWriteQueue.then(task, task);
+  _corrWriteQueue = run.catch(()=>{});
+  return run;
+}
+
 async function cDeleteShared(p, m, eqp, src) {
-  // อ่านข้อมูลล่าสุดก่อน แล้วค่อยลบ เพื่อไม่ให้ overwrite การแก้ไขของคนอื่น
-  const all = await corrGetAll();
-  delete all[cKey(p, m, eqp, src)];
-  await corrSaveAll(all);
+  const key = cKey(p, m, eqp, src);
+  return _queueCorrWrite(async () => {
+    const MAX_RETRY = 3;
+    for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
+      // อ่านข้อมูลล่าสุดก่อนทุกครั้ง แล้วค่อยลบ เพื่อไม่ให้ overwrite การแก้ไขของคนอื่น
+      const all = await corrGetAll();
+      delete all[key];
+      await corrSaveAll(all);
+      const verify = await corrGetAll();
+      if (!(key in verify)) return; // ลบสำเร็จจริง ยืนยันแล้ว
+      if (attempt < MAX_RETRY) await new Promise(r => setTimeout(r, 250 * attempt));
+    }
+  });
 }
 
 async function cSaveShared(p, m, eqp, src, text, user, extra) {
@@ -353,11 +375,22 @@ async function cSaveShared(p, m, eqp, src, text, user, extra) {
     })()
   };
   if(extra) Object.assign(obj, extra);
-  // อ่านข้อมูลล่าสุดก่อน แล้วค่อย merge เพื่อไม่ให้ overwrite คนอื่น
-  const all = await corrGetAll();
-  all[cKey(p, m, eqp, src)] = obj;
-  await corrSaveAll(all);
-  return obj;
+  const key = cKey(p, m, eqp, src);
+
+  return _queueCorrWrite(async () => {
+    const MAX_RETRY = 3;
+    for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
+      // อ่านข้อมูลล่าสุดก่อน แล้วค่อย merge เพื่อไม่ให้ overwrite คนอื่น
+      const all = await corrGetAll();
+      all[key] = obj;
+      await corrSaveAll(all);
+      // ยืนยันว่าที่เพิ่งเขียนไปยังอยู่จริง (กันกรณีมีคนอื่นเขียนแทรกจนของเราหาย)
+      const verify = await corrGetAll();
+      if (JSON.stringify(verify[key]) === JSON.stringify(obj)) return obj;
+      if (attempt < MAX_RETRY) await new Promise(r => setTimeout(r, 250 * attempt));
+    }
+    return obj; // ลองครบจำนวนครั้งแล้ว คืนค่าที่ตั้งใจบันทึกกลับไป (UI จะอัปเดตตามนี้)
+  });
 }
 
 // ── date ────────────────────────────────────────────────────────────────────
@@ -881,7 +914,7 @@ function render(){
       body+=`<tr><td colspan="${sortedP.length+2}" style="background:${bg};color:${fg};font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:5px 14px;border-top:2px solid ${fg}33;">🏷 ${prdType}</td></tr>`;
     }
     const aliases=[...(prdAliases.get(prd)||new Set([prd]))];
-    body+=`<tr><td class="td-product"><span style="margin-right:5px">${getPrdIcon(prd)}</span>${prd}</td>`;
+    body+=`<tr data-prd-raw="${prd.replace(/"/g,'&quot;')}"><td class="td-product"><span style="margin-right:5px">${getPrdIcon(prd)}</span>${prd}</td>`;
     sortedP.forEach(pk=>{
       const allPts=RECS.filter(r=>aliases.includes(r.prd)&&r.par===pk&&fBase(r)&&parseInt(r.mon)<=parseInt(selMon))
         .sort((a,b)=>parseInt(a.mon)-parseInt(b.mon));
@@ -906,10 +939,8 @@ function render(){
   // โหลด correction แบบ async หลัง render เสร็จ
   (async()=>{
     for(const {cSlotId,prd,selMon,eqp,src} of corrSlots){
-      const slot=document.getElementById(cSlotId);
-      if(!slot)continue;
-      const html=await corrHTML2(prd,selMon,eqp,src);
-      slot.outerHTML=`<td class="td-corr">${html}</td>`;
+      if(!document.getElementById(cSlotId))continue;
+      await loadCorrCellInitial(cSlotId,prd,selMon,eqp,src);
     }
   })();
 }
@@ -1673,6 +1704,37 @@ function eid2(prd,mon,eqp,src){
   return 'c'+btoa(encodeURIComponent(prd+'|'+mon+'|'+(eqp||'')+'|'+(src||''))).replace(/[^a-zA-Z0-9]/g,'');
 }
 
+// ── Stale-response guard สำหรับ correction cell ──────────────────────────────
+// ปัญหาเดิม: ตอนตาราง render ครั้งแรก จะมี loop async โหลด correction ทีละแถว
+// ถ้าผู้ใช้กด Adjust Bias / Save แล้วเสร็จก่อนที่ loop นี้จะมาถึงแถวเดียวกัน
+// ผลลัพธ์เก่าที่ยังค้าง (fetch ก่อนหน้า) อาจมา resolve "ทีหลัง" แล้วทับ cell ที่เพิ่ง update ด้วยข้อมูลเก่า
+// ทำให้ดูเหมือนข้อมูลที่บันทึกไปหายไป ทั้งที่จริงบันทึกสำเร็จแล้ว
+// วิธีแก้: ให้แต่ละ key (prd::mon::eqp::src) มีเลข "generation" — ถ้าผลลัพธ์ที่โหลดมาไม่ใช่ของ generation ล่าสุด ให้ทิ้งไป ไม่เอาไป apply กับ DOM
+const _corrCellGen = {};
+function _corrGenKey(prd,mon,eqp,src){ return cKey(prd,mon,eqp,src); }
+
+// ใช้ตอน render ตารางครั้งแรก (แทนที่ทั้ง <td> ที่เป็น placeholder ⏳)
+async function loadCorrCellInitial(cSlotId, prd, mon, eqp, src){
+  const key=_corrGenKey(prd,mon,eqp,src);
+  const myGen=(_corrCellGen[key]=(_corrCellGen[key]||0)+1);
+  const html=await corrHTML2(prd,mon,eqp,src);
+  if(_corrCellGen[key]!==myGen) return; // มีการอัปเดตใหม่กว่าเกิดขึ้นระหว่างที่รอโหลดอยู่ — ทิ้งผลลัพธ์นี้
+  const slot=document.getElementById(cSlotId);
+  if(slot) slot.outerHTML=`<td class="td-corr">${html}</td>`;
+}
+
+// ใช้ตอนบันทึก/ลบ correction เพื่ออัปเดต cell ที่ render อยู่แล้วในตาราง
+async function updateCorrCell(prd, mon, eqp, src, fallbackEl){
+  const key=_corrGenKey(prd,mon,eqp,src);
+  const myGen=(_corrCellGen[key]=(_corrCellGen[key]||0)+1);
+  const html=await corrHTML2(prd,mon,eqp,src);
+  if(_corrCellGen[key]!==myGen) return; // มีการอัปเดตใหม่กว่าเกิดขึ้นระหว่างที่รอโหลดอยู่ — ทิ้งผลลัพธ์นี้
+  const live=document.querySelector(
+    `.td-corr [data-prd="${CSS.escape(prd)}"][data-mon="${CSS.escape(mon)}"][data-eqp="${CSS.escape(eqp||'')}"][data-src="${CSS.escape(src||'')}"]`
+  ) || fallbackEl;
+  if(live) live.outerHTML=html;
+}
+
 async function corrHTML2(prd,mon,eqp,src){
   const id=eid2(prd,mon,eqp,src);
   let d=null;
@@ -1737,6 +1799,7 @@ async function doSave2(id){
   if(btn){btn.textContent='⏳ กำลังบันทึก...';btn.disabled=true;}
   try{
     const saved=await cSaveShared(prd,mon,eqp,src,text,user,{plant,type_val,equip,source_val});
+    _corrCellGen[_corrGenKey(prd,mon,eqp,src)]=(_corrCellGen[_corrGenKey(prd,mon,eqp,src)]||0)+1;
     const badges=[
       plant?`<span style="background:#e8f2fc;color:#3b82f6;border-radius:4px;padding:1px 6px;font-size:10px">${plant}</span>`:'',
       type_val?`<span style="background:#f0fdf4;color:#16a34a;border-radius:4px;padding:1px 6px;font-size:10px">${type_val}</span>`:'',
@@ -1766,8 +1829,7 @@ async function doDelete2(id){
   if(delBtn){delBtn.textContent='⏳ กำลังลบ...';delBtn.disabled=true;}
   try{
     await cDeleteShared(prd,mon,eqp,src);
-    const newHtml=await corrHTML2(prd,mon,eqp,src);
-    el.outerHTML=newHtml;
+    await updateCorrCell(prd,mon,eqp,src,el);
     setTimeout(refreshBiasAdjBadges, 300);
   }catch(e){
     alert('ลบไม่สำเร็จ: '+e.message);
@@ -1937,8 +1999,16 @@ async function openChartModal(el){
   // Capture current product / month / parameter for Adjust Bias
   try{
     const row=el.closest('tr');
-    const td=row?.querySelector('td.td-product');
-    if(td) _cmCurrentPrd=td.textContent.trim().replace(/^[\u{1F000}-\u{1FFFF}\u2600-\u26FF\u2700-\u27BF\s]+/u,'').trim();
+    if(row?.dataset.prdRaw){
+      _cmCurrentPrd=row.dataset.prdRaw;
+    } else {
+      // เผื่อกรณีไม่มี data-prd-raw (แถวเก่า/โค้ดเวอร์ชันก่อนหน้า) — fallback แบบเดิม
+      const td=row?.querySelector('td.td-product');
+      if(td) _cmCurrentPrd=td.textContent.trim()
+        .replace(/^[\u{1F000}-\u{1FFFF}\u2600-\u26FF\u2700-\u27BF\s]+/u,'')
+        .replace(/\s*⚙\s*Bias Adj\s*$/,'')
+        .trim();
+    }
     const detPre=JSON.parse(el.dataset.det.replace(/&quot;/g,'"'));
     _cmCurrentPar=detPre.par||'';
     _cmCurrentMon=document.getElementById('fMonth')?.value||'';
@@ -2140,12 +2210,14 @@ async function doAdjustBias(){
       source_val:selSrc
     });
 
-    const corrEl=document.querySelector(`.td-corr [data-prd="${CSS.escape(prd)}"][data-mon="${mon}"]`);
+    const corrEl=document.querySelector(
+      `.td-corr [data-prd="${CSS.escape(prd)}"][data-mon="${CSS.escape(mon)}"][data-eqp="${CSS.escape(selEqp||'')}"][data-src="${CSS.escape(selSrc||'')}"]`
+    );
 
     // Re-render correction cell — replace outerHTML of the corr-inner div
+    // ใช้ระบบ "generation guard" กันไม่ให้ผลลัพธ์ที่โหลดช้าของรอบก่อนหน้ามาทับของใหม่
     if(corrEl){
-      const newHtml=await corrHTML2(prd,mon,selEqp,selSrc);
-      corrEl.outerHTML=newHtml;
+      await updateCorrCell(prd,mon,selEqp,selSrc,corrEl);
     }
 
     // Refresh summary table bias badges
