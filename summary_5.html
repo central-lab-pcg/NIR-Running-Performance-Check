@@ -112,6 +112,9 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
 .corr-actions{flex-shrink:0}
 .btn-edit{font-size:10px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid #c8d9fa;background:#eef3ff;color:#5b8ef0;font-weight:600;font-family:var(--font);white-space:nowrap;transition:all .15s}
 .btn-edit:hover{background:#5b8ef0;color:#fff}
+.btn-delete{font-size:10px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid #f5b3ad;background:#fdecea;color:#c0392b;font-weight:600;font-family:var(--font);white-space:nowrap;transition:all .15s}
+.btn-delete:hover{background:#c0392b;color:#fff}
+.btn-delete:disabled{opacity:.6;cursor:not-allowed}
 .corr-empty{font-size:11px;color:var(--txt3);font-style:italic;flex:1}
 .corr-edit{display:none;flex-direction:column;gap:5px;width:100%}
 .corr-textarea{width:100%;font-size:11px;padding:5px 7px;border:1.5px solid #c8d9fa;border-radius:6px;resize:vertical;min-height:52px;font-family:var(--font);line-height:1.5}
@@ -327,6 +330,13 @@ function cKey(p, m, eqp, src) {
 async function cLoad(p, m, eqp, src) {
   const all = await corrGetAll();
   return all[cKey(p, m, eqp, src)] || null;
+}
+
+async function cDeleteShared(p, m, eqp, src) {
+  // อ่านข้อมูลล่าสุดก่อน แล้วค่อยลบ เพื่อไม่ให้ overwrite การแก้ไขของคนอื่น
+  const all = await corrGetAll();
+  delete all[cKey(p, m, eqp, src)];
+  await corrSaveAll(all);
 }
 
 async function cSaveShared(p, m, eqp, src, text, user, extra) {
@@ -1668,7 +1678,7 @@ async function corrHTML2(prd,mon,eqp,src){
             ${d.source_val?`<span style="margin-left:3px;background:#fffbeb;color:#d97706;border-radius:4px;padding:1px 6px;font-size:10px">${d.source_val}</span>`:''}
           </div>
         </div>
-        <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">✏️ แก้ไข</button></div></div>`
+        <div class="corr-actions" style="display:flex;gap:4px"><button class="btn-edit" onclick="startE2('${id}')">✏️ แก้ไข</button><button class="btn-delete" onclick="doDelete2('${id}')">🗑️ ลบ</button></div></div>`
     :`<div class="corr-view" id="${id}v">
         <span class="corr-empty">— ยังไม่มีบันทึก</span>
         <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">+ บันทึก</button></div></div>`;
@@ -1733,6 +1743,24 @@ async function doSave2(id){
   }catch(e){
     alert('บันทึกไม่สำเร็จ: '+e.message);
     if(btn){btn.textContent='💾 Save';btn.disabled=false;}
+  }
+}
+
+async function doDelete2(id){
+  const el=document.getElementById(id);
+  if(!el){alert('เกิดข้อผิดพลาด');return;}
+  const prd=el.dataset.prd, mon=el.dataset.mon, eqp=el.dataset.eqp||'', src=el.dataset.src||'';
+  if(!confirm('ยืนยันการลบ Correction นี้? การลบไม่สามารถกู้คืนได้'))return;
+  const delBtn=el.querySelector('.btn-delete');
+  if(delBtn){delBtn.textContent='⏳ กำลังลบ...';delBtn.disabled=true;}
+  try{
+    await cDeleteShared(prd,mon,eqp,src);
+    const newHtml=await corrHTML2(prd,mon,eqp,src);
+    el.outerHTML=newHtml;
+    setTimeout(refreshBiasAdjBadges, 300);
+  }catch(e){
+    alert('ลบไม่สำเร็จ: '+e.message);
+    if(delBtn){delBtn.textContent='🗑️ ลบ';delBtn.disabled=false;}
   }
 }
 </script>
@@ -2092,6 +2120,8 @@ async function doAdjustBias(){
 
 // ── Bias-Adjusted Badge in Summary Table ─────────────────────────────────────
 async function refreshBiasAdjBadges(){
+  // ลบ tag เดิมทั้งหมดก่อน แล้วค่อยประเมินใหม่ (กันกรณีลบ correction ที่มี biasAdj ไปแล้ว tag ค้าง)
+  document.querySelectorAll('.bias-adj-tag').forEach(t=>t.remove());
   // Pull all corrections and mark product rows that have biasAdj entries
   try{
     const all=await corrGetAll();
