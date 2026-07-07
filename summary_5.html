@@ -1858,6 +1858,7 @@ async function doDelete2(id){
         <span class="cm-leg"><span class="cm-leg-dot" style="background:#b89cf0"></span>2/3 นอก ±2SEP</span>
         <span class="cm-leg"><span class="cm-leg-dot" style="background:#e8b06a"></span>≥9 จุดฝั่งเดียว</span>
         <span class="cm-leg"><span class="cm-leg-dot" style="background:#5b9bd5"></span>ปกติ / Pass</span>
+        <span class="cm-leg"><span class="cm-leg-dot" style="background:#fff;border:3px solid #f5a623;box-sizing:border-box"></span>✅ ปรับ Bias แล้ว</span>
       </div>
       <div class="cm-canvas-wrap"><canvas id="cmCanvas"></canvas></div>
       <div class="cm-sel-panel" id="cmSelPanel">
@@ -1893,7 +1894,7 @@ async function doDelete2(id){
 </div>
 
 <script>
-let _cmChart=null,_cmAll=[],_cmSelected=new Set(),_cmBaseColors=[],_cmBaseRadii=[];
+let _cmChart=null,_cmAll=[],_cmSelected=new Set(),_cmBaseColors=[],_cmBaseRadii=[],_cmAdjustedIdx=new Set();
 
 function cmClearSel(){_cmSelected.clear();cmUpdateSel();cmUpdateColors();}
 function cmUpdateSel(){
@@ -1922,15 +1923,15 @@ function cmUpdateSel(){
 }
 function cmUpdateColors(){
   if(!_cmChart)return;
-  const SEL='#00c896';
+  const SEL='#00c896',ADJ='#f5a623';
   _cmChart.data.datasets[0].pointBackgroundColor=_cmAll.map((_,i)=>_cmSelected.has(i)?SEL:_cmBaseColors[i]);
-  _cmChart.data.datasets[0].pointBorderColor=_cmAll.map((_,i)=>_cmSelected.has(i)?'#fff':_cmBaseColors[i]);
-  _cmChart.data.datasets[0].pointBorderWidth=_cmAll.map((_,i)=>_cmSelected.has(i)?2:0);
-  _cmChart.data.datasets[0].pointRadius=_cmAll.map((_,i)=>_cmSelected.has(i)?9:_cmBaseRadii[i]);
+  _cmChart.data.datasets[0].pointBorderColor=_cmAll.map((_,i)=>_cmSelected.has(i)?'#fff':_cmAdjustedIdx.has(i)?ADJ:_cmBaseColors[i]);
+  _cmChart.data.datasets[0].pointBorderWidth=_cmAll.map((_,i)=>_cmSelected.has(i)?2:_cmAdjustedIdx.has(i)?3:0);
+  _cmChart.data.datasets[0].pointRadius=_cmAll.map((_,i)=>_cmSelected.has(i)?9:_cmAdjustedIdx.has(i)?_cmBaseRadii[i]+2:_cmBaseRadii[i]);
   _cmChart.update('none');
 }
 
-function openChartModal(el){
+async function openChartModal(el){
   if(!el.dataset.det)return;
 
   // Capture current product / month / parameter for Adjust Bias
@@ -1956,6 +1957,21 @@ function openChartModal(el){
   const p23=new Array(n).fill(false);
   for(let i=2;i<n;i++){const w=[i-2,i-1,i];if(w.filter(j=>b2[j]).length>=2)w.filter(j=>b2[j]).forEach(j=>{p23[j]=true;});}
   _cmAll=pts.map((r,i)=>({...r,flag:b3[i]?'f3':(p23[i]&&b2[i])?'f2':y9[i]?'f9':'ok'}));
+
+  // ตรวจสอบว่าจุดไหนเคยถูกเลือกไปใช้ Adjust Bias พารามิเตอร์นี้แล้วบ้าง (แสดงเป็นวงแหวนสีทอง)
+  _cmAdjustedIdx=new Set();
+  try{
+    const selEqp0=document.getElementById('fEquip')?.value||'';
+    const selSrc0=document.getElementById('fSource')?.value||'';
+    const prevD=await cLoad(_cmCurrentPrd,_cmCurrentMon,selEqp0,selSrc0);
+    if(prevD&&Array.isArray(prevD.biasAdj)){
+      const entry=prevD.biasAdj.find(p=>p.par===det.par);
+      if(entry&&Array.isArray(entry.months)){
+        const monSet=new Set(entry.months.map(String));
+        _cmAll.forEach((r,i)=>{if(monSet.has(String(r.mon)))_cmAdjustedIdx.add(i);});
+      }
+    }
+  }catch(e){}
 
   _cmSelected.clear();
   document.getElementById('cmSelPanel').classList.remove('open');
@@ -2007,7 +2023,8 @@ function openChartModal(el){
           title:c=>{const i=c[0].dataIndex;return _cmAll[i]?.nm||'';},
           label:c=>{if(c.datasetIndex!==0)return null;const v=c.raw,mon=monLabels[c.dataIndex]||'';
             const flag={f3:'⚠ ±3SEP',f2:'◉ 2/3',f9:'◆ 9จุด',ok:'✓ Pass'}[_cmAll[c.dataIndex]?.flag]||'';
-            return['Diff: '+(v>=0?'+':'')+v.toFixed(3),'เดือน: '+mon,flag].filter(Boolean);}},
+            const adj=_cmAdjustedIdx.has(c.dataIndex)?'✅ ปรับ Bias แล้ว':'';
+            return['Diff: '+(v>=0?'+':'')+v.toFixed(3),'เดือน: '+mon,flag,adj].filter(Boolean);}},
           displayColors:false,backgroundColor:'rgba(30,40,80,0.92)',titleColor:'#fff',bodyColor:'#c0c8e8',
           titleFont:{size:11,weight:'700'},bodyFont:{size:11,family:'DM Mono'},padding:10,cornerRadius:8}},
       scales:{
@@ -2018,13 +2035,14 @@ function openChartModal(el){
       }
     }
   });
+  cmUpdateColors();
   document.getElementById('chartModal').classList.add('open');
 }
 function closeChartModal(){
   document.getElementById('chartModal').classList.remove('open');
   document.getElementById('cmSelPanel').classList.remove('open');
   document.getElementById('cmAdjPanel').classList.remove('open');
-  _cmSelected.clear();_cmAll=[];_cmCurrentPrd='';_cmCurrentMon='';_cmCurrentPar='';
+  _cmSelected.clear();_cmAll=[];_cmCurrentPrd='';_cmCurrentMon='';_cmCurrentPar='';_cmAdjustedIdx=new Set();
   if(_cmChart){_cmChart.destroy();_cmChart=null;}
 }
 document.getElementById('chartModal').addEventListener('click',function(e){if(e.target===this)closeChartModal();});
@@ -2079,6 +2097,9 @@ async function doAdjustBias(){
   });
   if(!valid||!params.length){alert('กรุณากรอกค่า Parameter และ Value ให้ครบ (ค่าต้องไม่เป็น 0)');return;}
 
+  // จุดบนกราฟที่กำลังเลือกอยู่ตอนนี้ (ใช้คำนวณ Bias ที่จะบันทึก) → เก็บเป็น "เดือน" ที่ถือว่าปรับ Bias แล้ว
+  const selectedMons=[..._cmSelected].map(i=>_cmAll[i]?.mon).filter(Boolean).map(String);
+
   const prd=_cmCurrentPrd;
   const mon=_cmCurrentMon;
   const selEqp=document.getElementById('fEquip')?.value||'';
@@ -2092,7 +2113,12 @@ async function doAdjustBias(){
   const mergedBiasAdj=[...prevBiasAdj];
   params.forEach(np=>{
     const idx=mergedBiasAdj.findIndex(p=>p.par===np.par);
-    if(idx>=0) mergedBiasAdj[idx]=np; else mergedBiasAdj.push(np);
+    if(idx>=0){
+      const prevMons=Array.isArray(mergedBiasAdj[idx].months)?mergedBiasAdj[idx].months:[];
+      mergedBiasAdj[idx]={...np,months:[...new Set([...prevMons,...selectedMons])]};
+    } else {
+      mergedBiasAdj.push({...np,months:selectedMons});
+    }
   });
 
   // สร้างข้อความใหม่: คงบรรทัดอื่นๆ ที่ผู้ใช้เคยพิมพ์เอง แล้วสร้างบรรทัด "Adjust Bias" ใหม่ทั้งหมด
@@ -2124,6 +2150,12 @@ async function doAdjustBias(){
 
     // Refresh summary table bias badges
     refreshBiasAdjBadges();
+
+    // อัปเดตกราฟที่เปิดอยู่ ให้เห็นวงแหวน "ปรับ Bias แล้ว" ที่จุดที่เพิ่งใช้ไปทันที โดยไม่ต้องเปิดใหม่
+    _cmSelected.forEach(i=>_cmAdjustedIdx.add(i));
+    _cmSelected.clear();
+    cmUpdateSel();
+    cmUpdateColors();
 
     btn.textContent='✅ บันทึกแล้ว!';
     setTimeout(()=>{
