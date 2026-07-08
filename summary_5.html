@@ -284,21 +284,45 @@ const JSONBIN_MASTER = '$2a$10$oCl17sk5FL69HRjvcyDZPefF/QkDJbfVDS.qpBYNwiFnb2ufV
 const JSONBIN_ACCESS = '$2a$10$KUCt03lbeTKyErlWNAdVheQ0dGdoVzYq5y.hnbhTnnWgT3oLxKk5e';
 const JSONBIN_URL    = 'https://api.jsonbin.io/v3/b/' + JSONBIN_ID;
 
-// ไม่ cache — ดึงสดทุกครั้งเพื่อให้ทุกเครื่องเห็นข้อมูลล่าสุด
-async function corrGetAll() {
+// cache สั้น ๆ (in-memory) กันไม่ให้ยิง request ซ้ำจำนวนมากตอน render ตาราง (เดิมยิง 1 ครั้งต่อแถวสินค้า ไม่มี cache เลย)
+// force=true (ใช้ตอนอ่านก่อนเขียน/verify ใน cSaveShared/cDeleteShared) จะข้าม cache เสมอเพื่อความถูกต้อง
+let _corrCache=null; // {data, ts}
+const CORR_CACHE_TTL=4000; // ms
+
+async function corrGetAll(force) {
+  const now=Date.now();
+  if(!force && _corrCache && (now-_corrCache.ts)<CORR_CACHE_TTL){
+    return _corrCache.data;
+  }
   try {
-    const res = await fetch(JSONBIN_URL + '/latest', {
-      cache: 'no-store',
-      headers: {
-        'X-Master-Key': JSONBIN_MASTER,
-        'X-Bin-Meta': 'false'
+    let res, attempt=0;
+    while(true){
+      res = await fetch(JSONBIN_URL + '/latest', {
+        cache: 'no-store',
+        headers: {
+          'X-Master-Key': JSONBIN_MASTER,
+          'X-Bin-Meta': 'false'
+        }
+      });
+      if(res.status===429 && attempt<2){
+        attempt++;
+        await new Promise(r=>setTimeout(r, 1200*attempt));
+        continue;
       }
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+      break;
+    }
+    if (!res.ok) {
+      // โดน rate limit หรือ error อื่น ๆ — ถ้ามี cache เก่าอยู่ ใช้ของเก่าไปก่อนดีกว่าคืนค่าว่างเปล่า
+      if(_corrCache) return _corrCache.data;
+      throw new Error('HTTP ' + res.status);
+    }
     const json = await res.json();
-    return json.record?.corrections || json.corrections || {};
+    const data = json.record?.corrections || json.corrections || {};
+    _corrCache={data, ts:now};
+    return data;
   } catch(e) {
     console.error('JSONBin read error:', e);
+    if(_corrCache) return _corrCache.data;
     return {};
   }
 }
@@ -328,7 +352,7 @@ function cKey(p, m, eqp, src) {
 }
 
 async function cLoad(p, m, eqp, src) {
-  const all = await corrGetAll();
+  const all = await corrGetAll(true);
   return all[cKey(p, m, eqp, src)] || null;
 }
 
@@ -350,12 +374,12 @@ async function cDeleteShared(p, m, eqp, src) {
   return _queueCorrWrite(async () => {
     const MAX_RETRY = 3;
     for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
-      // อ่านข้อมูลล่าสุดก่อนทุกครั้ง แล้วค่อยลบ เพื่อไม่ให้ overwrite การแก้ไขของคนอื่น
-      const all = await corrGetAll();
+      // อ่านข้อมูลล่าสุดก่อนทุกครั้ง (บังคับข้าม cache) แล้วค่อยลบ เพื่อไม่ให้ overwrite การแก้ไขของคนอื่น
+      const all = await corrGetAll(true);
       delete all[key];
       await corrSaveAll(all);
-      const verify = await corrGetAll();
-      if (!(key in verify)) return; // ลบสำเร็จจริง ยืนยันแล้ว
+      const verify = await corrGetAll(true);
+      if (!(key in verify)) { _corrCache={data:verify, ts:Date.now()}; return; } // ลบสำเร็จจริง ยืนยันแล้ว
       if (attempt < MAX_RETRY) await new Promise(r => setTimeout(r, 250 * attempt));
     }
   });
@@ -380,13 +404,13 @@ async function cSaveShared(p, m, eqp, src, text, user, extra) {
   return _queueCorrWrite(async () => {
     const MAX_RETRY = 3;
     for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
-      // อ่านข้อมูลล่าสุดก่อน แล้วค่อย merge เพื่อไม่ให้ overwrite คนอื่น
-      const all = await corrGetAll();
+      // อ่านข้อมูลล่าสุดก่อน (บังคับข้าม cache) แล้วค่อย merge เพื่อไม่ให้ overwrite คนอื่น
+      const all = await corrGetAll(true);
       all[key] = obj;
       await corrSaveAll(all);
       // ยืนยันว่าที่เพิ่งเขียนไปยังอยู่จริง (กันกรณีมีคนอื่นเขียนแทรกจนของเราหาย)
-      const verify = await corrGetAll();
-      if (JSON.stringify(verify[key]) === JSON.stringify(obj)) return obj;
+      const verify = await corrGetAll(true);
+      if (JSON.stringify(verify[key]) === JSON.stringify(obj)) { _corrCache={data:verify, ts:Date.now()}; return obj; }
       if (attempt < MAX_RETRY) await new Promise(r => setTimeout(r, 250 * attempt));
     }
     return obj; // ลองครบจำนวนครั้งแล้ว คืนค่าที่ตั้งใจบันทึกกลับไป (UI จะอัปเดตตามนี้)
@@ -544,14 +568,61 @@ function wideToLong(rows){
 
 // ── state ───────────────────────────────────────────────────────────────────
 let RECS=[];
+const DATA_CACHE_KEY='nir_data_cache_v1';
+
+// raw.githubusercontent.com มี rate limit ต่อ IP — สำนักงานที่มีคนใช้เครื่องมือนี้พร้อมกันหลายคน
+// (ออก internet ผ่าน IP เดียวกัน) มีโอกาสโดน HTTP 429 ได้ง่าย จึงเพิ่ม retry แบบ backoff
+// และ fallback ไปใช้ข้อมูลที่เคย cache ไว้ใน localStorage แทนการฟ้อง error ทันที
+async function fetchWithRetry(url, opts, retries=2, backoffMs=1200){
+  let lastErr;
+  for(let attempt=0; attempt<=retries; attempt++){
+    try{
+      const res=await fetch(url, opts);
+      if(res.status===429 && attempt<retries){
+        await new Promise(r=>setTimeout(r, backoffMs*(attempt+1)));
+        continue;
+      }
+      return res;
+    }catch(e){
+      lastErr=e;
+      if(attempt<retries) await new Promise(r=>setTimeout(r, backoffMs*(attempt+1)));
+    }
+  }
+  if(lastErr) throw lastErr;
+  throw new Error('fetch failed');
+}
 
 async function loadData(){
+  let json=null, json2=null, usedCache=false, cacheTs=null;
   try{
-    const res=await fetch(DATA_URL,{cache:'no-cache'});
+    const res=await fetchWithRetry(DATA_URL,{cache:'default'});
     if(!res.ok)throw new Error('HTTP '+res.status);
-    const json=await res.json();
-    let json2=null;
-    if(DATA_URL2){try{const r2=await fetch(DATA_URL2,{cache:'no-cache'});if(r2.ok)json2=await r2.json();}catch(e){}}
+    json=await res.json();
+    if(DATA_URL2){
+      try{
+        const r2=await fetchWithRetry(DATA_URL2,{cache:'default'});
+        if(r2.ok)json2=await r2.json();
+      }catch(e){}
+    }
+    // โหลดสำเร็จ — เก็บ cache ไว้เผื่อครั้งหน้าโหลดไม่สำเร็จ (เช่นโดน rate limit)
+    try{ localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({ts:Date.now(), json, json2})); }catch(e){}
+  }catch(e){
+    // โหลดสดไม่สำเร็จ (เช่น HTTP 429) — ลองใช้ข้อมูลที่เคย cache ไว้แทน ดีกว่าฟ้อง error แล้วใช้อะไรไม่ได้เลย
+    try{
+      const cached=JSON.parse(localStorage.getItem(DATA_CACHE_KEY)||'null');
+      if(cached && cached.json){
+        json=cached.json; json2=cached.json2||null;
+        usedCache=true; cacheTs=cached.ts;
+      }
+    }catch(e2){}
+    if(!json){
+      document.getElementById('loadingOverlay').style.display='none';
+      const eb=document.getElementById('errorBox');eb.style.display='block';
+      eb.innerHTML='❌ <strong>โหลดข้อมูลไม่ได้:</strong> '+e.message;
+      return;
+    }
+  }
+  try{
     let allRows=[];
     if(json.rows){
       allRows=[...json.rows];
@@ -577,6 +648,16 @@ async function loadData(){
     RECS.forEach(r=>{if(r.mon)monSet.set(String(r.mon),1);if(r.pla)pla.add(r.pla);if(r.typ)typ.add(r.typ);if(r.eqp)eqp.add(r.eqp);if(r.src)src.add(r.src);});
     const ms=[...monSet.keys()].sort((a,b)=>parseInt(a)-parseInt(b));
     if(json.generated_at)document.getElementById('lastUpdated').textContent='อัปเดตล่าสุด: '+json.generated_at+(json2?' (รวม '+RECS.length.toLocaleString()+' records)':'');
+    if(usedCache){
+      const eb=document.getElementById('errorBox');
+      if(eb){
+        eb.style.display='block';
+        eb.style.background='#fff7e6';
+        eb.style.color='#a06020';
+        const cacheDate=cacheTs?new Date(cacheTs).toLocaleString('th-TH'):'';
+        eb.innerHTML='⚠️ โหลดข้อมูลสดไม่สำเร็จ (เซิร์ฟเวอร์จำกัดจำนวนคำขอชั่วคราว) กำลังแสดงข้อมูลที่บันทึกไว้ล่าสุดเมื่อ '+cacheDate+' แทน — ลองรีเฟรชอีกครั้งในอีกสักครู่';
+      }
+    }
     document.getElementById('loadingOverlay').style.display='none';
     document.getElementById('appContent').style.display='block';
     const fM=document.getElementById('fMonth');
