@@ -1152,14 +1152,12 @@ function scrapeSummaryForPdf(){
           const txtEl=inner.querySelector('.corr-view .corr-text');
           const metaEl=inner.querySelector('.corr-view .corr-meta');
           if(txtEl){
-            // ตัดคำว่า "Adjust Bias " (รวมไอคอน ⚙ ถ้ามี) ออกจากแต่ละบรรทัดสำหรับ PDF (เหลือแค่ Parameter + ค่า เช่น "EE +0.510")
-            s=txtEl.textContent.trim().replace(/⚙?\s*Adjust Bias\s+/g,'');
+            // คงคำว่า "Adjust Bias" ไว้ตามเดิม (ตามที่ผู้ใช้ต้องการ) ตัดแค่ไอคอน ⚙ ออก
+            s=txtEl.textContent.trim().replace(/⚙\s*/g,'');
             if(metaEl){
-              // เอาเฉพาะวันที่บันทึก + ผู้บันทึก ไม่เอา badge Plant/Type/Equipment/Source (สำหรับ PDF เท่านั้น)
-              const metaClone=metaEl.cloneNode(true);
-              metaClone.querySelectorAll('span').forEach(sp=>sp.remove());
-              const metaText=metaClone.textContent.trim();
-              if(metaText) s+=(s?'\n':'')+metaText;
+              // เอาเฉพาะชื่อผู้บันทึก ไม่เอาวันที่ และไม่เอา badge Plant/Type/Equipment/Source (สำหรับ PDF เท่านั้น)
+              const userName=metaEl.querySelector('a')?.textContent.trim()||'';
+              if(userName) s+=(s?'\n':'')+userName;
             }
           }
         } else {
