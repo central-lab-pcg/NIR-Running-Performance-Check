@@ -581,22 +581,21 @@ let RECS=[];
 const DATA_CACHE_KEY='nir_data_cache_v1';
 
 // raw.githubusercontent.com มี rate limit ต่อ IP — สำนักงานที่มีคนใช้เครื่องมือนี้พร้อมกันหลายคน
-// (ออก internet ผ่าน IP เดียวกัน) มีโอกาสโดน HTTP 429 ได้ง่าย จึงเพิ่ม retry แบบ backoff (พร้อม jitter กันทุกเครื่อง retry พร้อมกันเป๊ะ)
+// (ออก internet ผ่าน IP เดียวกัน) มีโอกาสโดน HTTP 429 ได้ง่าย จึงเพิ่ม retry แบบ backoff
 // และ fallback ไปใช้ข้อมูลที่เคย cache ไว้ใน localStorage แทนการฟ้อง error ทันที
-async function fetchWithRetry(url, opts, retries=4, backoffMs=1500){
+async function fetchWithRetry(url, opts, retries=2, backoffMs=1200){
   let lastErr;
   for(let attempt=0; attempt<=retries; attempt++){
     try{
       const res=await fetch(url, opts);
       if(res.status===429 && attempt<retries){
-        const jitter=Math.random()*500;
-        await new Promise(r=>setTimeout(r, backoffMs*Math.pow(1.6,attempt)+jitter));
+        await new Promise(r=>setTimeout(r, backoffMs*(attempt+1)));
         continue;
       }
       return res;
     }catch(e){
       lastErr=e;
-      if(attempt<retries) await new Promise(r=>setTimeout(r, backoffMs*Math.pow(1.6,attempt)));
+      if(attempt<retries) await new Promise(r=>setTimeout(r, backoffMs*(attempt+1)));
     }
   }
   if(lastErr) throw lastErr;
@@ -629,7 +628,7 @@ async function loadData(){
     if(!json){
       document.getElementById('loadingOverlay').style.display='none';
       const eb=document.getElementById('errorBox');eb.style.display='block';
-      eb.innerHTML='❌ <strong>โหลดข้อมูลไม่ได้:</strong> '+e.message+' <button onclick="location.reload()" style="margin-left:8px;padding:3px 10px;border-radius:6px;border:1px solid #c0392b;background:#fff;color:#c0392b;font-weight:600;cursor:pointer;font-size:12px">🔄 ลองใหม่</button>';
+      eb.innerHTML='❌ <strong>โหลดข้อมูลไม่ได้:</strong> '+e.message;
       return;
     }
   }
@@ -718,7 +717,7 @@ async function loadData(){
   }catch(e){
     document.getElementById('loadingOverlay').style.display='none';
     const eb=document.getElementById('errorBox');eb.style.display='block';
-    eb.innerHTML='❌ <strong>โหลดข้อมูลไม่ได้:</strong> '+e.message+' <button onclick="location.reload()" style="margin-left:8px;padding:3px 10px;border-radius:6px;border:1px solid #c0392b;background:#fff;color:#c0392b;font-weight:600;cursor:pointer;font-size:12px">🔄 ลองใหม่</button>';
+    eb.innerHTML='❌ <strong>โหลดข้อมูลไม่ได้:</strong> '+e.message;
   }
 }
 
