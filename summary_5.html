@@ -460,7 +460,12 @@ function getAllowedPlants() {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ── Shared Filter Sync (sessionStorage) ─────────────────────────────────────
+// ── Shared Filter Sync (localStorage) ────────────────────────────────────────
+// เดิมใช้ sessionStorage ซึ่งจะหายไปทันทีที่ปิดแท็บ/เปิดใหม่ ทำให้ตัวกรอง Equipment/Source
+// รีเซ็ตกลับเป็นค่าเริ่มต้น ("All") พอเปิดเข้ามาใหม่ — และเนื่องจาก Correction ถูกบันทึกผูกกับ
+// Equipment/Source ที่เลือกไว้ตอนบันทึกด้วย พอตัวกรองรีเซ็ต จึงมองหา correction ผิด key
+// (คนละ Equipment/Source กับตอนบันทึก) แล้วดูเหมือนข้อมูลหายไป ทั้งที่จริงยังอยู่ครบ
+// เปลี่ยนมาใช้ localStorage เพื่อให้ตัวกรองที่เลือกไว้ค้างอยู่แม้ปิด/เปิดเบราว์เซอร์ใหม่
 var NIR_FILTER_KEY = 'nir_filters';
 
 function saveFilters() {
@@ -469,12 +474,12 @@ function saveFilters() {
     var el = document.getElementById(id);
     if (el) state[id] = el.value;
   });
-  try { sessionStorage.setItem(NIR_FILTER_KEY, JSON.stringify(state)); } catch(e) {}
+  try { localStorage.setItem(NIR_FILTER_KEY, JSON.stringify(state)); } catch(e) {}
 }
 
 function restoreFilters(onRestored) {
   try {
-    var raw = sessionStorage.getItem(NIR_FILTER_KEY);
+    var raw = localStorage.getItem(NIR_FILTER_KEY);
     if (!raw) { if(onRestored) onRestored(false); return; }
     var state = JSON.parse(raw);
     // Restore each select value if the option exists
@@ -1294,7 +1299,7 @@ async function exportToPDF(){
 
 // ── clear filters ─────────────────────────────────────────────────────────────
 function clearFilters(){
-  try{sessionStorage.removeItem(NIR_FILTER_KEY);}catch(e){}
+  try{localStorage.removeItem(NIR_FILTER_KEY);}catch(e){}
   rebuildAllChipsS && rebuildAllChipsS();
   var _ap=null;try{var _u=JSON.parse(localStorage.getItem('nir_user')||'{}');var _p=_u.plants;if(_p&&_p.length>0)_ap=_p;}catch(e){}
   ['fPlant','fType','fEquip','fSource'].forEach(id=>{
@@ -1747,10 +1752,32 @@ async function updateCorrCell(prd, mon, eqp, src, fallbackEl){
   if(live) live.outerHTML=html;
 }
 
+// หา correction ของสินค้า+เดือนเดียวกัน แต่อยู่ภายใต้ Equipment/Source อื่น (คนละ key)
+// ใช้เตือนผู้ใช้เวลา cell แสดง "ยังไม่มีบันทึก" ทั้งที่จริงมีบันทึกอยู่ แค่คนละตัวกรอง Equipment/Source
+function findCorrOtherEqpSrcFrom(all, prd, mon, curKey){
+  const hits=[];
+  Object.entries(all).forEach(([key,val])=>{
+    if(key===curKey || !val) return;
+    const [p,m]=key.split('::');
+    if(p===prd && String(m)===String(mon)) hits.push(val);
+  });
+  return hits;
+}
+
 async function corrHTML2(prd,mon,eqp,src){
   const id=eid2(prd,mon,eqp,src);
-  let d=null;
-  try{d=await cLoad(prd,mon,eqp,src);}catch{}
+  const key=cKey(prd,mon,eqp,src);
+  let all={};
+  try{ all=await corrGetAll(); }catch{}
+  const d=all[key]||null;
+  let otherHint='';
+  if(!d){
+    const others=findCorrOtherEqpSrcFrom(all,prd,mon,key);
+    if(others.length){
+      const combos=[...new Set(others.map(o=>[o.equip,o.source_val].filter(Boolean).join(' / ')||'—'))].join(', ');
+      otherHint=`<div style="font-size:9px;color:#a06020;margin-top:4px">ℹ️ มีบันทึกของสินค้านี้ภายใต้ Equipment/Source อื่น: ${combos}</div>`;
+    }
+  }
   const viewH=d
     ?`<div class="corr-view" id="${id}v">
         <div style="flex:1">
@@ -1765,7 +1792,7 @@ async function corrHTML2(prd,mon,eqp,src){
         </div>
         <div class="corr-actions" style="display:flex;gap:4px"><button class="btn-edit" onclick="startE2('${id}')">✏️ แก้ไข</button><button class="btn-delete" onclick="doDelete2('${id}')">🗑️ ลบ</button></div></div>`
     :`<div class="corr-view" id="${id}v">
-        <span class="corr-empty">— ยังไม่มีบันทึก</span>
+        <div style="flex:1"><span class="corr-empty">— ยังไม่มีบันทึก</span>${otherHint}</div>
         <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">+ บันทึก</button></div></div>`;
   return `<div class="corr-inner" id="${id}" data-prd="${prd.replace(/"/g,'&quot;')}" data-mon="${mon}" data-eqp="${(eqp||'').replace(/"/g,'&quot;')}" data-src="${(src||'').replace(/"/g,'&quot;')}">
     ${viewH}
