@@ -482,6 +482,15 @@ function getAllowedPlants() {
     return (u.plants && u.plants.length > 0) ? u.plants : null;
   } catch(e) { return null; }
 }
+
+// ดึงชื่อผู้ใช้ที่ล็อกอินไว้ (จากระบบล็อกอินเดิมที่เก็บ nir_user ไว้ใน localStorage)
+// รองรับหลายชื่อ field เผื่อระบบล็อกอินตั้งชื่อ field ไว้ต่างกัน
+function getCurrentUserName() {
+  try {
+    var u = JSON.parse(localStorage.getItem('nir_user') || '{}');
+    return u.name || u.username || u.displayName || u.fullName || u.user || u.email || '';
+  } catch(e) { return ''; }
+}
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Shared Filter Sync (localStorage) ────────────────────────────────────────
@@ -1902,6 +1911,12 @@ function startE2(id){
   const ed=document.getElementById(id+'e');
   ed.style.display='flex';
   document.getElementById(id+'t').focus();
+  // เติมชื่อผู้บันทึกอัตโนมัติจาก User ที่ล็อกอินไว้ (ถ้ายังไม่เคยพิมพ์/บันทึกชื่อไว้)
+  const userEl=document.getElementById(id+'u');
+  if(userEl && !userEl.value.trim()){
+    const uname=getCurrentUserName();
+    if(uname) userEl.value=uname;
+  }
 }
 
 async function doSave2(id){
@@ -2094,8 +2109,9 @@ function cmUpdateSel(){
   if(adjPanel.classList.contains('open')){
     document.getElementById('cmAdjBiasVal').textContent=(bias>=0?'+':'')+bias.toFixed(3);
     // update first row value if it matches current par
+    // (input type="number" ไม่รับ "+" นำหน้า จึงต้องไม่ใส่เครื่องหมายบวกตรงนี้)
     const firstRow=document.getElementById('cmAdjParams')?.querySelector('.cm-adj-param-row input');
-    if(firstRow)firstRow.value=(bias>=0?'+':'')+bias.toFixed(3);
+    if(firstRow)firstRow.value=bias.toFixed(3);
   }
   const flagLabel={f3:'⚠ ±3SEP',f2:'◉ 2/3',f9:'◆ 9จุด',ok:'✓ Pass'};
   document.getElementById('cmSelBody').innerHTML=[..._cmSelected].sort((a,b)=>a-b).map(i=>{
@@ -2156,7 +2172,12 @@ async function openChartModal(el){
     const prevD=await cLoad(_cmCurrentPrd,_cmCurrentMon,selEqp0,selSrc0);
     if(prevD&&Array.isArray(prevD.biasAdj)){
       const entry=prevD.biasAdj.find(p=>p.par===det.par);
-      if(entry&&Array.isArray(entry.months)){
+      if(entry&&Array.isArray(entry.points)&&entry.points.length){
+        // ข้อมูลใหม่ (แม่นยำ): จับคู่เฉพาะจุดที่เลือกจริง (เดือน+ชื่อตัวอย่าง) ไม่ใช่ทั้งเดือน
+        const ptSet=new Set(entry.points.map(String));
+        _cmAll.forEach((r,i)=>{if(ptSet.has(String(r.mon)+'|'+String(r.nm??'')))_cmAdjustedIdx.add(i);});
+      } else if(entry&&Array.isArray(entry.months)){
+        // ข้อมูลเก่า (ก่อนแก้ไข): จับคู่แค่ระดับเดือน — อาจติดวงแหวนเกินถ้าเดือนนั้นมีหลายตัวอย่าง
         const monSet=new Set(entry.months.map(String));
         _cmAll.forEach((r,i)=>{if(monSet.has(String(r.mon)))_cmAdjustedIdx.add(i);});
       }
@@ -2256,6 +2277,12 @@ function toggleAdjPanel(){
   const adjParams=document.getElementById('cmAdjParams');
   adjParams.innerHTML='';
   addAdjParam(_cmCurrentPar, biasNum);
+  // เติมชื่อผู้บันทึกอัตโนมัติจาก User ที่ล็อกอินไว้ (ถ้ายังไม่เคยพิมพ์อะไรไว้)
+  const userEl=document.getElementById('cmAdjUser');
+  if(userEl && !userEl.value.trim()){
+    const uname=getCurrentUserName();
+    if(uname) userEl.value=uname;
+  }
   panel.classList.add('open');
 }
 
@@ -2266,7 +2293,10 @@ function addAdjParam(par, val){
   const row=document.createElement('div');
   row.className='cm-adj-param-row';
   const selHtml=`<select>${ADJ_PARAMS.map(p=>`<option value="${p}"${p===(par||_cmCurrentPar)?'selected':''}>${p}</option>`).join('')}</select>`;
-  const valInput=`<input type="number" step="0.001" placeholder="±Value" value="${val||''}">`;
+  // input type="number" ไม่ยอมรับเครื่องหมาย "+" นำหน้า (ตาม HTML spec) ถ้าใส่ "+0.565" เบราว์เซอร์จะเคลียร์ค่าทิ้งเป็นค่าว่างทันที
+  // จึงต้องตัด "+" ออกก่อนใส่ใน value ของ input (ค่าลบยังใส่ได้ปกติ ไม่ต้องตัด "-")
+  const cleanVal=(val||'').toString().replace(/^\+/,'');
+  const valInput=`<input type="number" step="0.001" placeholder="±Value" value="${cleanVal}">`;
   row.innerHTML=selHtml+valInput+`<button class="btn-rm" onclick="this.closest('.cm-adj-param-row').remove()" title="ลบ">×</button>`;
   container.appendChild(row);
 }
@@ -2287,8 +2317,14 @@ async function doAdjustBias(){
   });
   if(!valid||!params.length){alert('กรุณากรอกค่า Parameter และ Value ให้ครบ (ค่าต้องไม่เป็น 0)');return;}
 
-  // จุดบนกราฟที่กำลังเลือกอยู่ตอนนี้ (ใช้คำนวณ Bias ที่จะบันทึก) → เก็บเป็น "เดือน" ที่ถือว่าปรับ Bias แล้ว
+  // จุดบนกราฟที่กำลังเลือกอยู่ตอนนี้ (ใช้คำนวณ Bias ที่จะบันทึก)
+  // เดิมเก็บแค่ "เดือน" (r.mon) — ถ้าเดือนนั้นมีหลายตัวอย่าง (sample) การจับคู่ตอนโหลดใหม่จะไปติดวงแหวนทุกจุดในเดือนนั้น
+  // ทั้งที่คลิกเลือกจริงแค่บางจุด จึงเปลี่ยนมาเก็บ "จุด" แบบเจาะจง (เดือน+ชื่อตัวอย่าง) ด้วย เพื่อจับคู่ตอนโหลดใหม่ได้แม่นยำ
   const selectedMons=[..._cmSelected].map(i=>_cmAll[i]?.mon).filter(Boolean).map(String);
+  const selectedPoints=[..._cmSelected].map(i=>{
+    const r=_cmAll[i];
+    return r?(String(r.mon)+'|'+String(r.nm??'')):null;
+  }).filter(Boolean);
 
   const prd=_cmCurrentPrd;
   const mon=_cmCurrentMon;
@@ -2305,9 +2341,13 @@ async function doAdjustBias(){
     const idx=mergedBiasAdj.findIndex(p=>p.par===np.par);
     if(idx>=0){
       const prevMons=Array.isArray(mergedBiasAdj[idx].months)?mergedBiasAdj[idx].months:[];
-      mergedBiasAdj[idx]={...np,months:[...new Set([...prevMons,...selectedMons])]};
+      const prevPoints=Array.isArray(mergedBiasAdj[idx].points)?mergedBiasAdj[idx].points:[];
+      mergedBiasAdj[idx]={...np,
+        months:[...new Set([...prevMons,...selectedMons])],
+        points:[...new Set([...prevPoints,...selectedPoints])]
+      };
     } else {
-      mergedBiasAdj.push({...np,months:selectedMons});
+      mergedBiasAdj.push({...np,months:selectedMons,points:selectedPoints});
     }
   });
 
