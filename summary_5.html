@@ -346,14 +346,14 @@ async function corrSaveAll(data) {
   }
 }
 
-function cKey(p, m, eqp, src) {
-  const e = (eqp||'').trim()||'all', s = (src||'').trim()||'all';
-  return p + '::' + m + '::' + e + '::' + s;
+function cKey(p, m, eqp, src, plant) {
+  const e = (eqp||'').trim()||'all', s = (src||'').trim()||'all', pl = (plant||'').trim()||'all';
+  return p + '::' + m + '::' + e + '::' + s + '::' + pl;
 }
 
-async function cLoad(p, m, eqp, src) {
+async function cLoad(p, m, eqp, src, plant) {
   const all = await corrGetAll(true);
-  return all[cKey(p, m, eqp, src)] || null;
+  return all[cKey(p, m, eqp, src, plant)] || null;
 }
 
 // ── Write queue + optimistic retry ───────────────────────────────────────────
@@ -369,8 +369,8 @@ function _queueCorrWrite(task) {
   return run;
 }
 
-async function cDeleteShared(p, m, eqp, src) {
-  const key = cKey(p, m, eqp, src);
+async function cDeleteShared(p, m, eqp, src, plant) {
+  const key = cKey(p, m, eqp, src, plant);
   return _queueCorrWrite(async () => {
     const MAX_RETRY = 3;
     for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
@@ -385,7 +385,7 @@ async function cDeleteShared(p, m, eqp, src) {
   });
 }
 
-async function cSaveShared(p, m, eqp, src, text, user, extra) {
+async function cSaveShared(p, m, eqp, src, text, user, extra, plant) {
   const obj = {
     text, user,
     savedAt: (()=>{
@@ -399,7 +399,7 @@ async function cSaveShared(p, m, eqp, src, text, user, extra) {
     })()
   };
   if(extra) Object.assign(obj, extra);
-  const key = cKey(p, m, eqp, src);
+  const key = cKey(p, m, eqp, src, plant);
 
   return _queueCorrWrite(async () => {
     const MAX_RETRY = 3;
@@ -1023,7 +1023,7 @@ function render(){
     });
     const cSlotId='cslot_'+Math.random().toString(36).slice(2,8);
     body+=`<td class="td-corr" id="${cSlotId}"><span style="color:#ccc;font-size:10px">⏳</span></td>`;
-    corrSlots.push({cSlotId,prd,selMon,eqp:selEqp,src:selSrc});
+    corrSlots.push({cSlotId,prd,selMon,eqp:selEqp,src:selSrc,plant:selPla});
     body+='</tr>';
   });
   document.getElementById('summaryBody').innerHTML=body;
@@ -1033,9 +1033,9 @@ function render(){
 
   // โหลด correction แบบ async หลัง render เสร็จ
   (async()=>{
-    for(const {cSlotId,prd,selMon,eqp,src} of corrSlots){
+    for(const {cSlotId,prd,selMon,eqp,src,plant} of corrSlots){
       if(!document.getElementById(cSlotId))continue;
-      await loadCorrCellInitial(cSlotId,prd,selMon,eqp,src);
+      await loadCorrCellInitial(cSlotId,prd,selMon,eqp,src,plant);
     }
   })();
 }
@@ -1807,8 +1807,8 @@ function ttClick(el,e){
 
 <!-- ── Shared Correction Storage ── -->
 <script>
-function eid2(prd,mon,eqp,src){
-  return 'c'+btoa(encodeURIComponent(prd+'|'+mon+'|'+(eqp||'')+'|'+(src||''))).replace(/[^a-zA-Z0-9]/g,'');
+function eid2(prd,mon,eqp,src,plant){
+  return 'c'+btoa(encodeURIComponent(prd+'|'+mon+'|'+(eqp||'')+'|'+(src||'')+'|'+(plant||''))).replace(/[^a-zA-Z0-9]/g,'');
 }
 
 // ── Stale-response guard สำหรับ correction cell ──────────────────────────────
@@ -1816,53 +1816,56 @@ function eid2(prd,mon,eqp,src){
 // ถ้าผู้ใช้กด Adjust Bias / Save แล้วเสร็จก่อนที่ loop นี้จะมาถึงแถวเดียวกัน
 // ผลลัพธ์เก่าที่ยังค้าง (fetch ก่อนหน้า) อาจมา resolve "ทีหลัง" แล้วทับ cell ที่เพิ่ง update ด้วยข้อมูลเก่า
 // ทำให้ดูเหมือนข้อมูลที่บันทึกไปหายไป ทั้งที่จริงบันทึกสำเร็จแล้ว
-// วิธีแก้: ให้แต่ละ key (prd::mon::eqp::src) มีเลข "generation" — ถ้าผลลัพธ์ที่โหลดมาไม่ใช่ของ generation ล่าสุด ให้ทิ้งไป ไม่เอาไป apply กับ DOM
+// วิธีแก้: ให้แต่ละ key (prd::mon::eqp::src::plant) มีเลข "generation" — ถ้าผลลัพธ์ที่โหลดมาไม่ใช่ของ generation ล่าสุด ให้ทิ้งไป ไม่เอาไป apply กับ DOM
 const _corrCellGen = {};
-function _corrGenKey(prd,mon,eqp,src){ return cKey(prd,mon,eqp,src); }
+function _corrGenKey(prd,mon,eqp,src,plant){ return cKey(prd,mon,eqp,src,plant); }
 
 // ใช้ตอน render ตารางครั้งแรก (แทนที่ทั้ง <td> ที่เป็น placeholder ⏳)
-async function loadCorrCellInitial(cSlotId, prd, mon, eqp, src){
-  const key=_corrGenKey(prd,mon,eqp,src);
+async function loadCorrCellInitial(cSlotId, prd, mon, eqp, src, plant){
+  const key=_corrGenKey(prd,mon,eqp,src,plant);
   const myGen=(_corrCellGen[key]=(_corrCellGen[key]||0)+1);
-  const html=await corrHTML2(prd,mon,eqp,src);
+  const html=await corrHTML2(prd,mon,eqp,src,plant);
   if(_corrCellGen[key]!==myGen) return; // มีการอัปเดตใหม่กว่าเกิดขึ้นระหว่างที่รอโหลดอยู่ — ทิ้งผลลัพธ์นี้
   const slot=document.getElementById(cSlotId);
   if(slot) slot.outerHTML=`<td class="td-corr">${html}</td>`;
 }
 
 // ใช้ตอนบันทึก/ลบ correction เพื่ออัปเดต cell ที่ render อยู่แล้วในตาราง
-async function updateCorrCell(prd, mon, eqp, src, fallbackEl){
-  const key=_corrGenKey(prd,mon,eqp,src);
+async function updateCorrCell(prd, mon, eqp, src, plant, fallbackEl){
+  const key=_corrGenKey(prd,mon,eqp,src,plant);
   const myGen=(_corrCellGen[key]=(_corrCellGen[key]||0)+1);
-  const html=await corrHTML2(prd,mon,eqp,src);
+  const html=await corrHTML2(prd,mon,eqp,src,plant);
   if(_corrCellGen[key]!==myGen) return; // มีการอัปเดตใหม่กว่าเกิดขึ้นระหว่างที่รอโหลดอยู่ — ทิ้งผลลัพธ์นี้
   const live=document.querySelector(
-    `.td-corr [data-prd="${CSS.escape(prd)}"][data-mon="${CSS.escape(mon)}"][data-eqp="${CSS.escape(eqp||'')}"][data-src="${CSS.escape(src||'')}"]`
+    `.td-corr [data-prd="${CSS.escape(prd)}"][data-mon="${CSS.escape(mon)}"][data-eqp="${CSS.escape(eqp||'')}"][data-src="${CSS.escape(src||'')}"][data-fpla="${CSS.escape(plant||'')}"]`
   ) || fallbackEl;
   if(live) live.outerHTML=html;
 }
 
-// หา correction ของสินค้า+เดือนเดียวกัน แต่อยู่ภายใต้ Equipment/Source อื่น (คนละ key)
+// หา correction ของสินค้า+เดือน+"Plant เดียวกัน" แต่อยู่ภายใต้ Equipment/Source อื่น (คนละ key)
 // ใช้เตือนผู้ใช้เวลา cell แสดง "ยังไม่มีบันทึก" ทั้งที่จริงมีบันทึกอยู่ แค่คนละตัวกรอง Equipment/Source
-function findCorrOtherEqpSrcFrom(all, prd, mon, curKey){
+// สำคัญ: ต้องเช็ก Plant ให้ตรงกันด้วย ไม่งั้นจะไปดึงข้อมูลของคนละ Plant มาปนกัน (เช่น 169 กับ Rayong)
+function findCorrOtherEqpSrcFrom(all, prd, mon, plant, curKey){
   const hits=[];
+  const wantPl=(plant||'').trim()||'all';
   Object.entries(all).forEach(([key,val])=>{
     if(key===curKey || !val) return;
-    const [p,m]=key.split('::');
-    if(p===prd && String(m)===String(mon)) hits.push(val);
+    const parts=key.split('::');
+    const p=parts[0], m=parts[1], pl=parts[4]||'all';
+    if(p===prd && String(m)===String(mon) && pl===wantPl) hits.push(val);
   });
   return hits;
 }
 
-async function corrHTML2(prd,mon,eqp,src){
-  const id=eid2(prd,mon,eqp,src);
-  const key=cKey(prd,mon,eqp,src);
+async function corrHTML2(prd,mon,eqp,src,plant){
+  const id=eid2(prd,mon,eqp,src,plant);
+  const key=cKey(prd,mon,eqp,src,plant);
   let all={};
   try{ all=await corrGetAll(); }catch{}
   const d=all[key]||null;
   let otherHint='';
   if(!d){
-    const others=findCorrOtherEqpSrcFrom(all,prd,mon,key);
+    const others=findCorrOtherEqpSrcFrom(all,prd,mon,plant,key);
     if(others.length){
       const combos=[...new Set(others.map(o=>[o.equip,o.source_val].filter(Boolean).join(' / ')||'—'))].join(', ');
       otherHint=`<div style="font-size:9px;color:#a06020;margin-top:4px">ℹ️ มีบันทึกของสินค้านี้ภายใต้ Equipment/Source อื่น: ${combos}</div>`;
@@ -1884,7 +1887,7 @@ async function corrHTML2(prd,mon,eqp,src){
     :`<div class="corr-view" id="${id}v">
         <div style="flex:1"><span class="corr-empty">— ยังไม่มีบันทึก</span>${otherHint}</div>
         <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">+ บันทึก</button></div></div>`;
-  return `<div class="corr-inner" id="${id}" data-prd="${prd.replace(/"/g,'&quot;')}" data-mon="${mon}" data-eqp="${(eqp||'').replace(/"/g,'&quot;')}" data-src="${(src||'').replace(/"/g,'&quot;')}">
+  return `<div class="corr-inner" id="${id}" data-prd="${prd.replace(/"/g,'&quot;')}" data-mon="${mon}" data-eqp="${(eqp||'').replace(/"/g,'&quot;')}" data-src="${(src||'').replace(/"/g,'&quot;')}" data-fpla="${(plant||'').replace(/"/g,'&quot;')}">
     ${viewH}
     <div class="corr-edit" id="${id}e" style="display:none;flex-direction:column;gap:6px;width:100%">
       <textarea class="corr-textarea" id="${id}t" placeholder="บันทึก Correction... เช่น Adjust Bias M -0.185, CP -0.230">${d?d.text.replace(/</g,'&lt;'):''}</textarea>
@@ -1923,6 +1926,7 @@ async function doSave2(id){
   const el=document.getElementById(id);
   if(!el){alert('เกิดข้อผิดพลาด');return;}
   const prd=el.dataset.prd, mon=el.dataset.mon, eqp=el.dataset.eqp||'', src=el.dataset.src||'';
+  const fpla=el.dataset.fpla||''; // Plant ของตัวกรองปัจจุบัน (คนละอย่างกับช่อง "Plant" metadata ที่พิมพ์เองด้านล่าง)
   const text=document.getElementById(id+'t').value.trim();
   const user=document.getElementById(id+'u').value.trim()||'ไม่ระบุชื่อ';
   const plant=document.getElementById(id+'plant')?.value.trim()||'';
@@ -1933,8 +1937,8 @@ async function doSave2(id){
   const btn=el.querySelector('.btn-save');
   if(btn){btn.textContent='⏳ กำลังบันทึก...';btn.disabled=true;}
   try{
-    const saved=await cSaveShared(prd,mon,eqp,src,text,user,{plant,type_val,equip,source_val});
-    _corrCellGen[_corrGenKey(prd,mon,eqp,src)]=(_corrCellGen[_corrGenKey(prd,mon,eqp,src)]||0)+1;
+    const saved=await cSaveShared(prd,mon,eqp,src,text,user,{plant,type_val,equip,source_val},fpla);
+    _corrCellGen[_corrGenKey(prd,mon,eqp,src,fpla)]=(_corrCellGen[_corrGenKey(prd,mon,eqp,src,fpla)]||0)+1;
     const badges=[
       plant?`<span style="background:#e8f2fc;color:#3b82f6;border-radius:4px;padding:1px 6px;font-size:10px">${plant}</span>`:'',
       type_val?`<span style="background:#f0fdf4;color:#16a34a;border-radius:4px;padding:1px 6px;font-size:10px">${type_val}</span>`:'',
@@ -1959,12 +1963,13 @@ async function doDelete2(id){
   const el=document.getElementById(id);
   if(!el){alert('เกิดข้อผิดพลาด');return;}
   const prd=el.dataset.prd, mon=el.dataset.mon, eqp=el.dataset.eqp||'', src=el.dataset.src||'';
+  const fpla=el.dataset.fpla||'';
   if(!confirm('ยืนยันการลบ Correction นี้? การลบไม่สามารถกู้คืนได้'))return;
   const delBtn=el.querySelector('.btn-delete');
   if(delBtn){delBtn.textContent='⏳ กำลังลบ...';delBtn.disabled=true;}
   try{
-    await cDeleteShared(prd,mon,eqp,src);
-    await updateCorrCell(prd,mon,eqp,src,el);
+    await cDeleteShared(prd,mon,eqp,src,fpla);
+    await updateCorrCell(prd,mon,eqp,src,fpla,el);
     setTimeout(refreshBiasAdjBadges, 300);
   }catch(e){
     alert('ลบไม่สำเร็จ: '+e.message);
@@ -2169,7 +2174,8 @@ async function openChartModal(el){
   try{
     const selEqp0=document.getElementById('fEquip')?.value||'';
     const selSrc0=document.getElementById('fSource')?.value||'';
-    const prevD=await cLoad(_cmCurrentPrd,_cmCurrentMon,selEqp0,selSrc0);
+    const selPla0=document.getElementById('fPlant')?.value||'';
+    const prevD=await cLoad(_cmCurrentPrd,_cmCurrentMon,selEqp0,selSrc0,selPla0);
     if(prevD&&Array.isArray(prevD.biasAdj)){
       const entry=prevD.biasAdj.find(p=>p.par===det.par);
       if(entry&&Array.isArray(entry.points)&&entry.points.length){
@@ -2330,11 +2336,12 @@ async function doAdjustBias(){
   const mon=_cmCurrentMon;
   const selEqp=document.getElementById('fEquip')?.value||'';
   const selSrc=document.getElementById('fSource')?.value||'';
+  const selPla=document.getElementById('fPlant')?.value||'';
 
   // โหลดข้อมูล Correction เดิม (รวม biasAdj ของ parameter อื่นๆ ที่เคยปรับไว้ก่อนหน้า)
   // เพื่อ "รวม" กับพารามิเตอร์ใหม่ที่กำลังจะบันทึก แทนที่จะทับของเดิมทิ้ง
   let prevD=null;
-  try{ prevD=await cLoad(prd,mon,selEqp,selSrc); }catch(e){}
+  try{ prevD=await cLoad(prd,mon,selEqp,selSrc,selPla); }catch(e){}
   const prevBiasAdj=(prevD&&Array.isArray(prevD.biasAdj))?prevD.biasAdj:[];
   const mergedBiasAdj=[...prevBiasAdj];
   params.forEach(np=>{
@@ -2364,20 +2371,20 @@ async function doAdjustBias(){
   try{
     const saved=await cSaveShared(prd,mon,selEqp,selSrc,finalText,user,{
       biasAdj:mergedBiasAdj,
-      plant:document.getElementById('fPlant')?.value||'',
+      plant:selPla,
       type_val:document.getElementById('fType')?.value||'',
       equip:selEqp,
       source_val:selSrc
-    });
+    },selPla);
 
     const corrEl=document.querySelector(
-      `.td-corr [data-prd="${CSS.escape(prd)}"][data-mon="${CSS.escape(mon)}"][data-eqp="${CSS.escape(selEqp||'')}"][data-src="${CSS.escape(selSrc||'')}"]`
+      `.td-corr [data-prd="${CSS.escape(prd)}"][data-mon="${CSS.escape(mon)}"][data-eqp="${CSS.escape(selEqp||'')}"][data-src="${CSS.escape(selSrc||'')}"][data-fpla="${CSS.escape(selPla||'')}"]`
     );
 
     // Re-render correction cell — replace outerHTML of the corr-inner div
     // ใช้ระบบ "generation guard" กันไม่ให้ผลลัพธ์ที่โหลดช้าของรอบก่อนหน้ามาทับของใหม่
     if(corrEl){
-      await updateCorrCell(prd,mon,selEqp,selSrc,corrEl);
+      await updateCorrCell(prd,mon,selEqp,selSrc,selPla,corrEl);
     }
 
     // Refresh summary table bias badges
@@ -2408,10 +2415,15 @@ async function refreshBiasAdjBadges(){
   // Pull all corrections and mark product rows that have biasAdj entries
   try{
     const all=await corrGetAll();
+    const curPla=(document.getElementById('fPlant')?.value||'').trim()||'all';
     Object.entries(all).forEach(([key,val])=>{
       if(!val||!val.biasAdj||!val.biasAdj.length)return;
-      // key format: prd::mon::eqp::src
-      const [prd]=key.split('::');
+      // key format: prd::mon::eqp::src::plant — ต้องเช็ก Plant ให้ตรงกับตัวกรองปัจจุบันด้วย
+      // ไม่งั้น Bias Adj ของ Plant นึง (เช่น 169) จะไปติดป้ายที่สินค้าชื่อเดียวกันของอีก Plant (เช่น Rayong) ผิดๆ
+      const parts=key.split('::');
+      const prd=parts[0];
+      const keyPla=parts[4]||'all';
+      if(keyPla!==curPla)return;
       // Find all td-product cells matching this product
       document.querySelectorAll('td.td-product').forEach(td=>{
         const text=td.textContent.trim().replace(/^\p{Emoji}\s*/u,'');
