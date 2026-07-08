@@ -1082,8 +1082,8 @@ async function ensurePdfThaiFont(doc){
   try{
     if(!(window._sarabunRegB64 && window._sarabunBoldB64)){
       const [r1,r2]=await Promise.all([
-        fetch('https://raw.githubusercontent.com/google/fonts/main/ofl/sarabun/Sarabun-Regular.ttf'),
-        fetch('https://raw.githubusercontent.com/google/fonts/main/ofl/sarabun/Sarabun-Bold.ttf')
+        fetchWithRetry('https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/sarabun/Sarabun-Regular.ttf'),
+        fetchWithRetry('https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/sarabun/Sarabun-Bold.ttf')
       ]);
       if(!r1.ok||!r2.ok) throw new Error('font fetch failed');
       const [b1,b2]=await Promise.all([r1.arrayBuffer(), r2.arrayBuffer()]);
