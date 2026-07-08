@@ -358,7 +358,10 @@ function cKeyLegacy(p, m, eqp, src) {
 
 async function cLoad(p, m, eqp, src, plant) {
   const all = await corrGetAll(true);
-  return all[cKey(p, m, eqp, src, plant)] || all[cKeyLegacy(p, m, eqp, src)] || null;
+  let d = all[cKey(p, m, eqp, src, plant)] || all[cKeyLegacy(p, m, eqp, src)] || null;
+  // ข้อมูลเก่า (key แบบไม่มี Plant) ยังมี "plant" เก็บไว้เป็น metadata — เช็กซ้ำว่าตรงกับ Plant ที่ต้องการจริงหรือไม่
+  if(d && plant && d.plant && d.plant!==plant) d=null;
+  return d;
 }
 
 // ── Write queue + optimistic retry ───────────────────────────────────────────
@@ -1859,9 +1862,15 @@ function findCorrOtherEqpSrcFrom(all, prd, mon, plant, curKey){
     if(key===curKey || !val) return;
     const parts=key.split('::');
     const p=parts[0], m=parts[1];
-    const isLegacy=parts.length<5; // key เก่า (ก่อนมีมิติ Plant) — ไม่รู้ Plant เดิม จึงถือว่าเข้าได้กับทุก Plant ปัจจุบัน
-    const pl=isLegacy?wantPl:(parts[4]||'all');
-    if(p===prd && String(m)===String(mon) && pl===wantPl) hits.push(val);
+    const isLegacy=parts.length<5; // key เก่า (ก่อนมีมิติ Plant)
+    // key เก่าไม่มี Plant ในตัว key เอง แต่ยังมี val.plant (metadata) เก็บไว้ — ใช้เช็กแทน ถ้าไม่ตรงให้ถือว่าคนละ Plant
+    if(isLegacy){
+      if(plant && val.plant && val.plant!==plant) return;
+    } else {
+      const pl=parts[4]||'all';
+      if(pl!==wantPl) return;
+    }
+    if(p===prd && String(m)===String(mon)) hits.push(val);
   });
   return hits;
 }
@@ -1872,7 +1881,10 @@ async function corrHTML2(prd,mon,eqp,src,plant){
   const legacyKey=cKeyLegacy(prd,mon,eqp,src);
   let all={};
   try{ all=await corrGetAll(); }catch{}
-  const d=all[key]||all[legacyKey]||null;
+  let d=all[key]||all[legacyKey]||null;
+  // ข้อมูลเก่า (key แบบไม่มี Plant) ยังมี "plant" เก็บไว้เป็น metadata อยู่แล้ว (badge ที่เห็น เช่น "Rayong")
+  // ใช้ตรวจสอบซ้ำว่าตรงกับ Plant ที่กำลังดูอยู่จริงหรือไม่ ถ้าไม่ตรง ไม่ควรแสดง (กัน 169/Rayong ปนกัน)
+  if(d && plant && d.plant && d.plant!==plant) d=null;
   let otherHint='';
   if(!d){
     const others=findCorrOtherEqpSrcFrom(all,prd,mon,plant,key);
@@ -2433,8 +2445,14 @@ async function refreshBiasAdjBadges(){
       const parts=key.split('::');
       const prd=parts[0];
       const isLegacy=parts.length<5;
-      const keyPla=isLegacy?curPla:(parts[4]||'all');
-      if(keyPla!==curPla)return;
+      if(isLegacy){
+        // key เก่าไม่มี Plant ในตัว key เอง แต่ยังมี val.plant (metadata) เก็บไว้ — ใช้เช็กแทน
+        const curPlaRaw=document.getElementById('fPlant')?.value||'';
+        if(curPlaRaw && val.plant && val.plant!==curPlaRaw)return;
+      } else {
+        const keyPla=parts[4]||'all';
+        if(keyPla!==curPla)return;
+      }
       // Find all td-product cells matching this product
       document.querySelectorAll('td.td-product').forEach(td=>{
         const text=td.textContent.trim().replace(/^\p{Emoji}\s*/u,'');
