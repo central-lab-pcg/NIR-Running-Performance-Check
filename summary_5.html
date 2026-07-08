@@ -350,10 +350,15 @@ function cKey(p, m, eqp, src, plant) {
   const e = (eqp||'').trim()||'all', s = (src||'').trim()||'all', pl = (plant||'').trim()||'all';
   return p + '::' + m + '::' + e + '::' + s + '::' + pl;
 }
+// รูปแบบ key เก่า (ก่อนเพิ่มมิติ Plant) — ใช้เป็น fallback ตอนอ่านข้อมูล เพื่อไม่ให้ correction ที่เคยบันทึกไว้ก่อนหน้านี้ "หายไป"
+function cKeyLegacy(p, m, eqp, src) {
+  const e = (eqp||'').trim()||'all', s = (src||'').trim()||'all';
+  return p + '::' + m + '::' + e + '::' + s;
+}
 
 async function cLoad(p, m, eqp, src, plant) {
   const all = await corrGetAll(true);
-  return all[cKey(p, m, eqp, src, plant)] || null;
+  return all[cKey(p, m, eqp, src, plant)] || all[cKeyLegacy(p, m, eqp, src)] || null;
 }
 
 // ── Write queue + optimistic retry ───────────────────────────────────────────
@@ -371,15 +376,17 @@ function _queueCorrWrite(task) {
 
 async function cDeleteShared(p, m, eqp, src, plant) {
   const key = cKey(p, m, eqp, src, plant);
+  const legacyKey = cKeyLegacy(p, m, eqp, src);
   return _queueCorrWrite(async () => {
     const MAX_RETRY = 3;
     for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
       // อ่านข้อมูลล่าสุดก่อนทุกครั้ง (บังคับข้าม cache) แล้วค่อยลบ เพื่อไม่ให้ overwrite การแก้ไขของคนอื่น
       const all = await corrGetAll(true);
       delete all[key];
+      delete all[legacyKey]; // ลบ key เก่า (ก่อนมี Plant) ทิ้งไปด้วย กันข้อมูลค้าง
       await corrSaveAll(all);
       const verify = await corrGetAll(true);
-      if (!(key in verify)) { _corrCache={data:verify, ts:Date.now()}; return; } // ลบสำเร็จจริง ยืนยันแล้ว
+      if (!(key in verify) && !(legacyKey in verify)) { _corrCache={data:verify, ts:Date.now()}; return; } // ลบสำเร็จจริง ยืนยันแล้ว
       if (attempt < MAX_RETRY) await new Promise(r => setTimeout(r, 250 * attempt));
     }
   });
@@ -400,6 +407,7 @@ async function cSaveShared(p, m, eqp, src, text, user, extra, plant) {
   };
   if(extra) Object.assign(obj, extra);
   const key = cKey(p, m, eqp, src, plant);
+  const legacyKey = cKeyLegacy(p, m, eqp, src);
 
   return _queueCorrWrite(async () => {
     const MAX_RETRY = 3;
@@ -407,6 +415,7 @@ async function cSaveShared(p, m, eqp, src, text, user, extra, plant) {
       // อ่านข้อมูลล่าสุดก่อน (บังคับข้าม cache) แล้วค่อย merge เพื่อไม่ให้ overwrite คนอื่น
       const all = await corrGetAll(true);
       all[key] = obj;
+      if (legacyKey !== key && legacyKey in all) delete all[legacyKey]; // ย้ายข้อมูลจาก key เก่ามาที่ key ใหม่ (มี Plant) แล้วเลิกใช้ key เก่า
       await corrSaveAll(all);
       // ยืนยันว่าที่เพิ่งเขียนไปยังอยู่จริง (กันกรณีมีคนอื่นเขียนแทรกจนของเราหาย)
       const verify = await corrGetAll(true);
@@ -1849,7 +1858,9 @@ function findCorrOtherEqpSrcFrom(all, prd, mon, plant, curKey){
   Object.entries(all).forEach(([key,val])=>{
     if(key===curKey || !val) return;
     const parts=key.split('::');
-    const p=parts[0], m=parts[1], pl=parts[4]||'all';
+    const p=parts[0], m=parts[1];
+    const isLegacy=parts.length<5; // key เก่า (ก่อนมีมิติ Plant) — ไม่รู้ Plant เดิม จึงถือว่าเข้าได้กับทุก Plant ปัจจุบัน
+    const pl=isLegacy?wantPl:(parts[4]||'all');
     if(p===prd && String(m)===String(mon) && pl===wantPl) hits.push(val);
   });
   return hits;
@@ -1858,9 +1869,10 @@ function findCorrOtherEqpSrcFrom(all, prd, mon, plant, curKey){
 async function corrHTML2(prd,mon,eqp,src,plant){
   const id=eid2(prd,mon,eqp,src,plant);
   const key=cKey(prd,mon,eqp,src,plant);
+  const legacyKey=cKeyLegacy(prd,mon,eqp,src);
   let all={};
   try{ all=await corrGetAll(); }catch{}
-  const d=all[key]||null;
+  const d=all[key]||all[legacyKey]||null;
   let otherHint='';
   if(!d){
     const others=findCorrOtherEqpSrcFrom(all,prd,mon,plant,key);
@@ -2420,7 +2432,8 @@ async function refreshBiasAdjBadges(){
       // ไม่งั้น Bias Adj ของ Plant นึง (เช่น 169) จะไปติดป้ายที่สินค้าชื่อเดียวกันของอีก Plant (เช่น Rayong) ผิดๆ
       const parts=key.split('::');
       const prd=parts[0];
-      const keyPla=parts[4]||'all';
+      const isLegacy=parts.length<5;
+      const keyPla=isLegacy?curPla:(parts[4]||'all');
       if(keyPla!==curPla)return;
       // Find all td-product cells matching this product
       document.querySelectorAll('td.td-product').forEach(td=>{
