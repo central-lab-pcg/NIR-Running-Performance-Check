@@ -1852,29 +1852,6 @@ async function updateCorrCell(prd, mon, eqp, src, plant, fallbackEl){
   if(live) live.outerHTML=html;
 }
 
-// หา correction ของสินค้า+เดือน+"Plant เดียวกัน" แต่อยู่ภายใต้ Equipment/Source อื่น (คนละ key)
-// ใช้เตือนผู้ใช้เวลา cell แสดง "ยังไม่มีบันทึก" ทั้งที่จริงมีบันทึกอยู่ แค่คนละตัวกรอง Equipment/Source
-// สำคัญ: ต้องเช็ก Plant ให้ตรงกันด้วย ไม่งั้นจะไปดึงข้อมูลของคนละ Plant มาปนกัน (เช่น 169 กับ Rayong)
-function findCorrOtherEqpSrcFrom(all, prd, mon, plant, curKey){
-  const hits=[];
-  const wantPl=(plant||'').trim()||'all';
-  Object.entries(all).forEach(([key,val])=>{
-    if(key===curKey || !val) return;
-    const parts=key.split('::');
-    const p=parts[0], m=parts[1];
-    const isLegacy=parts.length<5; // key เก่า (ก่อนมีมิติ Plant)
-    // key เก่าไม่มี Plant ในตัว key เอง แต่ยังมี val.plant (metadata) เก็บไว้ — ใช้เช็กแทน ถ้าไม่ตรงให้ถือว่าคนละ Plant
-    if(isLegacy){
-      if(plant && val.plant && val.plant!==plant) return;
-    } else {
-      const pl=parts[4]||'all';
-      if(pl!==wantPl) return;
-    }
-    if(p===prd && String(m)===String(mon)) hits.push(val);
-  });
-  return hits;
-}
-
 async function corrHTML2(prd,mon,eqp,src,plant){
   const id=eid2(prd,mon,eqp,src,plant);
   const key=cKey(prd,mon,eqp,src,plant);
@@ -1885,14 +1862,6 @@ async function corrHTML2(prd,mon,eqp,src,plant){
   // ข้อมูลเก่า (key แบบไม่มี Plant) ยังมี "plant" เก็บไว้เป็น metadata อยู่แล้ว (badge ที่เห็น เช่น "Rayong")
   // ใช้ตรวจสอบซ้ำว่าตรงกับ Plant ที่กำลังดูอยู่จริงหรือไม่ ถ้าไม่ตรง ไม่ควรแสดง (กัน 169/Rayong ปนกัน)
   if(d && plant && d.plant && d.plant!==plant) d=null;
-  let otherHint='';
-  if(!d){
-    const others=findCorrOtherEqpSrcFrom(all,prd,mon,plant,key);
-    if(others.length){
-      const combos=[...new Set(others.map(o=>[o.equip,o.source_val].filter(Boolean).join(' / ')||'—'))].join(', ');
-      otherHint=`<div style="font-size:9px;color:#a06020;margin-top:4px">ℹ️ มีบันทึกของสินค้านี้ภายใต้ Equipment/Source อื่น: ${combos}</div>`;
-    }
-  }
   const viewH=d
     ?`<div class="corr-view" id="${id}v">
         <div style="flex:1">
@@ -1907,7 +1876,7 @@ async function corrHTML2(prd,mon,eqp,src,plant){
         </div>
         <div class="corr-actions" style="display:flex;gap:4px"><button class="btn-edit" onclick="startE2('${id}')">✏️ แก้ไข</button><button class="btn-delete" onclick="doDelete2('${id}')">🗑️ ลบ</button></div></div>`
     :`<div class="corr-view" id="${id}v">
-        <div style="flex:1"><span class="corr-empty">— ยังไม่มีบันทึก</span>${otherHint}</div>
+        <div style="flex:1"><span class="corr-empty">— ยังไม่มีบันทึก</span></div>
         <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">+ บันทึก</button></div></div>`;
   return `<div class="corr-inner" id="${id}" data-prd="${prd.replace(/"/g,'&quot;')}" data-mon="${mon}" data-eqp="${(eqp||'').replace(/"/g,'&quot;')}" data-src="${(src||'').replace(/"/g,'&quot;')}" data-fpla="${(plant||'').replace(/"/g,'&quot;')}">
     ${viewH}
