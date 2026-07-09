@@ -1070,11 +1070,11 @@ function hexToRgbArrPdf(hex){
 
 // สีและรหัสย่อของสถานะ — ตรงตามเกณฑ์/legend บนหน้าเว็บ
 const STATUS_COLOR_CODE_PDF={
-  pass:  {code:'Pass',  bg:'#e6f9f0', fg:'#1e8a56', label:'Pass — ผ่านเกณฑ์'},
-  fail3: {code:'>3SEP', bg:'#fce8e6', fg:'#c53030', label:'>3SEP — เกิน ±3SEP'},
-  fail2: {code:'2/3pt', bg:'#eeeafa', fg:'#6840c0', label:'2/3pt — 2/3 Points'},
-  rule9: {code:'≥9pt',  bg:'#fef5e0', fg:'#b06800', label:'≥9pt — ≥9 จุดฝั่งเดียว'},
-  none:  {code:'-',     bg:'#f2f4f9', fg:'#a8afc6', label:'- — ไม่มีข้อมูล'}
+  pass:  {code:'Pass',  bg:'#a8ecc7', fg:'#0b5e34', label:'Pass — ผ่านเกณฑ์'},
+  fail3: {code:'>3SEP', bg:'#f8b4ac', fg:'#8f1d13', label:'>3SEP — เกิน ±3SEP'},
+  fail2: {code:'2/3pt', bg:'#c9b8f5', fg:'#4a2494', label:'2/3pt — 2/3 Points'},
+  rule9: {code:'≥9pt',  bg:'#f9d777', fg:'#7a4b00', label:'≥9pt — ≥9 จุดฝั่งเดียว'},
+  none:  {code:'-',     bg:'#e4e7f0', fg:'#6b7280', label:'- — ไม่มีข้อมูล'}
 };
 const STATUS_KEYS_PDF=['pass','fail3','rule9','fail2','none'];
 
@@ -1312,7 +1312,7 @@ async function exportToPDF(){
       body:scraped.bodyRows,
       startY:BANNER_H+14,
       theme:'grid',
-      styles:{font:pdfFont, fontSize:6.8, cellPadding:1.4, valign:'middle', lineColor:[220,224,235], lineWidth:0.1, textColor:[45,53,82]},
+      styles:{font:pdfFont, fontSize:6.8, cellPadding:1.4, valign:'middle', lineColor:[0,0,0], lineWidth:0.25, textColor:[45,53,82]},
       headStyles:{font:pdfFont, fontStyle:'bold', fillColor:[91,125,181], textColor:255, fontSize:7, halign:'center'},
       bodyStyles:{halign:'center'},
       columnStyles,
