@@ -726,8 +726,8 @@ function render(){
             <span style="font-size:9px;color:var(--txt3);font-weight:400">${dStr}</span>
             ${cnt>1?`<br><span style="font-size:9px;color:var(--blue);font-weight:600">📋 ${cnt}</span>`:''}
             <br>${applied
-              ?`<span style="font-size:9px;color:#16a34a;font-weight:700" title="ปรับ Bias ที่เครื่องแล้วเมื่อ ${applied.appliedAt}${applied.reason?(' · เหตุผลแก้ไขล่าสุด: '+applied.reason):''}">✓ ${appliedDateOnly}</span>
-                <button onclick="event.stopPropagation();openEditAppliedModal('${applyKeyEnc}')" style="margin-left:3px;font-size:8px;padding:0 5px;border:1px solid #bbf7d0;border-radius:8px;background:#fff;color:#16a34a;cursor:pointer;font-weight:700;font-family:var(--font)" title="แก้ไขวันที่ (ต้องระบุเหตุผล)">✏️</button>`
+              ?`<span style="font-size:9px;color:#2563eb;font-weight:700" title="ปรับ Bias ที่เครื่องแล้วเมื่อ ${applied.appliedAt}${applied.reason?(' · เหตุผลแก้ไขล่าสุด: '+applied.reason):''}">✓ ${appliedDateOnly}</span>
+                <button onclick="event.stopPropagation();openEditAppliedModal('${applyKeyEnc}')" style="margin-left:3px;font-size:8px;padding:0 5px;border:1px solid #bfdbfe;border-radius:8px;background:#fff;color:#2563eb;cursor:pointer;font-weight:700;font-family:var(--font)" title="แก้ไขวันที่ (ต้องระบุเหตุผล)">✏️</button>`
               :`<button onclick="event.stopPropagation();openAdjustBiasChoice('${applyKeyEnc}')" style="margin-top:2px;font-size:9px;padding:1px 7px;border:1px solid #93c5fd;border-radius:10px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-family:var(--font)">Adjust Bias</button>`
             }
           </td>`;
