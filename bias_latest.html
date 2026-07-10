@@ -717,19 +717,34 @@ function render(){
           const applied=BIAS_APPLIED[rawApplyKey];
           const applyKeyEnc=encodeURIComponent(rawApplyKey);
           const appliedDateOnly=applied?applied.appliedAt.split(' ')[0]:'';
-          return`<td class="${cls}${applied?' bias-applied-cell':''}" style="cursor:pointer;transition:background .15s"
+          // legacy: รายการเก่าที่บันทึกก่อนมีระบบ Approve 2 ขั้น (ไม่มี field approvals) ให้ถือว่าผ่านครบแล้ว
+          const isLegacyApplied=applied&&!applied.approvals;
+          const approvals=applied?(applied.approvals||[]):[];
+          const isFullyApproved=applied&&(isLegacyApplied||approvals.length>=2);
+          const isPending=applied&&!isFullyApproved;
+          let statusHtml;
+          if(!applied){
+            statusHtml=`<button onclick="event.stopPropagation();openAdjustBiasChoice('${applyKeyEnc}')" style="margin-top:2px;font-size:9px;padding:1px 7px;border:1px solid #93c5fd;border-radius:10px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-family:var(--font)">Adjust Bias</button>`;
+          }else if(isPending){
+            const names=approvals.map(a=>a.name).join(', ')||'—';
+            statusHtml=`<span style="font-size:9px;color:#d97706;font-weight:700" title="รออนุมัติ ${approvals.length}/2">⏳ ${appliedDateOnly} (${approvals.length}/2)</span>
+                <button onclick="event.stopPropagation();openApproverNameModal('${applyKeyEnc}','${applied.appliedAt}',${approvals.length+1})" style="margin-left:3px;font-size:8px;padding:0 5px;border:1px solid #fde68a;border-radius:8px;background:#fffbeb;color:#d97706;cursor:pointer;font-weight:700;font-family:var(--font)" title="Approve ขั้นที่ ${approvals.length+1}">✔ Approve</button>
+                <br><span style="font-size:8px;color:#b45309;font-weight:600">👤 ${names}</span>`;
+          }else{
+            const names=approvals.map(a=>a.name).join(', ')||'—';
+            statusHtml=`<span style="font-size:9px;color:#2563eb;font-weight:700" title="ปรับ Bias ที่เครื่องแล้วเมื่อ ${applied.appliedAt}${applied.reason?(' · เหตุผลแก้ไขล่าสุด: '+applied.reason):''}">✓ ${appliedDateOnly}</span>
+                <button onclick="event.stopPropagation();openEditAppliedModal('${applyKeyEnc}')" style="margin-left:3px;font-size:8px;padding:0 5px;border:1px solid #bfdbfe;border-radius:8px;background:#fff;color:#2563eb;cursor:pointer;font-weight:700;font-family:var(--font)" title="แก้ไขวันที่ (ต้องระบุเหตุผล)">✏️</button>
+                ${names!=='—'?`<br><span style="font-size:8px;color:#1d4ed8;font-weight:600">👤 ${names}</span>`:''}`;
+          }
+          return`<td class="${cls}${isFullyApproved?' bias-applied-cell':''}" style="cursor:pointer;transition:background .15s"
             onclick="showHist(decodeURIComponent('${hKey}'))"
             onmouseover="this.style.background='#f0f9ff'"
-            onmouseout="this.style.background='${applied?'#f0fdf4':''}'"
+            onmouseout="this.style.background='${isFullyApproved?'#f0fdf4':''}'"
             title="คลิกดูประวัติ ${cnt} รายการ">
             ${bStr}<br>
             <span style="font-size:9px;color:var(--txt3);font-weight:400">${dStr}</span>
             ${cnt>1?`<br><span style="font-size:9px;color:var(--blue);font-weight:600">📋 ${cnt}</span>`:''}
-            <br>${applied
-              ?`<span style="font-size:9px;color:#2563eb;font-weight:700" title="ปรับ Bias ที่เครื่องแล้วเมื่อ ${applied.appliedAt}${applied.reason?(' · เหตุผลแก้ไขล่าสุด: '+applied.reason):''}">✓ ${appliedDateOnly}</span>
-                <button onclick="event.stopPropagation();openEditAppliedModal('${applyKeyEnc}')" style="margin-left:3px;font-size:8px;padding:0 5px;border:1px solid #bfdbfe;border-radius:8px;background:#fff;color:#2563eb;cursor:pointer;font-weight:700;font-family:var(--font)" title="แก้ไขวันที่ (ต้องระบุเหตุผล)">✏️</button>`
-              :`<button onclick="event.stopPropagation();openAdjustBiasChoice('${applyKeyEnc}')" style="margin-top:2px;font-size:9px;padding:1px 7px;border:1px solid #93c5fd;border-radius:10px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-family:var(--font)">Adjust Bias</button>`
-            }
+            <br>${statusHtml}
           </td>`;
         }).join('')}
       </tr>`;
@@ -1041,16 +1056,79 @@ function nowStr(){
   return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
 }
 
-async function saveBiasApplied(key,appliedAtStr){
+async function saveApprovalStage1(encodedKey,appliedAtStr,approverName){
   try{
+    const key=decodeURIComponent(encodedKey);
     const r=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
     const j=await r.json();const data=j.record||j;
     const biasApplied={...(data.biasApplied||{})};
-    biasApplied[key]={appliedAt:appliedAtStr};
+    biasApplied[key]={appliedAt:appliedAtStr,approvals:[{name:approverName,approvedAt:nowStr()}]};
     await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify({...data,biasApplied})});
     BIAS_APPLIED=biasApplied;
     render();
   }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
+}
+
+async function saveApprovalStage2(encodedKey,approverName){
+  try{
+    const key=decodeURIComponent(encodedKey);
+    const r=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
+    const j=await r.json();const data=j.record||j;
+    const biasApplied={...(data.biasApplied||{})};
+    const cur=biasApplied[key]||{approvals:[]};
+    const approvals=[...(cur.approvals||[]),{name:approverName,approvedAt:nowStr()}];
+    biasApplied[key]={...cur,approvals};
+    await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify({...data,biasApplied})});
+    BIAS_APPLIED=biasApplied;
+    render();
+  }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
+}
+
+// ── ฟอร์มกรอกชื่อผู้อนุมัติ (ใช้ทั้ง Approve ขั้นที่ 1 และ 2) ────────────────────
+let _pendingApproval=null; // {encodedKey, appliedAt, stage}
+
+function openApproverNameModal(encodedKey,appliedAtStr,stage){
+  _pendingApproval={encodedKey,appliedAt:appliedAtStr,stage};
+  document.getElementById('approverPopup')?.remove();
+  const popup=document.createElement('div');
+  popup.id='approverPopup';
+  popup.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(3px);z-index:450;display:flex;align-items:center;justify-content:center';
+  popup.innerHTML=`<div style="background:#fff;border-radius:14px;width:min(320px,92vw);box-shadow:0 25px 50px rgba(0,0,0,.2);overflow:hidden">
+    <div style="background:#1e293b;color:#fff;padding:14px 18px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:space-between">
+      ✅ Approve ขั้นที่ ${stage}/2
+      <button onclick="document.getElementById('approverPopup').remove()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:15px">✕</button>
+    </div>
+    <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:12px;color:#475569">กรอกชื่อผู้อนุมัติคนที่ ${stage} เพื่อยืนยันว่านำค่า Bias นี้ไปปรับที่เครื่องแล้ว</div>
+      <input type="text" id="approverNameInput" placeholder="ชื่อผู้อนุมัติ" style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+        <button onclick="document.getElementById('approverPopup').remove()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:7px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">ยกเลิก</button>
+        <button onclick="confirmApproverName()" style="background:#16a34a;color:#fff;border:none;padding:7px 18px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px">✔ ยืนยัน Approve</button>
+      </div>
+    </div>
+  </div>`;
+  popup.addEventListener('click',e=>{if(e.target===popup)popup.remove();});
+  document.body.appendChild(popup);
+  setTimeout(()=>document.getElementById('approverNameInput')?.focus(),50);
+}
+
+async function confirmApproverName(){
+  const nameEl=document.getElementById('approverNameInput');
+  const name=nameEl?nameEl.value.trim():'';
+  if(!name){alert('กรุณากรอกชื่อผู้อนุมัติ');return;}
+  const {encodedKey,appliedAt,stage}=_pendingApproval||{};
+  if(stage===2){
+    const key=decodeURIComponent(encodedKey);
+    const cur=BIAS_APPLIED[key]||{};
+    const firstApprover=(cur.approvals&&cur.approvals[0]&&cur.approvals[0].name)||'';
+    if(firstApprover&&firstApprover.trim().toLowerCase()===name.toLowerCase()){
+      alert('ผู้อนุมัติขั้นที่ 2 ต้องเป็นคนละคนกับผู้อนุมัติขั้นที่ 1 (' + firstApprover + ')');
+      return;
+    }
+  }
+  document.getElementById('approverPopup')?.remove();
+  if(stage===1) await saveApprovalStage1(encodedKey,appliedAt,name);
+  else await saveApprovalStage2(encodedKey,name);
 }
 
 // ── เลือก Now / Advanced เมื่อกด Adjust Bias ──────────────────────────────────
@@ -1068,7 +1146,7 @@ function openAdjustBiasChoice(encodedKey){
       <button onclick="closeAdjustBiasChoice()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:15px">✕</button>
     </div>
     <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
-      <div style="font-size:12px;color:#475569">เลือกวันเวลาที่นำค่า Bias นี้ไปปรับที่เครื่อง</div>
+      <div style="font-size:12px;color:#475569">เลือกวันเวลาที่นำค่า Bias นี้ไปปรับที่เครื่อง (ต้องมีผู้อนุมัติ 2 คน)</div>
       <button onclick="confirmAdjustNow()" style="padding:10px;border-radius:8px;border:1.5px solid #93c5fd;background:#eff6ff;color:#2563eb;font-weight:700;cursor:pointer;font-size:13px">⏱️ Now — บันทึกวันเวลาปัจจุบัน</button>
       <button onclick="openAdjustBiasAdvanced()" style="padding:10px;border-radius:8px;border:1.5px solid #ddd6fe;background:#f5f3ff;color:#7c3aed;font-weight:700;cursor:pointer;font-size:13px">🗓️ Advanced — เลือกวันที่เอง</button>
     </div>
@@ -1078,11 +1156,9 @@ function openAdjustBiasChoice(encodedKey){
 }
 function closeAdjustBiasChoice(){document.getElementById('adjChoicePopup')?.remove();}
 
-async function confirmAdjustNow(){
-  if(!confirm('ยืนยันว่านำค่า Bias นี้ไปปรับที่เครื่องแล้ว (บันทึกเป็นวันเวลาปัจจุบัน)?'))return;
+function confirmAdjustNow(){
   closeAdjustBiasChoice();
-  const key=decodeURIComponent(_adjKey);
-  await saveBiasApplied(key,nowStr());
+  openApproverNameModal(_adjKey,nowStr(),1);
 }
 
 function openAdjustBiasAdvanced(){
@@ -1117,14 +1193,13 @@ function openAdjustBiasAdvanced(){
   bindDateMask('adjAdvDate');
 }
 
-async function confirmAdjustAdvanced(){
+function confirmAdjustAdvanced(){
   const dateVal=document.getElementById('adjAdvDate').value;
   const parsed=parseDDMMYYYY(dateVal);
   if(!parsed){alert('กรุณากรอกวันที่ให้ถูกต้องในรูปแบบ dd/mm/yyyy');return;}
   const appliedAtStr=`${parsed.dd}/${parsed.mm}/${parsed.yyyy}`;
   document.getElementById('adjAdvPopup')?.remove();
-  const key=decodeURIComponent(_adjKey);
-  await saveBiasApplied(key,appliedAtStr);
+  openApproverNameModal(_adjKey,appliedAtStr,1);
 }
 
 // ── แก้ไขวันที่ Applied หลังบันทึกไปแล้ว (ต้องระบุเหตุผล) ──────────────────────
@@ -1245,14 +1320,17 @@ function openEditAppliedModal(encodedKey){
   _adjKey=encodedKey;
   const key=decodeURIComponent(encodedKey);
   const applied=BIAS_APPLIED[key]||{};
+  const approvals=applied.approvals||[];
   document.getElementById('editAppliedPopup')?.remove();
   const popup=document.createElement('div');
   popup.id='editAppliedPopup';
   popup.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(3px);z-index:400;display:flex;align-items:center;justify-content:center';
   const dateVal=(applied.appliedAt||'').split(' ')[0]||fmtDDMMYYYY(new Date());
-  popup.innerHTML=`<div style="background:#fff;border-radius:14px;width:min(360px,92vw);box-shadow:0 25px 50px rgba(0,0,0,.2);overflow:hidden">
+  const approver1Val=(approvals[0]&&approvals[0].name)||'';
+  const approver2Val=(approvals[1]&&approvals[1].name)||'';
+  popup.innerHTML=`<div style="background:#fff;border-radius:14px;width:min(360px,92vw);box-shadow:0 25px 50px rgba(0,0,0,.2);overflow:hidden;max-height:90vh;overflow-y:auto">
     <div style="background:#1e293b;color:#fff;padding:14px 18px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:space-between">
-      ✏️ แก้ไขวันที่ปรับ Bias
+      ✏️ แก้ไขวันที่ / ผู้อนุมัติ
       <button onclick="document.getElementById('editAppliedPopup').remove()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:15px">✕</button>
     </div>
     <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px">
@@ -1264,9 +1342,20 @@ function openEditAppliedModal(encodedKey){
           <button type="button" onclick="openCalendarPicker('editAppliedDate')" style="flex-shrink:0;width:38px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;cursor:pointer;font-size:15px" title="เลือกวันที่จากปฏิทิน">📅</button>
         </div>
       </div>
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:10px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.5px">ผู้อนุมัติ (ต้องมี 2 คน)</div>
+        <div>
+          <label style="font-size:11px;color:#64748b;display:block;margin-bottom:3px">ผู้อนุมัติคนที่ 1 *</label>
+          <input type="text" id="editApprover1" value="${approver1Val}" placeholder="ชื่อผู้อนุมัติคนที่ 1" style="width:100%;font-size:13px;padding:7px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#64748b;display:block;margin-bottom:3px">ผู้อนุมัติคนที่ 2 *</label>
+          <input type="text" id="editApprover2" value="${approver2Val}" placeholder="ชื่อผู้อนุมัติคนที่ 2" style="width:100%;font-size:13px;padding:7px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box">
+        </div>
+      </div>
       <div>
         <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">เหตุผลที่แก้ไข *</label>
-        <textarea id="editAppliedReason" rows="2" placeholder="ระบุเหตุผล เช่น กรอกวันที่ผิด / แก้ตามข้อมูลจริงที่ปรับเครื่อง" style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box;resize:vertical"></textarea>
+        <textarea id="editAppliedReason" rows="2" placeholder="ระบุเหตุผล เช่น กรอกวันที่ผิด / เพิ่มชื่อผู้อนุมัติที่ขาดไป" style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box;resize:vertical"></textarea>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
         <button onclick="document.getElementById('editAppliedPopup').remove()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:7px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">ยกเลิก</button>
@@ -1282,8 +1371,12 @@ function openEditAppliedModal(encodedKey){
 async function confirmEditApplied(){
   const dateVal=document.getElementById('editAppliedDate').value;
   const reason=document.getElementById('editAppliedReason').value.trim();
+  const approver1=document.getElementById('editApprover1').value.trim();
+  const approver2=document.getElementById('editApprover2').value.trim();
   const parsed=parseDDMMYYYY(dateVal);
   if(!parsed){alert('กรุณากรอกวันที่ให้ถูกต้องในรูปแบบ dd/mm/yyyy');return;}
+  if(!approver1||!approver2){alert('กรุณากรอกชื่อผู้อนุมัติให้ครบทั้ง 2 คน');return;}
+  if(approver1.toLowerCase()===approver2.toLowerCase()){alert('ผู้อนุมัติคนที่ 1 และ 2 ต้องเป็นคนละคนกัน');return;}
   if(!reason){alert('กรุณาระบุเหตุผลที่แก้ไข');return;}
   const newAppliedAt=`${parsed.dd}/${parsed.mm}/${parsed.yyyy}`;
   document.getElementById('editAppliedPopup')?.remove();
@@ -1293,8 +1386,13 @@ async function confirmEditApplied(){
     const j=await r.json();const data=j.record||j;
     const biasApplied={...(data.biasApplied||{})};
     const prev=biasApplied[key]||{};
+    const prevApprovals=prev.approvals||[];
+    const approvals=[
+      {name:approver1,approvedAt:(prevApprovals[0]&&prevApprovals[0].name===approver1)?prevApprovals[0].approvedAt:nowStr()},
+      {name:approver2,approvedAt:(prevApprovals[1]&&prevApprovals[1].name===approver2)?prevApprovals[1].approvedAt:nowStr()}
+    ];
     const editLog=[...(prev.editLog||[]),{from:prev.appliedAt||'',reason,at:nowStr()}];
-    biasApplied[key]={appliedAt:newAppliedAt,reason,editLog};
+    biasApplied[key]={...prev,appliedAt:newAppliedAt,reason,editLog,approvals};
     await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify({...data,biasApplied})});
     BIAS_APPLIED=biasApplied;
     render();
