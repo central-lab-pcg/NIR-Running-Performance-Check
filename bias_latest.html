@@ -169,7 +169,10 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
           <label class="flabel">วันที่ *</label>
-          <input class="finput" type="text" inputmode="numeric" id="recDate" placeholder="dd/mm/yyyy" maxlength="10">
+          <div style="display:flex;gap:6px">
+            <input class="finput" type="text" inputmode="numeric" id="recDate" placeholder="dd/mm/yyyy" maxlength="10" style="flex:1">
+            <button type="button" onclick="openCalendarPicker('recDate')" style="flex-shrink:0;width:38px;border:1.5px solid var(--border2);border-radius:var(--r);background:#fff;cursor:pointer;font-size:15px" title="เลือกวันที่จากปฏิทิน">📅</button>
+          </div>
         </div>
         <div>
           <label class="flabel">Product *</label>
@@ -272,7 +275,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
     <div class="ap-body" style="gap:12px">
       <div id="editInfo" style="font-size:12px;color:var(--txt2);background:var(--bg);border-radius:8px;padding:10px 12px;line-height:1.8"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div><label class="flabel">วันที่</label><input class="finput" type="text" inputmode="numeric" id="editDate" placeholder="dd/mm/yyyy" maxlength="10"></div>
+        <div><label class="flabel">วันที่</label><div style="display:flex;gap:6px"><input class="finput" type="text" inputmode="numeric" id="editDate" placeholder="dd/mm/yyyy" maxlength="10" style="flex:1"><button type="button" onclick="openCalendarPicker('editDate')" style="flex-shrink:0;width:38px;border:1.5px solid var(--border2);border-radius:var(--r);background:#fff;cursor:pointer;font-size:15px" title="เลือกวันที่จากปฏิทิน">📅</button></div></div>
         <div><label class="flabel">ผู้บันทึก</label><input class="finput" type="text" id="editAdjuster" placeholder="ชื่อผู้บันทึก"></div>
         <div class="ap-ftr" style="grid-column:1/-1;padding:0"><label class="flabel">หมายเหตุ</label><input class="finput" type="text" id="editNote" placeholder="หมายเหตุ"></div>
       </div>
@@ -1098,7 +1101,10 @@ function openAdjustBiasAdvanced(){
     <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px">
       <div>
         <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">วันที่ (dd/mm/yyyy)</label>
-        <input type="text" inputmode="numeric" id="adjAdvDate" value="${dateVal}" placeholder="dd/mm/yyyy" maxlength="10" style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box">
+        <div style="display:flex;gap:6px">
+          <input type="text" inputmode="numeric" id="adjAdvDate" value="${dateVal}" placeholder="dd/mm/yyyy" maxlength="10" style="flex:1;font-size:13px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box">
+          <button type="button" onclick="openCalendarPicker('adjAdvDate')" style="flex-shrink:0;width:38px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;cursor:pointer;font-size:15px" title="เลือกวันที่จากปฏิทิน">📅</button>
+        </div>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
         <button onclick="document.getElementById('adjAdvPopup').remove()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:7px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">ยกเลิก</button>
@@ -1163,6 +1169,78 @@ function ddmmyyyyToISO(str){
   return `${p.yyyy}-${p.mm}-${p.dd}`;
 }
 
+// ── ปฏิทินเลือกวันที่ (ใช้ร่วมกันทุกช่องวันที่ในหน้า) ──────────────────────────
+let _calTargetId='';
+let _calViewDate=new Date();
+const _CAL_MONTHS=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const _CAL_DOW=['อา','จ','อ','พ','พฤ','ศ','ส'];
+
+function openCalendarPicker(inputId){
+  _calTargetId=inputId;
+  const el=document.getElementById(inputId);
+  const cur=parseDDMMYYYY(el?el.value:'');
+  _calViewDate=cur?new Date(parseInt(cur.yyyy),parseInt(cur.mm)-1,1):new Date();
+  renderCalendarPopup();
+}
+
+function renderCalendarPopup(){
+  document.getElementById('calPopup')?.remove();
+  const el=document.getElementById(_calTargetId);
+  const selected=parseDDMMYYYY(el?el.value:'');
+  const y=_calViewDate.getFullYear(), m=_calViewDate.getMonth();
+  const startDow=new Date(y,m,1).getDay();
+  const daysInMonth=new Date(y,m+1,0).getDate();
+  const today=new Date();
+  let cells='';
+  for(let i=0;i<startDow;i++) cells+=`<div></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const isSel=selected&&parseInt(selected.dd)===d&&parseInt(selected.mm)===m+1&&parseInt(selected.yyyy)===y;
+    const isToday=today.getFullYear()===y&&today.getMonth()===m&&today.getDate()===d;
+    const bg=isSel?'#7c3aed':isToday?'#ede9fe':'transparent';
+    const col=isSel?'#fff':isToday?'#7c3aed':'#1e293b';
+    cells+=`<div onclick="pickCalendarDate(${y},${m},${d})" style="text-align:center;padding:7px 0;border-radius:7px;cursor:pointer;font-size:12px;font-weight:${isSel?'700':'500'};background:${bg};color:${col}">${d}</div>`;
+  }
+  const popup=document.createElement('div');
+  popup.id='calPopup';
+  popup.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(3px);z-index:500;display:flex;align-items:center;justify-content:center';
+  popup.innerHTML=`<div style="background:#fff;border-radius:14px;width:min(300px,92vw);box-shadow:0 25px 50px rgba(0,0,0,.2);overflow:hidden;font-family:var(--font)">
+    <div style="background:#1e293b;color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+      <button onclick="calNavMonth(-1)" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:14px">‹</button>
+      <div style="font-size:13px;font-weight:700">${_CAL_MONTHS[m]} ${y+543}</div>
+      <button onclick="calNavMonth(1)" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:14px">›</button>
+    </div>
+    <div style="padding:12px 14px">
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
+        ${_CAL_DOW.map(d=>`<div style="text-align:center;font-size:10px;color:#94a3b8;font-weight:700">${d}</div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">${cells}</div>
+      <div style="display:flex;justify-content:space-between;margin-top:10px">
+        <button onclick="pickCalendarToday()" style="font-size:11px;padding:5px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#475569;cursor:pointer;font-weight:600;font-family:var(--font)">วันนี้</button>
+        <button onclick="document.getElementById('calPopup').remove()" style="font-size:11px;padding:5px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#475569;cursor:pointer;font-weight:600;font-family:var(--font)">ปิด</button>
+      </div>
+    </div>
+  </div>`;
+  popup.addEventListener('click',e=>{if(e.target===popup)popup.remove();});
+  document.body.appendChild(popup);
+}
+
+function calNavMonth(delta){
+  _calViewDate=new Date(_calViewDate.getFullYear(),_calViewDate.getMonth()+delta,1);
+  renderCalendarPopup();
+}
+
+function pickCalendarDate(y,m,d){
+  const dd=String(d).padStart(2,'0'), mm=String(m+1).padStart(2,'0');
+  const el=document.getElementById(_calTargetId);
+  if(el)el.value=`${dd}/${mm}/${y}`;
+  document.getElementById('calPopup')?.remove();
+}
+
+function pickCalendarToday(){
+  const t=new Date();
+  pickCalendarDate(t.getFullYear(),t.getMonth(),t.getDate());
+}
+
 function openEditAppliedModal(encodedKey){
   _adjKey=encodedKey;
   const key=decodeURIComponent(encodedKey);
@@ -1181,7 +1259,10 @@ function openEditAppliedModal(encodedKey){
       <div style="font-size:11px;color:#94a3b8">วันที่บันทึกไว้เดิม: <b style="color:#475569">${applied.appliedAt||'—'}</b></div>
       <div>
         <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">วันที่ใหม่ (dd/mm/yyyy)</label>
-        <input type="text" inputmode="numeric" id="editAppliedDate" value="${dateVal}" placeholder="dd/mm/yyyy" maxlength="10" style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box">
+        <div style="display:flex;gap:6px">
+          <input type="text" inputmode="numeric" id="editAppliedDate" value="${dateVal}" placeholder="dd/mm/yyyy" maxlength="10" style="flex:1;font-size:13px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box">
+          <button type="button" onclick="openCalendarPicker('editAppliedDate')" style="flex-shrink:0;width:38px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;cursor:pointer;font-size:15px" title="เลือกวันที่จากปฏิทิน">📅</button>
+        </div>
       </div>
       <div>
         <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">เหตุผลที่แก้ไข *</label>
