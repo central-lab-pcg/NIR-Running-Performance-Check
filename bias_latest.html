@@ -692,8 +692,9 @@ function render(){
             <span style="font-size:9px;color:var(--txt3);font-weight:400">${dStr}</span>
             ${cnt>1?`<br><span style="font-size:9px;color:var(--blue);font-weight:600">📋 ${cnt}</span>`:''}
             <br>${applied
-              ?`<span style="font-size:9px;color:#16a34a;font-weight:700" title="ปรับ Bias ที่เครื่องแล้วเมื่อ ${applied.appliedAt}">✓ ${appliedDateOnly}</span>`
-              :`<button onclick="event.stopPropagation();markBiasApplied('${applyKeyEnc}')" style="margin-top:2px;font-size:9px;padding:1px 7px;border:1px solid #93c5fd;border-radius:10px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-family:var(--font)">Adjust Bias</button>`
+              ?`<span style="font-size:9px;color:#16a34a;font-weight:700" title="ปรับ Bias ที่เครื่องแล้วเมื่อ ${applied.appliedAt}${applied.reason?(' · เหตุผลแก้ไขล่าสุด: '+applied.reason):''}">✓ ${appliedDateOnly}</span>
+                <button onclick="event.stopPropagation();openEditAppliedModal('${applyKeyEnc}')" style="margin-left:3px;font-size:8px;padding:0 5px;border:1px solid #bbf7d0;border-radius:8px;background:#fff;color:#16a34a;cursor:pointer;font-weight:700;font-family:var(--font)" title="แก้ไขวันที่ (ต้องระบุเหตุผล)">✏️</button>`
+              :`<button onclick="event.stopPropagation();openAdjustBiasChoice('${applyKeyEnc}')" style="margin-top:2px;font-size:9px;padding:1px 7px;border:1px solid #93c5fd;border-radius:10px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-family:var(--font)">Adjust Bias</button>`
             }
           </td>`;
         }).join('')}
@@ -994,20 +995,177 @@ async function deleteRecord(){
 }
 
 // บันทึกว่าค่า Bias นี้ถูกนำไปปรับที่เครื่องแล้ว (แยกจากวันที่บันทึกข้อมูล/คำนวณค่า Bias)
-async function markBiasApplied(encodedKey){
-  const key=decodeURIComponent(encodedKey);
-  if(!confirm('ยืนยันว่านำค่า Bias นี้ไปปรับที่เครื่องแล้ว?'))return;
+function nowStr(){
+  const now=new Date();
+  const dd=String(now.getDate()).padStart(2,'0');
+  const mm=String(now.getMonth()+1).padStart(2,'0');
+  const yyyy=now.getFullYear();
+  const hh=String(now.getHours()).padStart(2,'0');
+  const mi=String(now.getMinutes()).padStart(2,'0');
+  return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+}
+
+async function saveBiasApplied(key,appliedAtStr){
   try{
     const r=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
     const j=await r.json();const data=j.record||j;
     const biasApplied={...(data.biasApplied||{})};
-    const now=new Date();
-    const dd=String(now.getDate()).padStart(2,'0');
-    const mm=String(now.getMonth()+1).padStart(2,'0');
-    const yyyy=now.getFullYear();
-    const hh=String(now.getHours()).padStart(2,'0');
-    const mi=String(now.getMinutes()).padStart(2,'0');
-    biasApplied[key]={appliedAt:`${dd}/${mm}/${yyyy} ${hh}:${mi}`};
+    biasApplied[key]={appliedAt:appliedAtStr};
+    await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify({...data,biasApplied})});
+    BIAS_APPLIED=biasApplied;
+    render();
+  }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
+}
+
+// ── เลือก Now / Advanced เมื่อกด Adjust Bias ──────────────────────────────────
+let _adjKey='';
+
+function openAdjustBiasChoice(encodedKey){
+  _adjKey=encodedKey;
+  document.getElementById('adjChoicePopup')?.remove();
+  const popup=document.createElement('div');
+  popup.id='adjChoicePopup';
+  popup.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(3px);z-index:400;display:flex;align-items:center;justify-content:center';
+  popup.innerHTML=`<div style="background:#fff;border-radius:14px;width:min(320px,92vw);box-shadow:0 25px 50px rgba(0,0,0,.2);overflow:hidden">
+    <div style="background:#1e293b;color:#fff;padding:14px 18px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:space-between">
+      ⚙️ ยืนยันปรับ Bias
+      <button onclick="closeAdjustBiasChoice()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:15px">✕</button>
+    </div>
+    <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:12px;color:#475569">เลือกวันเวลาที่นำค่า Bias นี้ไปปรับที่เครื่อง</div>
+      <button onclick="confirmAdjustNow()" style="padding:10px;border-radius:8px;border:1.5px solid #93c5fd;background:#eff6ff;color:#2563eb;font-weight:700;cursor:pointer;font-size:13px">⏱️ Now — บันทึกวันเวลาปัจจุบัน</button>
+      <button onclick="openAdjustBiasAdvanced()" style="padding:10px;border-radius:8px;border:1.5px solid #ddd6fe;background:#f5f3ff;color:#7c3aed;font-weight:700;cursor:pointer;font-size:13px">🗓️ Advanced — เลือกวันที่เอง</button>
+    </div>
+  </div>`;
+  popup.addEventListener('click',e=>{if(e.target===popup)closeAdjustBiasChoice();});
+  document.body.appendChild(popup);
+}
+function closeAdjustBiasChoice(){document.getElementById('adjChoicePopup')?.remove();}
+
+async function confirmAdjustNow(){
+  if(!confirm('ยืนยันว่านำค่า Bias นี้ไปปรับที่เครื่องแล้ว (บันทึกเป็นวันเวลาปัจจุบัน)?'))return;
+  closeAdjustBiasChoice();
+  const key=decodeURIComponent(_adjKey);
+  await saveBiasApplied(key,nowStr());
+}
+
+function openAdjustBiasAdvanced(){
+  closeAdjustBiasChoice();
+  document.getElementById('adjAdvPopup')?.remove();
+  const now=new Date();
+  const dateVal=fmtDDMMYYYY(now);
+  const popup=document.createElement('div');
+  popup.id='adjAdvPopup';
+  popup.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(3px);z-index:400;display:flex;align-items:center;justify-content:center';
+  popup.innerHTML=`<div style="background:#fff;border-radius:14px;width:min(340px,92vw);box-shadow:0 25px 50px rgba(0,0,0,.2);overflow:hidden">
+    <div style="background:#1e293b;color:#fff;padding:14px 18px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:space-between">
+      🗓️ เลือกวันที่
+      <button onclick="document.getElementById('adjAdvPopup').remove()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:15px">✕</button>
+    </div>
+    <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">วันที่ (dd/mm/yyyy)</label>
+        <input type="text" inputmode="numeric" id="adjAdvDate" value="${dateVal}" placeholder="dd/mm/yyyy" maxlength="10" style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+        <button onclick="document.getElementById('adjAdvPopup').remove()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:7px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">ยกเลิก</button>
+        <button onclick="confirmAdjustAdvanced()" style="background:#7c3aed;color:#fff;border:none;padding:7px 18px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px">💾 บันทึก</button>
+      </div>
+    </div>
+  </div>`;
+  popup.addEventListener('click',e=>{if(e.target===popup)popup.remove();});
+  document.body.appendChild(popup);
+  bindDateMask('adjAdvDate');
+}
+
+async function confirmAdjustAdvanced(){
+  const dateVal=document.getElementById('adjAdvDate').value;
+  const parsed=parseDDMMYYYY(dateVal);
+  if(!parsed){alert('กรุณากรอกวันที่ให้ถูกต้องในรูปแบบ dd/mm/yyyy');return;}
+  const appliedAtStr=`${parsed.dd}/${parsed.mm}/${parsed.yyyy}`;
+  document.getElementById('adjAdvPopup')?.remove();
+  const key=decodeURIComponent(_adjKey);
+  await saveBiasApplied(key,appliedAtStr);
+}
+
+// ── แก้ไขวันที่ Applied หลังบันทึกไปแล้ว (ต้องระบุเหตุผล) ──────────────────────
+function fmtDDMMYYYY(d){
+  const dd=String(d.getDate()).padStart(2,'0');
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const yyyy=d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+function parseDDMMYYYY(str){
+  const m=(str||'').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(!m)return null;
+  const dd=parseInt(m[1],10),mm=parseInt(m[2],10),yyyy=parseInt(m[3],10);
+  if(mm<1||mm>12||dd<1||dd>31)return null;
+  return{dd:m[1],mm:m[2],yyyy:m[3]};
+}
+function bindDateMask(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.addEventListener('input',()=>{
+    let v=el.value.replace(/[^\d]/g,'').slice(0,8);
+    let out='';
+    if(v.length>0)out=v.slice(0,2);
+    if(v.length>=3)out+='/'+v.slice(2,4);
+    if(v.length>=5)out+='/'+v.slice(4,8);
+    el.value=out;
+  });
+}
+
+function openEditAppliedModal(encodedKey){
+  _adjKey=encodedKey;
+  const key=decodeURIComponent(encodedKey);
+  const applied=BIAS_APPLIED[key]||{};
+  document.getElementById('editAppliedPopup')?.remove();
+  const popup=document.createElement('div');
+  popup.id='editAppliedPopup';
+  popup.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(3px);z-index:400;display:flex;align-items:center;justify-content:center';
+  const dateVal=(applied.appliedAt||'').split(' ')[0]||fmtDDMMYYYY(new Date());
+  popup.innerHTML=`<div style="background:#fff;border-radius:14px;width:min(360px,92vw);box-shadow:0 25px 50px rgba(0,0,0,.2);overflow:hidden">
+    <div style="background:#1e293b;color:#fff;padding:14px 18px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:space-between">
+      ✏️ แก้ไขวันที่ปรับ Bias
+      <button onclick="document.getElementById('editAppliedPopup').remove()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:15px">✕</button>
+    </div>
+    <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:11px;color:#94a3b8">วันที่บันทึกไว้เดิม: <b style="color:#475569">${applied.appliedAt||'—'}</b></div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">วันที่ใหม่ (dd/mm/yyyy)</label>
+        <input type="text" inputmode="numeric" id="editAppliedDate" value="${dateVal}" placeholder="dd/mm/yyyy" maxlength="10" style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">เหตุผลที่แก้ไข *</label>
+        <textarea id="editAppliedReason" rows="2" placeholder="ระบุเหตุผล เช่น กรอกวันที่ผิด / แก้ตามข้อมูลจริงที่ปรับเครื่อง" style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box;resize:vertical"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+        <button onclick="document.getElementById('editAppliedPopup').remove()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:7px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">ยกเลิก</button>
+        <button onclick="confirmEditApplied()" style="background:#4f46e5;color:#fff;border:none;padding:7px 18px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px">💾 บันทึกการแก้ไข</button>
+      </div>
+    </div>
+  </div>`;
+  popup.addEventListener('click',e=>{if(e.target===popup)popup.remove();});
+  document.body.appendChild(popup);
+  bindDateMask('editAppliedDate');
+}
+
+async function confirmEditApplied(){
+  const dateVal=document.getElementById('editAppliedDate').value;
+  const reason=document.getElementById('editAppliedReason').value.trim();
+  const parsed=parseDDMMYYYY(dateVal);
+  if(!parsed){alert('กรุณากรอกวันที่ให้ถูกต้องในรูปแบบ dd/mm/yyyy');return;}
+  if(!reason){alert('กรุณาระบุเหตุผลที่แก้ไข');return;}
+  const newAppliedAt=`${parsed.dd}/${parsed.mm}/${parsed.yyyy}`;
+  document.getElementById('editAppliedPopup')?.remove();
+  const key=decodeURIComponent(_adjKey);
+  try{
+    const r=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
+    const j=await r.json();const data=j.record||j;
+    const biasApplied={...(data.biasApplied||{})};
+    const prev=biasApplied[key]||{};
+    const editLog=[...(prev.editLog||[]),{from:prev.appliedAt||'',reason,at:nowStr()}];
+    biasApplied[key]={appliedAt:newAppliedAt,reason,editLog};
     await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify({...data,biasApplied})});
     BIAS_APPLIED=biasApplied;
     render();
