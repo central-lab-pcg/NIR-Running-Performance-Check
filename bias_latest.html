@@ -50,6 +50,7 @@ tbody tr:last-child td{border-bottom:none}
 .v-neg{color:var(--red);font-weight:700}
 .v-zero{color:var(--txt3)}
 .v-none{color:var(--border2)}
+.bias-applied-cell{background:#f0fdf4}
 
 /* Install info */
 .install-date{color:var(--purple);font-size:10px;font-family:var(--font)}
@@ -305,7 +306,7 @@ const PARAMS_DEF  = ['M','CP','EE','AH','FIB','ASH','Ca','P','Aw','NaCl','PD','T
 const JB_AK = '$2a$10$KUCt03lbeTKyErlWNAdVheQ0dGdoVzYq5y.hnbhTnnWgT3oLxKk5e';
 const LMAP = {'169 LAB-DS2500':{plant:'169',equipment:'DS2500',source:'LAB'},'169 QC-DS2500':{plant:'169',equipment:'DS2500',source:'QC'},'169 QC-DS3':{plant:'169',equipment:'DS3',source:'QC'},'Rayong':{plant:'RY',equipment:'DS3F',source:''},'Indo DS2500':{plant:'Indo',equipment:'DS2500',source:''},'Indo DS3F':{plant:'Indo',equipment:'DS3F',source:''},'Myanmar':{plant:'MM',equipment:'DS2500',source:''},'Wet Food':{plant:'169',equipment:'DS2500',source:'Wet Food'},'POC':{plant:'POC',equipment:'DS2500',source:''}};
 
-let RAW_BIAS=[], RAW_MANUAL=[], RAW_CORR={}, APPROVALS={};
+let RAW_BIAS=[], RAW_MANUAL=[], RAW_CORR={}, APPROVALS={}, BIAS_APPLIED={};
 
 // ── Type detection จากชื่อ Product ──────────────────────────────────────────
 const FG_PRODUCTS=new Set(['Dog Kibble','Cat Kibble','Bird Kibble','Horse Kibble','Rodent Kibble',
@@ -335,6 +336,7 @@ async function loadData(){
     RAW_MANUAL=(data.manual_records||[]).map(r=>norm(r,'manual'));
     RAW_CORR  =data.corrections||{};
     APPROVALS =data.approvals||{};
+    BIAS_APPLIED=data.biasApplied||{};
     if(data.generated_at)document.getElementById('lastUpdated').textContent=data.generated_at;
     document.getElementById('loadingOverlay').style.display='none';
     document.getElementById('app').style.display='block';
@@ -366,9 +368,12 @@ function getAllEvents(){
   const evts=[...RAW_BIAS,...RAW_MANUAL];
   Object.entries(RAW_CORR).forEach(([k,v])=>{
     const parts=k.split('::');
-    const prd=parts[0]||'', serial=parseInt(parts[1]||0);
+    // ข้อมูลเก่าบางรายการมีคำว่า "⚙ Bias Adj" ติดท้ายชื่อสินค้ามาด้วย (บั๊กที่แก้ไปแล้วในหน้า Summary Report)
+    // ตัดออกตรงนี้ด้วย กันไม่ให้กลายเป็นสินค้าคนละตัวกัน (ซ้ำกับสินค้าตัวจริง)
+    const prd=(parts[0]||'').replace(/\s*⚙?\s*Bias Adj\s*$/i,'').trim(), serial=parseInt(parts[1]||0);
     const eqp=parts[2]==='all'?'':(parts[2]||'');
     const src=parts[3]==='all'?'':(parts[3]||'');
+    const keyPlant=(parts[4]&&parts[4]!=='all')?parts[4]:''; // Plant ที่เก็บอยู่ใน key เอง (คีย์ใหม่ที่มีมิติ Plant)
     if(!prd||!serial)return;
     const text=v.text||'';
     if(!text||text.trim()==='-')return;
@@ -385,28 +390,48 @@ function getAllEvents(){
         }
       }catch{}
     }
+    // จับคู่ Plant → label (169 LAB-DS2500 / Rayong / Indo DS2500 ฯลฯ) แบบ tolerant ต่อชื่อเรียกที่ต่างกัน
+    // (ข้อมูลจริงจาก Correction เก็บ Plant เป็นชื่อเต็ม เช่น "Rayong" ไม่ใช่ตัวย่อ "RY" ที่เคยเช็กไว้ ทำให้จับคู่ไม่ติดมาก่อน)
+    const rawPlant=(v.plant||keyPlant||'').trim();
+    const vPlow=rawPlant.toLowerCase();
+    const vE=(v.equip||eqp||'').trim().toUpperCase();
+    const vS=(v.source_val||src||'').trim().toUpperCase();
+    const is169    = vPlow==='169';
+    const isRayong = vPlow==='rayong'||vPlow==='ry';
+    const isIndo   = vPlow==='indo'||vPlow==='indonesia';
+    const isMyanmar= vPlow==='myanmar'||vPlow==='mm';
+    const isPOC    = vPlow==='poc';
+    const isWF     = vPlow==='wet food'||vPlow==='wf'||vS==='WET FOOD';
     let label='';
-    const vP=v.plant||'', vE=v.equip||'', vS=v.source_val||'';
-    if(vP==='169'&&vE==='DS2500'&&vS==='LAB')     label='169 LAB-DS2500';
-    else if(vP==='169'&&vE==='DS2500'&&vS==='QC') label='169 QC-DS2500';
-    else if(vP==='169'&&vE==='DS3'&&vS==='QC')    label='169 QC-DS3';
-    else if(vP==='WF'||vS==='Wet Food')           label='Wet Food';
-    else if(vP==='RY')                            label='Rayong';
-    else if(vP==='Indo'&&vE==='DS3F')             label='Indo DS3F';
-    else if(vP==='Indo')                          label='Indo DS2500';
-    else if(vP==='MM')                            label='Myanmar';
-    else if(vP==='POC')                           label='POC';
-    else if(src==='LAB')                          label='169 LAB-DS2500';
-    else if(src==='QC'&&eqp==='DS3')              label='169 QC-DS3';
-    else if(src==='QC')                           label='169 QC-DS2500';
+    if(isWF)                              label='Wet Food';
+    else if(is169&&vE==='DS2500'&&vS==='LAB') label='169 LAB-DS2500';
+    else if(is169&&vE==='DS2500'&&vS==='QC')  label='169 QC-DS2500';
+    else if(is169&&vE==='DS3'&&vS==='QC')     label='169 QC-DS3';
+    else if(isRayong)                     label='Rayong';
+    else if(isIndo&&vE==='DS3F')          label='Indo DS3F';
+    else if(isIndo)                       label='Indo DS2500';
+    else if(isMyanmar)                    label='Myanmar';
+    else if(isPOC)                        label='POC';
+    else if(is169){
+      // 169 แต่ equip/source ไม่ครบตามที่คาด — เดาจาก equip/source ที่มีอยู่
+      if(vS==='LAB') label='169 LAB-DS2500';
+      else if(vE==='DS3') label='169 QC-DS3';
+      else label='169 QC-DS2500';
+    } else if(!rawPlant){
+      // ไม่มี Plant metadata เลย (ข้อมูลเก่ามากๆ ก่อนมีการเก็บ Plant) — เดาจาก equip/source ที่เหลืออยู่ในตัว key
+      if(vS==='LAB')            label='169 LAB-DS2500';
+      else if(vS==='QC'&&vE==='DS3') label='169 QC-DS3';
+      else if(vS==='QC')        label='169 QC-DS2500';
+    }
+    // ใช้ข้อมูลโครงสร้าง (biasAdj) ที่บันทึกไว้แม่นยำอยู่แล้วจากฝั่ง Adjust Bias เท่านั้น ไม่ต้องเดาค่าจากข้อความ (text) เลย
+    // ถ้ารายการนี้เป็นแค่ note ที่พิมพ์เอง (ไม่มี biasAdj) ให้ข้ามไปเลย ไม่ต้องดึงมาแสดงเป็นค่า Bias
     const params={};
-    PARAMS_DEF.forEach(p=>{
-      const esc=p.replace(/[.*+?^=!:{}()|[\]/\\]/g,'\\$&').replace(/-/g,'[-]');
-      const m=text.match(new RegExp('(?<![A-Za-z\\d])'+esc+'[\\s=:+]*([+-]?\\d+\\.?\\d+)','i'));
-      if(m)params[p]=parseFloat(m[1]);
-    });
+    if(Array.isArray(v.biasAdj)&&v.biasAdj.length){
+      v.biasAdj.forEach(({par,val})=>{ if(par&&typeof val==='number') params[par]=val; });
+    }
+    if(!Object.keys(params).length)return;
     evts.push({date,month:date.slice(0,7),product:prd,label,params,is_install:false,
-      adjuster:v.user||'',note:text,reviewer:'',type_val:v.type_val||'',_src:'correction'});
+      adjuster:v.user||'',note:text,reviewer:'',type_val:v.type_val||'',_src:'correction',_corrKey:k});
   });
   return evts.sort((a,b)=>a.date.localeCompare(b.date));
 }
@@ -431,7 +456,7 @@ function calcLatest(evts){
         if(!rec.params[p]) rec.params[p]={bias:delta,date:evt.date,adjuster:evt.adjuster,reviewer:evt.reviewer||'',history:[]};
         rec.params[p].bias=delta; rec.params[p].date=evt.date;
         rec.params[p].adjuster=evt.adjuster; rec.params[p].reviewer=evt.reviewer||'';
-        rec.params[p].history.push({date:evt.date,bias:delta,delta,install:true,adjuster:evt.adjuster,_id:evt._id||'',_src:evt._src||''});
+        rec.params[p].history.push({date:evt.date,bias:delta,delta,install:true,adjuster:evt.adjuster,_id:evt._id||'',_src:evt._src||'',_corrKey:evt._corrKey||''});
       });
     }else{
       Object.entries(evt.params).forEach(([p,delta])=>{
@@ -441,7 +466,7 @@ function calcLatest(evts){
         if(!rec.params[p]) rec.params[p]={bias:state[sk],date:evt.date,adjuster:evt.adjuster,reviewer:evt.reviewer||'',history:[]};
         rec.params[p].bias=state[sk]; rec.params[p].date=evt.date;
         rec.params[p].adjuster=evt.adjuster; rec.params[p].reviewer=evt.reviewer||'';
-        rec.params[p].history.push({date:evt.date,bias:state[sk],delta,install:false,adjuster:evt.adjuster,_id:evt._id||'',_src:evt._src||''});
+        rec.params[p].history.push({date:evt.date,bias:state[sk],delta,install:false,adjuster:evt.adjuster,_id:evt._id||'',_src:evt._src||'',_corrKey:evt._corrKey||''});
       });
     }
   });
@@ -467,13 +492,19 @@ function showHist(key){
   // เก็บ _id และ _src ใน history ด้วย
   const rows=hist.map((h,hi)=>{
     const dStr=h.date.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>`${d}/${m}/${y.slice(2)}`);
-    const dVal=h.delta!==null&&h.delta!==undefined?(h.delta>=0?'+':'')+h.delta:'';
-    const bStr=(h.bias>=0?'+':'')+h.bias;
+    const dVal=h.delta!==null&&h.delta!==undefined?(h.delta>=0?'+':'')+h.delta.toFixed(3):'';
+    const bStr=(h.bias>=0?'+':'')+h.bias.toFixed(3);
     const bCls=h.bias>0?'color:#16a34a':h.bias<0?'color:#dc2626':'color:#94a3b8';
     const canEdit=h._src==='manual'&&h._id;
-    const editBtn=canEdit
-      ?`<button onclick="openEditModal('${h._id}')" style="font-size:10px;padding:2px 8px;border:1px solid #c7d2fe;border-radius:5px;background:#eef2ff;color:#4f46e5;cursor:pointer;font-weight:600">✏️ แก้ไข</button>`
-      :'';
+    const canDeleteCorr=h._src==='correction'&&h._corrKey;
+    let editBtn='';
+    if(canEdit){
+      editBtn=`<button onclick="openEditModal('${h._id}')" style="font-size:10px;padding:2px 8px;border:1px solid #c7d2fe;border-radius:5px;background:#eef2ff;color:#4f46e5;cursor:pointer;font-weight:600">✏️ แก้ไข</button>
+        <button onclick="quickDeleteRecord('${h._id}')" style="font-size:10px;padding:2px 8px;border:1px solid #fca5a5;border-radius:5px;background:#fef2f2;color:#dc2626;cursor:pointer;font-weight:600;margin-left:4px">🗑️ ลบ</button>`;
+    } else if(canDeleteCorr){
+      // encodeURIComponent เพราะ key มีอักขระ ':' และตัวอักษรพิเศษที่ทำให้ single-quote string ใน onclick พังได้
+      editBtn=`<button onclick="quickDeleteCorrection('${encodeURIComponent(h._corrKey)}')" style="font-size:10px;padding:2px 8px;border:1px solid #fca5a5;border-radius:5px;background:#fef2f2;color:#dc2626;cursor:pointer;font-weight:600" title="ลบ Correction ทั้งรายการ (ทุก Parameter ที่บันทึกไว้พร้อมกัน)">🗑️ ลบ</button>`;
+    }
     if(h.install) return `<tr style="background:#f5f3ff">
       <td style="padding:7px 12px;font-family:monospace;font-size:11px;color:#94a3b8">${dStr}</td>
       <td style="padding:7px 12px;color:#7c3aed;font-weight:700;font-size:11px">🔄 Install</td>
@@ -642,18 +673,28 @@ function render(){
           if(!pd)return`<td class="v-none">—</td>`;
           const b=pd.bias;
           const cls=b>0?'v-pos':b<0?'v-neg':'v-zero';
-          const bStr=(b>=0?'+':'')+b;
+          const bStr=(b>=0?'+':'')+b.toFixed(3);
           const dStr=pd.date.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>`${d}/${m}/${y.slice(2)}`);
           const hKey=encodeURIComponent(`${v.label}|${v.product}|${p}`);
           const cnt=pd.history?pd.history.length:0;
-          return`<td class="${cls}" style="cursor:pointer;transition:background .15s"
+          // "Adjust Bias" ปุ่มยืนยันว่าเอาค่านี้ไปปรับที่เครื่องแล้ว — ผูกกับวันที่ของค่า Bias ล่าสุดตัวนี้โดยเฉพาะ
+          // ถ้ามีการปรับ Bias ใหม่เข้ามาอีก (วันที่เปลี่ยน) จะต้องกดยืนยันใหม่อีกครั้ง
+          const rawApplyKey=`${v.label}|${v.product}|${p}|${pd.date}`;
+          const applied=BIAS_APPLIED[rawApplyKey];
+          const applyKeyEnc=encodeURIComponent(rawApplyKey);
+          const appliedDateOnly=applied?applied.appliedAt.split(' ')[0]:'';
+          return`<td class="${cls}${applied?' bias-applied-cell':''}" style="cursor:pointer;transition:background .15s"
             onclick="showHist(decodeURIComponent('${hKey}'))"
             onmouseover="this.style.background='#f0f9ff'"
-            onmouseout="this.style.background=''"
+            onmouseout="this.style.background='${applied?'#f0fdf4':''}'"
             title="คลิกดูประวัติ ${cnt} รายการ">
             ${bStr}<br>
             <span style="font-size:9px;color:var(--txt3);font-weight:400">${dStr}</span>
             ${cnt>1?`<br><span style="font-size:9px;color:var(--blue);font-weight:600">📋 ${cnt}</span>`:''}
+            <br>${applied
+              ?`<span style="font-size:9px;color:#16a34a;font-weight:700" title="ปรับ Bias ที่เครื่องแล้วเมื่อ ${applied.appliedAt}">✓ ${appliedDateOnly}</span>`
+              :`<button onclick="event.stopPropagation();markBiasApplied('${applyKeyEnc}')" style="margin-top:2px;font-size:9px;padding:1px 7px;border:1px solid #93c5fd;border-radius:10px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-family:var(--font)">Adjust Bias</button>`
+            }
           </td>`;
         }).join('')}
       </tr>`;
@@ -693,7 +734,7 @@ function exportCSV(){
       v.install?v.install.adjuster:'',
       ap?ap.approver:'',
       ap?ap.approvedAt:'',
-      ...sortedParams.map(p=>v.params[p]?v.params[p].bias:''),
+      ...sortedParams.map(p=>v.params[p]?v.params[p].bias.toFixed(3):''),
     ];
     lines.push(row.join(','));
   });
@@ -947,6 +988,61 @@ async function deleteRecord(){
     await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify({...data,manual_records:manual})});
     RAW_MANUAL=manual.map(r=>norm(r,'manual'));
     closeEditModal();
+    render();
+    alert('✅ ลบสำเร็จ!');
+  }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
+}
+
+// บันทึกว่าค่า Bias นี้ถูกนำไปปรับที่เครื่องแล้ว (แยกจากวันที่บันทึกข้อมูล/คำนวณค่า Bias)
+async function markBiasApplied(encodedKey){
+  const key=decodeURIComponent(encodedKey);
+  if(!confirm('ยืนยันว่านำค่า Bias นี้ไปปรับที่เครื่องแล้ว?'))return;
+  try{
+    const r=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
+    const j=await r.json();const data=j.record||j;
+    const biasApplied={...(data.biasApplied||{})};
+    const now=new Date();
+    const dd=String(now.getDate()).padStart(2,'0');
+    const mm=String(now.getMonth()+1).padStart(2,'0');
+    const yyyy=now.getFullYear();
+    const hh=String(now.getHours()).padStart(2,'0');
+    const mi=String(now.getMinutes()).padStart(2,'0');
+    biasApplied[key]={appliedAt:`${dd}/${mm}/${yyyy} ${hh}:${mi}`};
+    await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify({...data,biasApplied})});
+    BIAS_APPLIED=biasApplied;
+    render();
+  }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
+}
+
+// ลบตรงจากเมนูในหน้าประวัติ (History popup) ไม่ต้องเปิด Edit modal ก่อน
+async function quickDeleteRecord(id){
+  if(!confirm('ต้องการลบรายการนี้? การลบไม่สามารถกู้คืนได้'))return;
+  try{
+    const r=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
+    const j=await r.json();const data=j.record||j;
+    const manual=(data.manual_records||[]).filter(rec=>rec._id!==id);
+    await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify({...data,manual_records:manual})});
+    RAW_MANUAL=manual.map(r=>norm(r,'manual'));
+    document.getElementById('histPopup')?.remove();
+    render();
+    alert('✅ ลบสำเร็จ!');
+  }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
+}
+
+// ลบ Correction (จาก Summary Report) ตรงจากหน้าประวัติของหน้านี้
+// หมายเหตุ: correction 1 รายการอาจรวมหลาย Parameter ไว้ในข้อความเดียวกัน (เช่น "Adjust Bias EE +0.331, M -0.407")
+// การลบจะลบ "ทั้งรายการ" (ทุก Parameter ที่บันทึกไว้พร้อมกัน) ไม่ใช่ลบเฉพาะ Parameter เดียวที่กำลังดูอยู่ — เหมือนกับปุ่มลบในหน้า Summary Report
+async function quickDeleteCorrection(encodedKey){
+  const key=decodeURIComponent(encodedKey);
+  if(!confirm('ต้องการลบ Correction นี้? (จะลบทุก Parameter ที่บันทึกไว้พร้อมกันในรายการนี้ทั้งหมด) การลบไม่สามารถกู้คืนได้'))return;
+  try{
+    const r=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
+    const j=await r.json();const data=j.record||j;
+    const corrections={...(data.corrections||{})};
+    delete corrections[key];
+    await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify({...data,corrections})});
+    RAW_CORR=corrections;
+    document.getElementById('histPopup')?.remove();
     render();
     alert('✅ ลบสำเร็จ!');
   }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
