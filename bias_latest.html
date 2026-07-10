@@ -325,6 +325,37 @@ function guessType(product, type_val){
   return 'Other';
 }
 
+// ── Canonicalize Product name: ชื่อเดียวกัน (ต่างแค่ตัวพิมพ์เล็ก-ใหญ่ / เว้นวรรค / พหูพจน์) = สมการเดียวกัน ──
+// รวมชื่อ Product ที่พิมพ์ต่างกันเล็กน้อย (เช่น "Cat Kibble" vs "Cat Kibbles") ให้กลายเป็นแถวเดียวกัน
+// โดยยึดรายชื่อจาก dropdown Product (#recProduct) เป็นชื่อมาตรฐาน (canonical) — ไม่แก้ไขข้อมูลดิบที่บันทึกไว้ แค่ normalize ตอนแสดงผล/จัดกลุ่ม
+let _CANON_MAP=null;
+function getCanonMap(){
+  if(_CANON_MAP)return _CANON_MAP;
+  _CANON_MAP=new Map();
+  document.querySelectorAll('#recProduct option').forEach(opt=>{
+    const v=(opt.value||'').trim();
+    if(!v)return;
+    const key=v.toLowerCase().replace(/\s+/g,' ');
+    _CANON_MAP.set(key,v);
+  });
+  return _CANON_MAP;
+}
+function canonicalizeProduct(name){
+  const raw=(name||'').trim().replace(/\s+/g,' ');
+  if(!raw)return raw;
+  const map=getCanonMap();
+  const lower=raw.toLowerCase();
+  if(map.has(lower))return map.get(lower);
+  // ลองตัด s ท้ายคำ (พหูพจน์ เช่น "Kibbles" → "Kibble")
+  if(lower.endsWith('s')){
+    const trimmed=lower.slice(0,-1);
+    if(map.has(trimmed))return map.get(trimmed);
+  }
+  // ลองเติม s ท้ายคำ (เผื่อชื่อมาตรฐานเป็นพหูพจน์แต่กรอกเอกพจน์)
+  if(map.has(lower+'s'))return map.get(lower+'s');
+  return raw;
+}
+
 // ── Load ──────────────────────────────────────────────────────────────────────
 async function loadData(){
   try{
@@ -352,7 +383,7 @@ function norm(r,src){
   return{
     date:      isFull?r.date:r.d,
     month:     isFull?(r.month||(r.date||'').slice(0,7)):(r.d||'').slice(0,7),
-    product:   isFull?r.product:r.p,
+    product:   canonicalizeProduct(isFull?r.product:r.p),
     label:     isFull?(r.label||''):(r.l||''),
     params:    isFull?(r.params||{}):(r.pa||{}),
     is_install:isFull?!!r.is_install:(r.i===1),
@@ -370,7 +401,7 @@ function getAllEvents(){
     const parts=k.split('::');
     // ข้อมูลเก่าบางรายการมีคำว่า "⚙ Bias Adj" ติดท้ายชื่อสินค้ามาด้วย (บั๊กที่แก้ไปแล้วในหน้า Summary Report)
     // ตัดออกตรงนี้ด้วย กันไม่ให้กลายเป็นสินค้าคนละตัวกัน (ซ้ำกับสินค้าตัวจริง)
-    const prd=(parts[0]||'').replace(/\s*⚙?\s*Bias Adj\s*$/i,'').trim(), serial=parseInt(parts[1]||0);
+    const prd=canonicalizeProduct((parts[0]||'').replace(/\s*⚙?\s*Bias Adj\s*$/i,'').trim()), serial=parseInt(parts[1]||0);
     const eqp=parts[2]==='all'?'':(parts[2]||'');
     const src=parts[3]==='all'?'':(parts[3]||'');
     const keyPlant=(parts[4]&&parts[4]!=='all')?parts[4]:''; // Plant ที่เก็บอยู่ใน key เอง (คีย์ใหม่ที่มีมิติ Plant)
