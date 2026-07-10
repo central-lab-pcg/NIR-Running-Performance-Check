@@ -169,7 +169,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
           <label class="flabel">วันที่ *</label>
-          <input class="finput" type="date" id="recDate">
+          <input class="finput" type="text" inputmode="numeric" id="recDate" placeholder="dd/mm/yyyy" maxlength="10">
         </div>
         <div>
           <label class="flabel">Product *</label>
@@ -272,7 +272,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
     <div class="ap-body" style="gap:12px">
       <div id="editInfo" style="font-size:12px;color:var(--txt2);background:var(--bg);border-radius:8px;padding:10px 12px;line-height:1.8"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div><label class="flabel">วันที่</label><input class="finput" type="date" id="editDate"></div>
+        <div><label class="flabel">วันที่</label><input class="finput" type="text" inputmode="numeric" id="editDate" placeholder="dd/mm/yyyy" maxlength="10"></div>
         <div><label class="flabel">ผู้บันทึก</label><input class="finput" type="text" id="editAdjuster" placeholder="ชื่อผู้บันทึก"></div>
         <div class="ap-ftr" style="grid-column:1/-1;padding:0"><label class="flabel">หมายเหตุ</label><input class="finput" type="text" id="editNote" placeholder="หมายเหตุ"></div>
       </div>
@@ -797,7 +797,7 @@ function addRecParam(){
   wrap.appendChild(row);
 }
 function openRecordModal(){
-  document.getElementById('recDate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('recDate').value=fmtDDMMYYYY(new Date());
   document.getElementById('recProduct').value='';
   document.getElementById('recAdjuster').value='';
   document.getElementById('recNote').value='';
@@ -806,15 +806,16 @@ function openRecordModal(){
   document.getElementById('recParams').innerHTML='';
   resetLabelChips();
   addRecParam();
+  bindDateMask('recDate');
   document.getElementById('recModal').classList.add('open');
 }
 function closeRecordModal(){document.getElementById('recModal').classList.remove('open');}
 
 async function saveRecord(){
-  const date    = document.getElementById('recDate').value;
+  const date    = ddmmyyyyToISO(document.getElementById('recDate').value);
   const product = document.getElementById('recProduct').value;
   const labels  = getSelectedLabels();
-  if(!date||!product||!labels.length){alert('กรุณาเลือก วันที่, Plant และ Product');return;}
+  if(!date||!product||!labels.length){alert('กรุณากรอก วันที่ (dd/mm/yyyy) ให้ถูกต้อง, Plant และ Product');return;}
   const params={};
   document.querySelectorAll('#recParams div').forEach(row=>{
     const s=row.querySelector('select'),inp=row.querySelector('input[type=number]');
@@ -917,10 +918,11 @@ function openEditModal(id){
   _editId=id;
   document.getElementById('editInfo').innerHTML=
     `<b>Plant:</b> ${rec.label||rec.plant||'—'} &nbsp;·&nbsp; <b>Product:</b> ${rec.product}`;
-  document.getElementById('editDate').value=rec.date||'';
+  document.getElementById('editDate').value=isoToDDMMYYYY(rec.date||'');
   document.getElementById('editAdjuster').value=rec.adjuster||'';
   document.getElementById('editNote').value=rec.note||'';
   document.getElementById('editIsInstall').checked=!!rec.is_install;
+  bindDateMask('editDate');
   // fill params
   const wrap=document.getElementById('editParams');
   wrap.innerHTML='';
@@ -950,8 +952,8 @@ function addEditParam(){
 function closeEditModal(){document.getElementById('editModal').classList.remove('open');}
 
 async function saveEdit(){
-  const date=document.getElementById('editDate').value;
-  if(!date){alert('กรุณาเลือกวันที่');return;}
+  const date=ddmmyyyyToISO(document.getElementById('editDate').value);
+  if(!date){alert('กรุณากรอกวันที่ให้ถูกต้องในรูปแบบ dd/mm/yyyy');return;}
   const params={};
   document.querySelectorAll('#editParams div').forEach(row=>{
     const s=row.querySelector('select'),inp=row.querySelector('input[type=number]');
@@ -1105,6 +1107,8 @@ function parseDDMMYYYY(str){
 function bindDateMask(id){
   const el=document.getElementById(id);
   if(!el)return;
+  if(el._maskBound)return;
+  el._maskBound=true;
   el.addEventListener('input',()=>{
     let v=el.value.replace(/[^\d]/g,'').slice(0,8);
     let out='';
@@ -1113,6 +1117,19 @@ function bindDateMask(id){
     if(v.length>=5)out+='/'+v.slice(4,8);
     el.value=out;
   });
+}
+function isoToDDMMYYYY(iso){
+  if(!iso)return'';
+  const parts=iso.split('-');
+  if(parts.length!==3)return'';
+  const[yyyy,mm,dd]=parts;
+  if(!yyyy||!mm||!dd)return'';
+  return `${dd}/${mm}/${yyyy}`;
+}
+function ddmmyyyyToISO(str){
+  const p=parseDDMMYYYY(str);
+  if(!p)return'';
+  return `${p.yyyy}-${p.mm}-${p.dd}`;
 }
 
 function openEditAppliedModal(encodedKey){
