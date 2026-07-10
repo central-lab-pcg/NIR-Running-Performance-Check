@@ -196,7 +196,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
             </optgroup>
             <optgroup label="── Wet Food ──">
               <option>Paste,Gravy,Jelly,Soup,Stick</option><option>Stick + Miniroll</option>
-              <option>Goat Milk</option>
+              <option>Goat Milk</option><option>Wet Food</option><option>WFCP 18+</option>
             </optgroup>
             <optgroup label="── POC ──">
               <option>MF01</option><option>FP01</option><option>FP02 04 05 + Mix P</option>
@@ -314,7 +314,7 @@ let RAW_BIAS=[], RAW_MANUAL=[], RAW_CORR={}, APPROVALS={}, BIAS_APPLIED={};
 // ── Type detection จากชื่อ Product ──────────────────────────────────────────
 const FG_PRODUCTS=new Set(['Dog Kibble','Cat Kibble','Bird Kibble','Horse Kibble','Rodent Kibble',
   'Dog Mix2','Cat Mix2','Bird Mix2','Horse Mix2','Rodent Mix2','Aqua FG&Mix2','Cat Mix2 and Pocket']);
-const WF_PRODUCTS=new Set(['Paste,Gravy,Jelly,Soup,Stick','Stick + Miniroll','Goat Milk','Wet Food']);
+const WF_PRODUCTS=new Set(['Paste,Gravy,Jelly,Soup,Stick','Stick + Miniroll','Goat Milk','Wet Food','WFCP 18+']);
 const RM_PRODUCTS=new Set(['FM','HFEM','AP1','SHM','MBM','SBM, SBC','SBH','CGM','CKO','BP PL','Br,P','RB S','RB ext , F','YC','FFS','Wheat Gain','Wheat Bran','Wheat Product','SB.G','Casava','Chicken oil','Wheat flour','Mix1','SDF I01','1R06901N , 1R06221N , 1R10221N']);
 
 function guessType(product, type_val){
