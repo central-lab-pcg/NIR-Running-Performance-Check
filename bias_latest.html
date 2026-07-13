@@ -94,6 +94,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
 .fchip.fg.active{border-color:#16a34a;background:#16a34a;color:#fff}
 .fchip.rm.active{border-color:#d97706;background:#d97706;color:#fff}
 .fchip.wf.active{border-color:#3b82f6;background:#3b82f6;color:#fff}
+.fchip.poc.active{border-color:#9333ea;background:#9333ea;color:#fff}
 .spinner{width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .no-data{text-align:center;padding:40px;color:var(--txt3)}
@@ -141,6 +142,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
       <button class="fchip fg" data-val="FG" onclick="setFilter('type','FG')">🟢 FG</button>
       <button class="fchip rm" data-val="RM" onclick="setFilter('type','RM')">🟠 RM</button>
       <button class="fchip wf" data-val="WF" onclick="setFilter('type','WF')">🔵 WF</button>
+      <button class="fchip poc" data-val="POC" onclick="setFilter('type','POC')">🟣 POC</button>
     </div>
   </div>
 </div>
@@ -616,9 +618,9 @@ function render(){
   const sortedParams=PARAMS_DEF.filter(p=>usedParams.has(p));
 
   // TYPE_ORDER และสี
-  const TYPE_ORDER=['FG','RM','WF','Other'];
-  const TYPE_LABEL={'FG':'🟢 FG — Finished Goods','RM':'🟠 RM — Raw Material','WF':'🔵 WF — Wet Food','Other':'📋 Other'};
-  const TYPE_COLOR={'FG':'#16a34a','RM':'#d97706','WF':'#3b82f6','Other':'#94a3b8'};
+  const TYPE_ORDER=['FG','RM','WF','POC','Other'];
+  const TYPE_LABEL={'FG':'🟢 FG — Finished Goods','RM':'🟠 RM — Raw Material','WF':'🔵 WF — Wet Food','POC':'🟣 POC','Other':'📋 Other'};
+  const TYPE_COLOR={'FG':'#16a34a','RM':'#d97706','WF':'#3b82f6','POC':'#9333ea','Other':'#94a3b8'};
 
   // จัดกลุ่ม: label → type → [products]
   const byLabel=new Map();
@@ -646,8 +648,9 @@ function render(){
     html+=`<div class="section">
       <div class="section-title">🏭 ${lbl} <span style="opacity:.6;font-size:11px;font-weight:400">${totalRows} Product</span></div>`;
 
-    // แยก FG / RM ภายใน plant
-    TYPE_ORDER.filter(t=>byType.has(t)).forEach(typ=>{
+    // แยก FG / RM ภายใน plant — เรียงตาม TYPE_ORDER ก่อน แล้วต่อท้ายด้วย type อื่นๆ ที่อาจไม่รู้จัก (กันไม่ให้ข้อมูลหายไปเงียบๆ เหมือนเคสค่า Type ที่ไม่ตรง FG/RM/WF/POC/Other)
+    const extraTypes=[...byType.keys()].filter(t=>!TYPE_ORDER.includes(t)).sort();
+    [...TYPE_ORDER.filter(t=>byType.has(t)),...extraTypes].forEach(typ=>{
       const rows=byType.get(typ).sort((a,b)=>a.product.localeCompare(b.product));
       const col=TYPE_COLOR[typ]||'#94a3b8';
       html+=`<div style="margin-bottom:1px">
