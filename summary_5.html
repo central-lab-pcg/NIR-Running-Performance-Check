@@ -841,10 +841,13 @@ function statusHTML(det,par,allPts){
 
   const detJson=JSON.stringify({
     par,n:det.n,bias:det.bias,
-    f3:(det.f3||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon})),
-    f2:(det.f2||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon})),
-    f9:(det.f9||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon})),
-    allPts:(allPts||[]).map(r=>({nm:r.sample||r.no||'?',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon}))
+    // "nm" ใช้แสดงผล (อาจมีข้อความวิเคราะห์แบบไดนามิก เช่น "Outlier T-Stat=...(CP=...)" ที่เปลี่ยนได้ตามข้อมูลที่อัปเดต)
+    // "sid" ใช้เป็น ID ที่เสถียรของแต่ละตัวอย่าง (ใช้ r.no เป็นหลัก เพราะเป็นเลขที่ตัวอย่างจริง ไม่เปลี่ยนตามการคำนวณ)
+    // แยกกันเพื่อให้การจับคู่ "จุดที่ปรับ Bias แล้ว" เสถียร ไม่ขึ้นกับข้อความแสดงผลที่เปลี่ยนได้
+    f3:(det.f3||[]).map(r=>({nm:r.sample||r.no||'?',sid:r.no??r.sample??'',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon})),
+    f2:(det.f2||[]).map(r=>({nm:r.sample||r.no||'?',sid:r.no??r.sample??'',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon})),
+    f9:(det.f9||[]).map(r=>({nm:r.sample||r.no||'?',sid:r.no??r.sample??'',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon})),
+    allPts:(allPts||[]).map(r=>({nm:r.sample||r.no||'?',sid:r.no??r.sample??'',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon}))
   }).replace(/"/g,"&quot;");
 
   const badges=det.statuses.map(s=>{
@@ -2054,6 +2057,7 @@ async function doDelete2(id){
         <span class="cm-leg"><span class="cm-leg-dot" style="background:#e8b06a"></span>≥9 จุดฝั่งเดียว</span>
         <span class="cm-leg"><span class="cm-leg-dot" style="background:#5b9bd5"></span>ปกติ / Pass</span>
         <span class="cm-leg"><span class="cm-leg-dot" style="background:#fff;border:3px solid #f5a623;box-sizing:border-box"></span>✅ ปรับ Bias แล้ว</span>
+        <span class="cm-leg"><span class="cm-leg-dot" style="background:#fff;border:3px solid #d9a441;box-sizing:border-box"></span>✅ ปรับ Bias แล้ว (โดยประมาณ)</span>
       </div>
       <div class="cm-canvas-wrap"><canvas id="cmCanvas"></canvas></div>
       <div class="cm-sel-panel" id="cmSelPanel">
@@ -2089,7 +2093,7 @@ async function doDelete2(id){
 </div>
 
 <script>
-let _cmChart=null,_cmAll=[],_cmSelected=new Set(),_cmBaseColors=[],_cmBaseRadii=[],_cmAdjustedIdx=new Set();
+let _cmChart=null,_cmAll=[],_cmSelected=new Set(),_cmBaseColors=[],_cmBaseRadii=[],_cmAdjustedIdx=new Set(),_cmAdjustedIdxApprox=new Set();
 
 function cmClearSel(){_cmSelected.clear();cmUpdateSel();cmUpdateColors();}
 function cmUpdateSel(){
@@ -2119,11 +2123,11 @@ function cmUpdateSel(){
 }
 function cmUpdateColors(){
   if(!_cmChart)return;
-  const SEL='#00c896',ADJ='#f5a623';
+  const SEL='#00c896',ADJ='#f5a623',ADJ_APPROX='#d9a441';
   _cmChart.data.datasets[0].pointBackgroundColor=_cmAll.map((_,i)=>_cmSelected.has(i)?SEL:_cmBaseColors[i]);
-  _cmChart.data.datasets[0].pointBorderColor=_cmAll.map((_,i)=>_cmSelected.has(i)?'#fff':_cmAdjustedIdx.has(i)?ADJ:_cmBaseColors[i]);
-  _cmChart.data.datasets[0].pointBorderWidth=_cmAll.map((_,i)=>_cmSelected.has(i)?2:_cmAdjustedIdx.has(i)?3:0);
-  _cmChart.data.datasets[0].pointRadius=_cmAll.map((_,i)=>_cmSelected.has(i)?9:_cmAdjustedIdx.has(i)?_cmBaseRadii[i]+2:_cmBaseRadii[i]);
+  _cmChart.data.datasets[0].pointBorderColor=_cmAll.map((_,i)=>_cmSelected.has(i)?'#fff':_cmAdjustedIdx.has(i)?ADJ:_cmAdjustedIdxApprox.has(i)?ADJ_APPROX:_cmBaseColors[i]);
+  _cmChart.data.datasets[0].pointBorderWidth=_cmAll.map((_,i)=>_cmSelected.has(i)?2:(_cmAdjustedIdx.has(i)||_cmAdjustedIdxApprox.has(i))?3:0);
+  _cmChart.data.datasets[0].pointRadius=_cmAll.map((_,i)=>_cmSelected.has(i)?9:(_cmAdjustedIdx.has(i)||_cmAdjustedIdxApprox.has(i))?_cmBaseRadii[i]+2:_cmBaseRadii[i]);
   _cmChart.update('none');
 }
 
@@ -2164,6 +2168,7 @@ async function openChartModal(el){
 
   // ตรวจสอบว่าจุดไหนเคยถูกเลือกไปใช้ Adjust Bias พารามิเตอร์นี้แล้วบ้าง (แสดงเป็นวงแหวนสีทอง)
   _cmAdjustedIdx=new Set();
+  _cmAdjustedIdxApprox=new Set();
   try{
     const selEqp0=document.getElementById('fEquip')?.value||'';
     const selSrc0=document.getElementById('fSource')?.value||'';
@@ -2171,14 +2176,27 @@ async function openChartModal(el){
     const prevD=await cLoad(_cmCurrentPrd,_cmCurrentMon,selEqp0,selSrc0,selPla0);
     if(prevD&&Array.isArray(prevD.biasAdj)){
       const entry=prevD.biasAdj.find(p=>p.par===det.par);
-      if(entry&&Array.isArray(entry.points)&&entry.points.length){
-        // จับคู่เฉพาะจุดที่เลือกไว้จริง (เดือน+ชื่อตัวอย่าง) เท่านั้น — ไม่ fallback ไปจับคู่แค่ระดับเดือนอีกต่อไป
-        // เพื่อป้องกันไม่ให้วงแหวน "เลื่อน/ขยาย" ไปติดจุดอื่นที่ไม่ได้เลือกไว้ เวลามีข้อมูลใหม่เข้ามาเพิ่มในเดือนเดียวกัน
-        const ptSet=new Set(entry.points.map(String));
-        _cmAll.forEach((r,i)=>{if(ptSet.has(String(r.mon).trim()+'|'+String(r.nm??'').trim()))_cmAdjustedIdx.add(i);});
+      if(entry){
+        let matchedAny=false;
+        if(Array.isArray(entry.points)&&entry.points.length){
+          // จับคู่เฉพาะจุดที่เลือกไว้จริง — ใช้ "sid" (เลขที่ตัวอย่างจริง เสถียร ไม่เปลี่ยนตามการคำนวณ) เป็นหลัก
+          // เผื่อจุดที่บันทึกไว้แบบเก่า (ก่อนมี sid) ที่ใช้ "nm" (ข้อความแสดงผล อาจเปลี่ยนได้) ก็ยังลองจับคู่ด้วย
+          const ptSet=new Set(entry.points.map(String));
+          _cmAll.forEach((r,i)=>{
+            const monTrim=String(r.mon).trim();
+            const bySid=ptSet.has(monTrim+'|'+String(r.sid??'').trim());
+            const byNm=ptSet.has(monTrim+'|'+String(r.nm??'').trim());
+            if(bySid||byNm){_cmAdjustedIdx.add(i);matchedAny=true;}
+          });
+        }
+        if(!matchedAny&&Array.isArray(entry.months)&&entry.months.length){
+          // ข้อมูลเก่ามากๆ (ก่อนมีระบบจับจุดแบบเจาะจง) หรือจับจุดแม่นยำไม่ได้เลยสักจุด
+          // แสดงวงแหวนแบบ "โดยประมาณ" (สีอ่อนกว่า) ไว้ก่อน ดีกว่าไม่แสดงเลยจนดูเหมือนข้อมูลหาย
+          // แนะนำให้แก้ไข Correction นั้นแล้ว Save ใหม่ เพื่ออัปเกรดเป็นแบบเจาะจงจุด (จะไม่เลื่อนอีกต่อไป)
+          const monSet=new Set(entry.months.map(String));
+          _cmAll.forEach((r,i)=>{if(monSet.has(String(r.mon)))_cmAdjustedIdxApprox.add(i);});
+        }
       }
-      // หมายเหตุ: ข้อมูลเก่ามากๆ ที่ยังไม่มี entry.points (บันทึกไว้ก่อนมีระบบจับคู่แบบเจาะจงจุด)
-      // จะไม่แสดงวงแหวนอีกต่อไป (ดีกว่าแสดงแบบไม่แม่นยำ) — ให้แก้ไข Correction นั้นแล้ว Save ใหม่อีกครั้งเพื่ออัปเดตเป็นแบบเจาะจงจุด
     }
   }catch(e){}
 
@@ -2232,7 +2250,7 @@ async function openChartModal(el){
           title:c=>{const i=c[0].dataIndex;return _cmAll[i]?.nm||'';},
           label:c=>{if(c.datasetIndex!==0)return null;const v=c.raw,mon=monLabels[c.dataIndex]||'';
             const flag={f3:'⚠ ±3SEP',f2:'◉ 2/3',f9:'◆ 9จุด',ok:'✓ Pass'}[_cmAll[c.dataIndex]?.flag]||'';
-            const adj=_cmAdjustedIdx.has(c.dataIndex)?'✅ ปรับ Bias แล้ว':'';
+            const adj=_cmAdjustedIdx.has(c.dataIndex)?'✅ ปรับ Bias แล้ว':_cmAdjustedIdxApprox.has(c.dataIndex)?'✅ ปรับ Bias แล้ว (โดยประมาณ — เดือนนี้เคยปรับ แต่ระบุจุดแน่ชัดไม่ได้)':'';
             return['Diff: '+(v>=0?'+':'')+v.toFixed(3),'เดือน: '+mon,flag,adj].filter(Boolean);}},
           displayColors:false,backgroundColor:'rgba(30,40,80,0.92)',titleColor:'#fff',bodyColor:'#c0c8e8',
           titleFont:{size:11,weight:'700'},bodyFont:{size:11,family:'DM Mono'},padding:10,cornerRadius:8}},
@@ -2251,7 +2269,7 @@ function closeChartModal(){
   document.getElementById('chartModal').classList.remove('open');
   document.getElementById('cmSelPanel').classList.remove('open');
   document.getElementById('cmAdjPanel').classList.remove('open');
-  _cmSelected.clear();_cmAll=[];_cmCurrentPrd='';_cmCurrentMon='';_cmCurrentPar='';_cmAdjustedIdx=new Set();
+  _cmSelected.clear();_cmAll=[];_cmCurrentPrd='';_cmCurrentMon='';_cmCurrentPar='';_cmAdjustedIdx=new Set();_cmAdjustedIdxApprox=new Set();
   if(_cmChart){_cmChart.destroy();_cmChart=null;}
 }
 document.getElementById('chartModal').addEventListener('click',function(e){if(e.target===this)closeChartModal();});
@@ -2316,12 +2334,12 @@ async function doAdjustBias(){
   if(!valid||!params.length){alert('กรุณากรอกค่า Parameter และ Value ให้ครบ (ค่าต้องไม่เป็น 0)');return;}
 
   // จุดบนกราฟที่กำลังเลือกอยู่ตอนนี้ (ใช้คำนวณ Bias ที่จะบันทึก)
-  // เดิมเก็บแค่ "เดือน" (r.mon) — ถ้าเดือนนั้นมีหลายตัวอย่าง (sample) การจับคู่ตอนโหลดใหม่จะไปติดวงแหวนทุกจุดในเดือนนั้น
-  // ทั้งที่คลิกเลือกจริงแค่บางจุด จึงเปลี่ยนมาเก็บ "จุด" แบบเจาะจง (เดือน+ชื่อตัวอย่าง) ด้วย เพื่อจับคู่ตอนโหลดใหม่ได้แม่นยำ
+  // ใช้ "sid" (เลขที่ตัวอย่างจริง เสถียร ไม่เปลี่ยนตามการคำนวณ) แทน "nm" (ข้อความแสดงผล ซึ่งบางจุดมีข้อความวิเคราะห์
+  // แบบไดนามิกต่อท้าย เช่น "Outlier T-Stat=...(CP=...)" ที่เปลี่ยนได้เวลาข้อมูลอัปเดต ทำให้จุดที่เคยจับคู่ไว้หลุดหายไป)
   const selectedMons=[..._cmSelected].map(i=>_cmAll[i]?.mon).filter(Boolean).map(String);
   const selectedPoints=[..._cmSelected].map(i=>{
     const r=_cmAll[i];
-    return r?(String(r.mon).trim()+'|'+String(r.nm??'').trim()):null;
+    return r?(String(r.mon).trim()+'|'+String(r.sid??r.nm??'').trim()):null;
   }).filter(Boolean);
 
   const prd=_cmCurrentPrd;
