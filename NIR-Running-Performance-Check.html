@@ -1402,8 +1402,8 @@ function renderRawTable() {
 
   const DEC={'ASH':1,'Ca':3,'P':3,'NaCl':3,'Aw':3,'pH':2};
   // Diff แสดง 3 ตำแหน่งทศนิยมเสมอ, WC/NIR ตาม DEC
-  const fmtWC=(v,pk)=>v!=null&&!isNaN(v)?parseFloat(v).toFixed(DEC[pk]??2):'—';
-  const fmtD=(v,pk)=>v!=null&&!isNaN(v)?parseFloat(v).toFixed(3):'—';
+  const fmtWC=(v,pk)=>v!=null&&!isNaN(v)?parseFloat(v).toFixed(DEC[pk]??2):'';
+  const fmtD=(v,pk)=>v!=null&&!isNaN(v)?parseFloat(v).toFixed(3):'';
   const diffHL=(dv,pd)=>{
     if(dv==null||isNaN(dv)||!pd) return '';
     // u3/l3 = ±3SEP bound, u2/l2 = ±2SEP bound
@@ -1696,7 +1696,7 @@ function exportRawPDF() {
   const rows = applyRawFilters(buildRawWide());
   const activePars = RAW_PARAMS_WIDE.filter(p => rows.some(r => r.params[p.key] !== undefined));
   const DEC = {'ASH':1,'Ca':3,'P':3};
-  const fmt = (v, pk) => v != null && !isNaN(v) ? parseFloat(v).toFixed(DEC[pk]??2) : '—';
+  const fmt = (v, pk) => v != null && !isNaN(v) ? parseFloat(v).toFixed(DEC[pk]??2) : '';
   const f = getFilters();
   const productLabel = f.fProduct !== null ? RAW.products[f.fProduct] : 'All Products';
 
