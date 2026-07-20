@@ -1255,6 +1255,14 @@ const RAW_PARAMS_WIDE = [
   {'key':'Fat-C','label':'Fat-C'},
 ];
 
+// คอลัมน์จะถือว่า "มีข้อมูล" ก็ต่อเมื่อมีอย่างน้อย 1 แถวที่มีค่า WC หรือ NIR จริง (ไม่ใช่แค่มีแถว param อยู่)
+function hasParamData(rows, p) {
+  return rows.some(r => {
+    const pd = r.params[p.key];
+    return pd && (pd.wc!=null && !isNaN(pd.wc) || pd.nir!=null && !isNaN(pd.nir));
+  });
+}
+
 function buildRawWide() {
   if(!RAW) return [];
   // ใช้ no (string) โดยตรง — ถ้ามี no แต่ละ row จะ unique แน่นอน
@@ -1323,7 +1331,7 @@ function applyRawFilters(rows) {
 function renderRawTable() {
   if(!RAW) return;
   let rows = applyRawFilters(buildRawWide());
-  const activePars = RAW_PARAMS_WIDE.filter(p => rows.some(r => r.params[p.key]!==undefined));
+  const activePars = RAW_PARAMS_WIDE.filter(p => hasParamData(rows, p));
 
   if(rawSortCol !== null) {
     rows = [...rows].sort((a,b) => {
@@ -1694,7 +1702,7 @@ function exportRawPDF() {
   if(!RAW) return;
   const { jsPDF } = window.jspdf;
   const rows = applyRawFilters(buildRawWide());
-  const activePars = RAW_PARAMS_WIDE.filter(p => rows.some(r => r.params[p.key] !== undefined));
+  const activePars = RAW_PARAMS_WIDE.filter(p => hasParamData(rows, p));
   const DEC = {'ASH':1,'Ca':3,'P':3};
   const fmt = (v, pk) => v != null && !isNaN(v) ? parseFloat(v).toFixed(DEC[pk]??2) : '';
   const f = getFilters();
@@ -1889,7 +1897,7 @@ function exportRawPDF() {
 function exportExcel() {
   if(!RAW) return;
   const rows = applyRawFilters(buildRawWide());
-  const activePars = RAW_PARAMS_WIDE.filter(p => rows.some(r => r.params[p.key] !== undefined));
+  const activePars = RAW_PARAMS_WIDE.filter(p => hasParamData(rows, p));
   const DEC = {'ASH':1,'Ca':3,'P':3};
   const fmt = (v, pk) => v != null && !isNaN(v) ? parseFloat(parseFloat(v).toFixed(DEC[pk]??2)) : '';
 
@@ -1984,7 +1992,7 @@ function exportExcel() {
 function exportCSV() {
   if(!RAW) return;
   const rows = applyRawFilters(buildRawWide());
-  const activePars = RAW_PARAMS_WIDE.filter(p => rows.some(r => r.params[p.key] !== undefined));
+  const activePars = RAW_PARAMS_WIDE.filter(p => hasParamData(rows, p));
   const DEC = {'ASH':1,'Ca':3,'P':3};
   const fmt = (v,pk) => v != null && !isNaN(v) ? parseFloat(v).toFixed(DEC[pk]??2) : '';
   const headers = ['No.','Month','Plant','Product','Sample'];
