@@ -981,20 +981,31 @@ function render(){
 
   // หา type ของแต่ละ product จาก monRecs
   const prdTypeMap=new Map(); // canonical → type
-  const TYPE_ORDER=['FG','RM','WF','POC'];
+  const TYPE_ORDER=['FG','RM','POC','WF'];
   products.forEach(prd=>{
     const aliases=[...(prdAliases.get(prd)||new Set([prd]))];
     const rec=monRecs.find(r=>aliases.includes(r.prd)&&r.typ);
     prdTypeMap.set(prd, rec?rec.typ:'');
   });
 
-  // เรียงตาม Type order แล้วค่อย A-Z ภายใน group
+  // ลำดับ Product แบบกำหนดเองภายในแต่ละ Type (ตามที่ระบุ) — ถ้าไม่อยู่ในลิสต์จะเรียง A-Z ต่อท้าย
+  const PRODUCT_ORDER={
+    FG:['Cat Kibbles','Cat Mix2','Dog Kibbles','Dog Mix2','Aqua Food','Horse Kibbles','Rodent Kibbles','Bird Kibbles','Horse Mix2','Bird Mix2','Rodent Mix2','FG-Online','Mix1 Online'],
+    RM:['AP1','FM','HFEM','BP-PL','BR,P','CAS-C,PL','CGM','CKO','RB,F,Ext','RB,S','SB,G','SBH','SBM','YC','WB','WG','WP','FFS'],
+    POC:['EGG LU','FP01','FPO2 O4 O5 MIX','FPB01','HPBO3 O4','PEC LH SDF','PECO6','PED LH','CPO1','Liver','EGG PU'],
+  };
+
+  // เรียงตาม Type order (FG → RM → POC → WF) แล้วค่อยตามลำดับที่กำหนดภายใน group, ที่เหลือ A-Z
   products.sort((a,b)=>{
     const ta=TYPE_ORDER.indexOf(prdTypeMap.get(a));
     const tb=TYPE_ORDER.indexOf(prdTypeMap.get(b));
     const ia=ta===-1?99:ta;
     const ib=tb===-1?99:tb;
     if(ia!==ib)return ia-ib;
+    const ordList=PRODUCT_ORDER[prdTypeMap.get(a)]||[];
+    const oa=ordList.indexOf(a), ob=ordList.indexOf(b);
+    const pa=oa===-1?9999:oa, pb=ob===-1?9999:ob;
+    if(pa!==pb)return pa-pb;
     return a.localeCompare(b);
   });
 
@@ -1014,14 +1025,21 @@ function render(){
   const corrSlots=[];
   const TYPE_COLORS={'FG':'#eaf7ee','RM':'#fff8ec','WF':'#eef3ff','POC':'#f9f0ff'};
   const TYPE_TEXT={'FG':'#2d7a4a','RM':'#a05e0a','WF':'#3a4ab0','POC':'#7c3aed'};
+  const TYPE_DISPLAY={'WF':'Wet Food'}; // ชื่อที่แสดงแทนโค้ด Type
   let lastType='';
+  let wfSubHeaderShown=false;
   products.forEach(prd=>{
     const prdType=prdTypeMap.get(prd)||'';
     if(prdType&&prdType!==lastType){
       lastType=prdType;
+      const label=TYPE_DISPLAY[prdType]||prdType;
       const bg=TYPE_COLORS[prdType]||'#f0f0f0';
       const fg=TYPE_TEXT[prdType]||'#555';
-      body+=`<tr><td colspan="${sortedP.length+2}" style="background:${bg};color:${fg};font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:5px 14px;border-top:2px solid ${fg}33;">🏷 ${prdType}</td></tr>`;
+      body+=`<tr><td colspan="${sortedP.length+2}" style="background:${bg};color:${fg};font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:5px 14px;border-top:2px solid ${fg}33;">🏷 ${label}</td></tr>`;
+    }
+    if(prdType==='WF'&&!wfSubHeaderShown){
+      wfSubHeaderShown=true;
+      body+=`<tr><td colspan="${sortedP.length+2}" style="background:#f5f7ff;color:#5a67c9;font-size:9.5px;font-weight:600;letter-spacing:.08em;padding:4px 14px 4px 26px;">↳ WFCP18+</td></tr>`;
     }
     const aliases=[...(prdAliases.get(prd)||new Set([prd]))];
     body+=`<tr data-prd-raw="${prd.replace(/"/g,'&quot;')}"><td class="td-product"><span style="margin-right:5px">${getPrdIcon(prd)}</span>${prd}</td>`;
@@ -1125,8 +1143,8 @@ function scrapeSummaryForPdf(){
   const headers=[...headRow.children].map(th=>th.textContent.trim());
   const lastIdx=headers.length-1;
 
-  const TYPE_BG_PDF={FG:'#eaf7ee',RM:'#fff8ec',WF:'#eef3ff',POC:'#f9f0ff'};
-  const TYPE_FG_PDF={FG:'#2d7a4a',RM:'#a05e0a',WF:'#3a4ab0',POC:'#7c3aed'};
+  const TYPE_BG_PDF={FG:'#eaf7ee',RM:'#fff8ec',WF:'#eef3ff',POC:'#f9f0ff','Wet Food':'#eef3ff','WFCP18+':'#f5f7ff'};
+  const TYPE_FG_PDF={FG:'#2d7a4a',RM:'#a05e0a',WF:'#3a4ab0',POC:'#7c3aed','Wet Food':'#3a4ab0','WFCP18+':'#5a67c9'};
 
   const bodyRows=[];
   const statusMeta={}; // key `${rowIdx}_${colIdx}` -> array of status keys (pass/fail3/...)
