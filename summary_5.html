@@ -57,6 +57,21 @@ select:focus,input[type=text]:focus{outline:none;border-color:#5b8ef0;box-shadow
 .status.pass{background:#e6f9f0;color:#1e8a56;border-color:#96ddb8}
 .status.fail3{background:#fce8e6;color:#c53030;border-color:#f0a8a0}
 .status.rule9{background:#fef5e0;color:#b06800;border-color:#f5ce78}
+.status.warn9{background:#fff0e0;color:#c2560a;border-color:#f7bd8a}
+/* ข้อความแจ้งเตือนล่วงหน้า — แยกจากตารางโดยสิ้นเชิง (compact chip style) */
+.pre-alert-banner{display:none;background:#fff9f2;border:1px solid #f5d9ae;border-radius:10px;padding:8px 12px;margin-bottom:12px}
+.pre-alert-head{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;user-select:none}
+.pre-alert-title{font-size:11.5px;font-weight:700;color:#b3690f;display:flex;align-items:center;gap:5px}
+.pre-alert-count{font-size:10.5px;font-weight:600;color:#c2860f;background:#ffecd1;border-radius:20px;padding:1px 8px}
+.pre-alert-toggle{font-size:10.5px;color:#b3690f;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:2px}
+.pre-alert-toggle .arrow{transition:transform .15s;display:inline-block}
+.pre-alert-banner.open .pre-alert-toggle .arrow{transform:rotate(180deg)}
+.pre-alert-chips{display:none;flex-wrap:wrap;gap:5px;margin-top:8px;max-height:140px;overflow-y:auto;padding-right:2px}
+.pre-alert-banner.open .pre-alert-chips{display:flex}
+.pre-alert-chips::-webkit-scrollbar{width:4px}.pre-alert-chips::-webkit-scrollbar-thumb{background:#f0c98a;border-radius:2px}
+.pre-alert-chip{font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid;white-space:nowrap;font-family:var(--mono,inherit);cursor:pointer;transition:transform .1s,box-shadow .1s}
+.pre-alert-chip:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(180,110,20,0.25)}
+.pre-alert-chip b{font-weight:800}
 .status.fail2{background:#eeeafa;color:#6840c0;border-color:#c0aaef}
 .status.none{background:#f2f4f9;color:#a8afc6;border-color:#dde2ef;font-weight:400}
 .leg .status{padding:2px 9px;font-size:10px;min-width:auto}
@@ -170,11 +185,13 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
 .conclude-badge.b-fail3{background:#fce8e6;color:#c53030;border-color:#f0a8a0}
 .conclude-badge.b-fail2{background:#eeeafa;color:#6840c0;border-color:#c0aaef}
 .conclude-badge.b-rule9{background:#fef5e0;color:#b06800;border-color:#f5ce78}
+.conclude-badge.b-warn9{background:#fff0e0;color:#c2560a;border-color:#f7bd8a}
 .conclude-chips{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px}
 .conclude-chip{font-size:9px;font-family:var(--mono);padding:2px 6px;border-radius:4px;border:1px solid;white-space:nowrap}
 .conclude-chip.c-fail3{background:#fff0ef;color:#c53030;border-color:#f5c0bc}
 .conclude-chip.c-fail2{background:#f5f0ff;color:#6840c0;border-color:#c8b0ef}
 .conclude-chip.c-rule9{background:#fffbef;color:#b06800;border-color:#f5d888}
+.conclude-chip.c-warn9{background:#fff6ec;color:#c2560a;border-color:#f7cda0}
 
 /* ── Chip Filter ── */
 .chip-filter-block{margin-bottom:8px;display:flex;flex-direction:column;gap:2px}
@@ -255,6 +272,8 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
   <span class="leg"><span class="status none">— ไม่มีข้อมูล</span></span>
   <span style="font-size:10px;color:var(--txt3);margin-left:8px">💡 hover ที่สถานะเพื่อดูรายละเอียด</span>
 </div>
+
+<div id="preAlertBanner" class="pre-alert-banner"></div>
 
 <div class="main-layout">
 <div class="tbl-wrap">
@@ -787,12 +806,32 @@ function calcDetail(pts,selMon){
   }
   const f9=[...f9Idxs].map(i=>pts[i]).filter(r=>r&&String(r.mon)===String(selMon));
 
+  // Rule 9 Warning: กำลังจะครบ 9 จุด — มี streak ต่อเนื่องฝั่งเดียวกัน 5-8 จุด (ยังไม่ครบ 9)
+  const runLen=new Array(n).fill(0);
+  const runSign=new Array(n).fill(0);
+  for(let i=0;i<n;i++){
+    const sign=pts[i].diff>0?1:(pts[i].diff<0?-1:0);
+    if(sign===0){runLen[i]=0;runSign[i]=0;}
+    else if(i>0&&runSign[i-1]===sign){runLen[i]=runLen[i-1]+1;runSign[i]=sign;}
+    else{runLen[i]=1;runSign[i]=sign;}
+  }
+  let w9Idxs=new Set();
+  let w9MaxLen=0;
+  for(let i=0;i<n;i++){
+    if(runLen[i]>=5&&runLen[i]<9&&thisIdxSet.has(i)){
+      const start=i-runLen[i]+1;
+      for(let j=start;j<=i;j++)w9Idxs.add(j);
+      if(runLen[i]>w9MaxLen)w9MaxLen=runLen[i];
+    }
+  }
+  const w9=[...w9Idxs].map(i=>pts[i]).filter(r=>r&&String(r.mon)===String(selMon));
+
   const statuses=[];
   if(f3.length)statuses.push('fail3');
   if(f2.length)statuses.push('fail2');
   if(f9.length)statuses.push('rule9');
   if(!statuses.length)statuses.push('pass');
-  return{statuses,n:thisPts.length,bias,f3,f2,f9};
+  return{statuses,n:thisPts.length,bias,f3,f2,f9,w9,w9MaxLen};
 }
 
 function statusHTML(det,par,allPts){
@@ -801,6 +840,7 @@ function statusHTML(det,par,allPts){
     fail3:{cls:'fail3',lbl:'⚠ &gt;3 SEP'},
     fail2:{cls:'fail2',lbl:'◉ 2/3 Points'},
     rule9:{cls:'rule9',lbl:'◆ ≥9 จุดฝั่งเดียว'},
+    warn9:{cls:'warn9',lbl:'⚠ ใกล้ครบ 9 จุด'},
     pass:{cls:'pass',lbl:'✓ Pass'}
   };
 
@@ -847,6 +887,7 @@ function statusHTML(det,par,allPts){
     f3:(det.f3||[]).map(r=>({nm:r.sample||r.no||'?',sid:r.no??r.sample??'',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon})),
     f2:(det.f2||[]).map(r=>({nm:r.sample||r.no||'?',sid:r.no??r.sample??'',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon})),
     f9:(det.f9||[]).map(r=>({nm:r.sample||r.no||'?',sid:r.no??r.sample??'',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon})),
+    w9:(det.w9||[]).map(r=>({nm:r.sample||r.no||'?',sid:r.no??r.sample??'',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon})),
     allPts:(allPts||[]).map(r=>({nm:r.sample||r.no||'?',sid:r.no??r.sample??'',diff:r.diff,u3:r.u3,l3:r.l3,u2:r.u2,l2:r.l2,sep:r.sep,mon:r.mon}))
   }).replace(/"/g,"&quot;");
 
@@ -1015,6 +1056,7 @@ function render(){
   if(!products.length||!sortedP.length){
     document.getElementById('summaryHead').innerHTML='';
     document.getElementById('summaryBody').innerHTML='<tr><td colspan="20" class="no-data">ไม่พบข้อมูลในเดือนนี้</td></tr>';
+    renderPreAlertBanner([]);
     return;
   }
 
@@ -1023,6 +1065,7 @@ function render(){
 
   let body='';
   const corrSlots=[];
+  const preAlerts=[]; // เก็บรายการที่ใกล้ครบ 9 จุด สำหรับข้อความแจ้งเตือนแยกต่างหาก (ไม่แก้ตาราง)
   const TYPE_COLORS={'FG':'#eaf7ee','RM':'#fff8ec','WF':'#eef3ff','POC':'#f9f0ff'};
   const TYPE_TEXT={'FG':'#2d7a4a','RM':'#a05e0a','WF':'#3a4ab0','POC':'#7c3aed'};
   const TYPE_DISPLAY={'WF':'Wet Food'}; // ชื่อที่แสดงแทนโค้ด Type
@@ -1052,7 +1095,11 @@ function render(){
       const months3=[...new Set(allPts.map(r=>String(r.mon)))].slice(-5);
       const pts=allPts.filter(r=>months3.includes(String(r.mon)));
       const det=calcDetail(pts,selMon);
-      body+=`<td>${statusHTML(det,pk,pts)}</td>`;
+      body+=`<td data-par="${pk}">${statusHTML(det,pk,pts)}</td>`;
+      // เก็บไว้แจ้งเตือนแบบข้อความ ถ้ายังไม่ครบ 9 จุดจริง (กันซ้ำกับ rule9)
+      if(!det.f9?.length&&det.w9?.length){
+        preAlerts.push({prd,pk,len:det.w9MaxLen||det.w9.length});
+      }
     });
     const cSlotId='cslot_'+Math.random().toString(36).slice(2,8);
     body+=`<td class="td-corr" id="${cSlotId}"><span style="color:#ccc;font-size:10px">⏳</span></td>`;
@@ -1061,6 +1108,7 @@ function render(){
   });
   document.getElementById('summaryBody').innerHTML=body;
   renderConclude();
+  renderPreAlertBanner(preAlerts);
   // Show bias-adjusted badges async
   setTimeout(refreshBiasAdjBadges, 500);
 
@@ -1095,9 +1143,10 @@ const STATUS_COLOR_CODE_PDF={
   fail3: {code:'>3SEP', bg:'#f8b4ac', fg:'#8f1d13', label:'>3SEP — เกิน ±3SEP'},
   fail2: {code:'2/3pt', bg:'#c9b8f5', fg:'#4a2494', label:'2/3pt — 2/3 Points'},
   rule9: {code:'≥9pt',  bg:'#f9d777', fg:'#7a4b00', label:'≥9pt — ≥9 จุดฝั่งเดียว'},
+  warn9: {code:'~9pt',  bg:'#fcd2a0', fg:'#8a3c05', label:'~9pt — ใกล้ครบ 9 จุด (5-8)'},
   none:  {code:'-',     bg:'#e4e7f0', fg:'#6b7280', label:'- — ไม่มีข้อมูล'}
 };
-const STATUS_KEYS_PDF=['pass','fail3','rule9','fail2','none'];
+const STATUS_KEYS_PDF=['pass','fail3','rule9','warn9','fail2','none'];
 
 // รอให้ correction cells โหลดเสร็จก่อน export เพื่อให้ข้อมูลครบถ้วน
 async function waitForCorrectionsReady(maxWaitMs){
@@ -1636,6 +1685,43 @@ function getPrdIcon(prd){
 }
 
 // ── conclude panel ────────────────────────────────────────────────────────────
+// ── ข้อความแจ้งเตือนล่วงหน้า "ใกล้ครบ 9 จุดฝั่งเดียวกัน" (แยกจากตาราง ไม่กระทบตารางเลย) ──
+function renderPreAlertBanner(items){
+  const el=document.getElementById('preAlertBanner');
+  if(!el)return;
+  if(!items||!items.length){ el.style.display='none'; el.classList.remove('open'); el.innerHTML=''; return; }
+  // เรียงจากใกล้ครบ 9 มากสุดไปน้อยสุด
+  const sorted=[...items].sort((a,b)=>b.len-a.len);
+  // ไล่เฉดสีตามความใกล้ 9 จุด (5=อ่อนสุด, 8=เข้มสุด) ให้เห็นความเร่งด่วนเร็วๆ
+  const shade=len=>{
+    const t={5:{bg:'#fff3e0',fg:'#c2860f',bd:'#f5d9ae'},6:{bg:'#ffe9cc',fg:'#b3690f',bd:'#f0c98a'},7:{bg:'#ffdca8',fg:'#9c5209',bd:'#e8b06a'},8:{bg:'#ffce87',fg:'#7a3f05',bd:'#e0a050'}};
+    return t[len]||t[8];
+  };
+  const chips=sorted.map(it=>{
+    const s=shade(it.len);
+    const prdAttr=it.prd.replace(/"/g,'&quot;').replace(/'/g,"\\'");
+    return `<span class="pre-alert-chip" style="background:${s.bg};color:${s.fg};border-color:${s.bd}" onclick="jumpToPreAlertChart('${prdAttr}','${it.pk}')" title="คลิกเพื่อดูกราฟ">${getPrdIcon(it.prd)} ${it.prd} · ${it.pk} <b>${it.len}/9</b></span>`;
+  }).join('');
+  el.style.display='block';
+  el.innerHTML=`
+    <div class="pre-alert-head" onclick="const b=this.parentElement;b.classList.toggle('open');this.querySelector('.toggle-lbl').textContent=b.classList.contains('open')?'ซ่อน':'ดูรายละเอียด'">
+      <span class="pre-alert-title">⚠️ ใกล้ครบเกณฑ์ 9 จุดฝั่งเดียวกัน (Rule 9) <span class="pre-alert-count">${items.length} รายการ</span></span>
+      <span class="pre-alert-toggle"><span class="toggle-lbl">ดูรายละเอียด</span> <span class="arrow">▾</span></span>
+    </div>
+    <div class="pre-alert-chips">${chips}</div>`;
+}
+
+// คลิก chip แจ้งเตือน → เลื่อนไปหา badge สถานะของสินค้า/พารามิเตอร์นั้นในตาราง แล้วเปิดกราฟให้เลย (ใช้ path เดิมของ openChartModal ทั้งหมด)
+function jumpToPreAlertChart(prd, par){
+  const tr=document.querySelector(`#summaryBody tr[data-prd-raw="${CSS.escape(prd)}"]`);
+  if(!tr)return;
+  const td=tr.querySelector(`td[data-par="${CSS.escape(par)}"]`);
+  const badge=td?.querySelector('.status');
+  if(!badge)return;
+  badge.scrollIntoView({behavior:'smooth',block:'center'});
+  setTimeout(()=>badge.click(),300);
+}
+
 function renderConclude(){
   const panel=document.getElementById('concludePanel');
   if(!panel)return;
@@ -1906,10 +1992,10 @@ async function corrHTML2(prd,mon,eqp,src,plant){
     <div class="corr-edit" id="${id}e" style="display:none;flex-direction:column;gap:6px;width:100%">
       <textarea class="corr-textarea" id="${id}t" placeholder="บันทึก Correction... เช่น Adjust Bias M -0.185, CP -0.230">${d?d.text.replace(/</g,'&lt;'):''}</textarea>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px">
-        <input type="text" class="corr-user" id="${id}plant" placeholder="Plant" value="${d&&d.plant?d.plant:''}" list="plantOpts">
-        <input type="text" class="corr-user" id="${id}type" placeholder="Type" value="${d&&d.type_val?d.type_val:''}" list="typeOpts">
-        <input type="text" class="corr-user" id="${id}equip" placeholder="Equipment" value="${d&&d.equip?d.equip:''}" list="equipOpts">
-        <input type="text" class="corr-user" id="${id}srcv" placeholder="Source" value="${d&&d.source_val?d.source_val:''}" list="sourceOpts">
+        <input type="text" class="corr-user" id="${id}plant" placeholder="Plant" value="${d&&d.plant?d.plant:(plant||'')}" list="plantOpts">
+        <input type="text" class="corr-user" id="${id}type" placeholder="Type" value="${d&&d.type_val?d.type_val:(document.getElementById('fType')?.value||'')}" list="typeOpts">
+        <input type="text" class="corr-user" id="${id}equip" placeholder="Equipment" value="${d&&d.equip?d.equip:(eqp||'')}" list="equipOpts">
+        <input type="text" class="corr-user" id="${id}srcv" placeholder="Source" value="${d&&d.source_val?d.source_val:(src||'')}" list="sourceOpts">
       </div>
       <datalist id="plantOpts"><option value="169"><option value="RY"><option value="Indo"><option value="MM"><option value="POC"></datalist>
       <datalist id="typeOpts"><option value="RM"><option value="FG"><option value="WF"></datalist>
