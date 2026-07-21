@@ -689,7 +689,21 @@ async function loadData(){
     const monSet=new Map(),pla=new Set(),typ=new Set(),eqp=new Set(),src=new Set();
     RECS.forEach(r=>{if(r.mon)monSet.set(String(r.mon),1);if(r.pla)pla.add(r.pla);if(r.typ)typ.add(r.typ);if(r.eqp)eqp.add(r.eqp);if(r.src)src.add(r.src);});
     const ms=[...monSet.keys()].sort((a,b)=>parseInt(a)-parseInt(b));
-    if(json.generated_at)document.getElementById('lastUpdated').textContent='อัปเดตล่าสุด: '+json.generated_at+(json2?' (รวม '+RECS.length.toLocaleString()+' records)':'');
+    // เลือกเวลา "อัปเดตล่าสุด" จากไฟล์ที่ใหม่กว่าจริงๆ ระหว่าง data.json กับ data2.json
+    // (เดิมใช้ json.generated_at อย่างเดียว ทำให้เวลาที่โชว์ไม่ขยับตามเมื่อ data2.json อัปเดตใหม่กว่า)
+    function parseGenAt(s){
+      if(!s)return null;
+      const m=String(s).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/);
+      if(!m)return null;
+      const d=+m[1],mo=+m[2],y=+m[3],h=+m[4],mi=+m[5];
+      return new Date(y,mo-1,d,h,mi).getTime();
+    }
+    let genAtDisplay=json.generated_at||'';
+    if(json2?.generated_at){
+      const t1=parseGenAt(json.generated_at), t2=parseGenAt(json2.generated_at);
+      if(t2!=null&&(t1==null||t2>t1)) genAtDisplay=json2.generated_at;
+    }
+    if(genAtDisplay)document.getElementById('lastUpdated').textContent='อัปเดตล่าสุด: '+genAtDisplay+(json2?' (รวม '+RECS.length.toLocaleString()+' records)':'');
     if(usedCache){
       const eb=document.getElementById('errorBox');
       if(eb){
@@ -754,6 +768,19 @@ async function loadData(){
 }
 
 // ── status calc ─────────────────────────────────────────────────────────────
+// เรียงจุดข้อมูลตามลำดับเวลาจริง — เดือนก่อน แล้วค่อยตามเลขที่ตัวอย่าง (No.) ถ้ามี
+// (ถ้าเรียงแค่ตามเดือนอย่างเดียว ตัวอย่างหลายรายการในเดือนเดียวกันอาจสลับลำดับผิด
+//  ทำให้ Rule 9 / คำเตือนใกล้ครบ 9 จุด นับสตรีคผิดพลาดได้ — ควรใช้ตัวนี้ทุกที่ที่ต้องพึ่งลำดับต่อเนื่อง)
+function sortPtsChrono(a,b){
+  const m=parseInt(a.mon)-parseInt(b.mon);
+  if(m!==0)return m;
+  const na=parseInt(a.no), nb=parseInt(b.no);
+  const hasA=!isNaN(na), hasB=!isNaN(nb);
+  if(hasA&&hasB&&na!==nb)return na-nb;
+  if(hasA!==hasB)return hasA?-1:1; // มีเลขที่มาก่อน
+  return String(a.sample||'').localeCompare(String(b.sample||''), undefined, {numeric:true});
+}
+
 function calcDetail(pts,selMon){
   if(!pts||!pts.length)return{status:'none'};
   const n=pts.length;
@@ -808,7 +835,9 @@ function calcDetail(pts,selMon){
   }
   const f9=[...f9Idxs].map(i=>pts[i]).filter(r=>r&&String(r.mon)===String(selMon));
 
-  // Rule 9 Warning: กำลังจะครบ 9 จุด — มี streak ต่อเนื่องฝั่งเดียวกัน 5-8 จุด (ยังไม่ครบ 9)
+  // Rule 9 Warning: กำลังจะครบ 9 จุด — เช็คเฉพาะ "จุดล่าสุด" (ข้อมูลที่เพิ่งอัปเดตมาใหม่สุด)
+  // ถ้าจุดล่าสุดยังอยู่ในสตรีคฝั่งเดียวกันต่อเนื่อง 5-8 จุด ให้แจ้งเตือน
+  // แต่ถ้าจุดล่าสุดหลุดออกจากฝั่งเดิมแล้ว (สตรีคขาดไปแล้ว) ถือว่าไม่ต้องแจ้งเตือน แม้ก่อนหน้านี้จะเคยมีสตรีคก็ตาม
   const runLen=new Array(n).fill(0);
   const runSign=new Array(n).fill(0);
   for(let i=0;i<n;i++){
@@ -817,16 +846,17 @@ function calcDetail(pts,selMon){
     else if(i>0&&runSign[i-1]===sign){runLen[i]=runLen[i-1]+1;runSign[i]=sign;}
     else{runLen[i]=1;runSign[i]=sign;}
   }
-  let w9Idxs=new Set();
+  let w9=[];
   let w9MaxLen=0;
-  for(let i=0;i<n;i++){
-    if(runLen[i]>=5&&runLen[i]<9&&thisIdxSet.has(i)){
-      const start=i-runLen[i]+1;
-      for(let j=start;j<=i;j++)w9Idxs.add(j);
-      if(runLen[i]>w9MaxLen)w9MaxLen=runLen[i];
+  const lastIdx=n-1;
+  if(lastIdx>=0){
+    const lastLen=runLen[lastIdx];
+    if(lastLen>=5&&lastLen<9){
+      const start=lastIdx-lastLen+1;
+      w9=pts.slice(start,lastIdx+1);
+      w9MaxLen=lastLen;
     }
   }
-  const w9=[...w9Idxs].map(i=>pts[i]).filter(r=>r&&String(r.mon)===String(selMon));
 
   const statuses=[];
   if(f3.length)statuses.push('fail3');
@@ -1090,7 +1120,7 @@ function render(){
     body+=`<tr data-prd-raw="${prd.replace(/"/g,'&quot;')}"><td class="td-product"><span style="margin-right:5px">${getPrdIcon(prd)}</span>${prd}</td>`;
     sortedP.forEach(pk=>{
       const allPts=RECS.filter(r=>aliases.includes(r.prd)&&r.par===pk&&fBase(r)&&parseInt(r.mon)<=parseInt(selMon))
-        .sort((a,b)=>parseInt(a.mon)-parseInt(b.mon));
+        .sort(sortPtsChrono);
       const hasMon=allPts.some(r=>String(r.mon)===String(selMon));
       if(!hasMon){body+=`<td><span class="status none">—</span></td>`;return;}
       // เฉพาะ 5 เดือนล่าสุดสำหรับกราฟ
@@ -1764,7 +1794,7 @@ function renderConclude(){
     const aliases=[...(prdAliases2.get(prd)||new Set([prd]))];
     sortedP.forEach(pk=>{
       const pts=RECS.filter(r=>aliases.includes(r.prd)&&r.par===pk&&fBase(r)&&parseInt(r.mon)<=parseInt(selMon))
-        .sort((a,b)=>parseInt(a.mon)-parseInt(b.mon));
+        .sort(sortPtsChrono);
       if(!pts.some(r=>String(r.mon)===String(selMon)))return;
       const det=calcDetail(pts,selMon);
       if(!det.statuses||det.statuses.every(s=>s==='pass'))return;
