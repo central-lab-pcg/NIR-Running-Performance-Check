@@ -1313,12 +1313,6 @@ async function exportToPDF(){
     }
 
     const {jsPDF}=window.jspdf;
-    const doc=new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
-    const fontOk=await ensurePdfThaiFont(doc);
-    const pdfFont=fontOk?'Sarabun':'helvetica';
-    if(!fontOk){
-      console.warn('ใช้ฟอนต์สำรอง (helvetica) — ข้อความภาษาไทยบางส่วนอาจแสดงไม่ถูกต้อง');
-    }
 
     const selMon=document.getElementById('fMonth').value;
     const inf=serial2info(selMon);
@@ -1327,155 +1321,187 @@ async function exportToPDF(){
     const eqp=document.getElementById('fEquip').value||'All';
     const src=document.getElementById('fSource').value||'All';
     const stamp=new Date().toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'});
-    const pageW=doc.internal.pageSize.getWidth();
-    const pageH=doc.internal.pageSize.getHeight();
-
-    const BANNER_H=32;      // ความสูงแถบหัวเรื่อง (น้ำเงิน) — เพิ่มระยะให้บรรทัดไม่ซ้อนกัน
-    const RIGHT_BLOCK_X=pageW-8;
-    const PAGE_LINE_Y=28.4; // ตำแหน่งบรรทัด "หน้า X / Y" ในกล่องขวาบน — ใช้ตอน fix เลขหน้าตอนจบ
-
-    // กล่องข้อมูลเอกสาร (มุมขวาบน) — กรอกครบตามฟอร์มต้นฉบับ (เว้นระยะห่างแต่ละบรรทัดให้พอ ไม่ให้ตัวอักษรซ้อน/ขาด)
-    function drawTopRightBlock(){
-      doc.setFont(pdfFont,'normal');
-      doc.setFontSize(7);
-      doc.setTextColor(225,232,250);
-      doc.text('ห้องปฏิบัติการกลาง', RIGHT_BLOCK_X, 6.5, {align:'right'});
-      doc.text('บริษัท เพอร์เฟค คอมพาเนียน กรุ๊ป จำกัด', RIGHT_BLOCK_X, 10.3, {align:'right'});
-      doc.setFont(pdfFont,'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(255,255,255);
-      doc.text('F-LAB-17-26', RIGHT_BLOCK_X, 15.2, {align:'right'});
-      doc.setFont(pdfFont,'normal');
-      doc.setFontSize(7);
-      doc.setTextColor(225,232,250);
-      doc.text('เริ่มใช้วันที่ 06/07/2026', RIGHT_BLOCK_X, 19.4, {align:'right'});
-      doc.text('แก้ไขครั้งที่ : 01', RIGHT_BLOCK_X, 23.2, {align:'right'});
-      // บรรทัดเลขหน้า — ใส่เลขหน้าปัจจุบันไปก่อน แล้วค่อย fix เป็น "X / Y" ทีหลังหลัง autoTable เสร็จ (รู้จำนวนหน้าทั้งหมด)
-      doc.setFontSize(7);
-      doc.text(`หน้า ${doc.internal.getCurrentPageInfo().pageNumber}`, RIGHT_BLOCK_X, PAGE_LINE_Y, {align:'right'});
-    }
-
-    function drawLegendLine(y){
-      let x=8;
-      Object.values(STATUS_COLOR_CODE_PDF).forEach(it=>{
-        doc.setFillColor(...hexToRgbArrPdf(it.bg));
-        doc.roundedRect(x, y-2.7, 11, 3.6, 0.6, 0.6, 'F');
-        doc.setFont(pdfFont,'bold');
-        doc.setFontSize(6.3);
-        doc.setTextColor(...hexToRgbArrPdf(it.fg));
-        doc.text(it.code, x+5.5, y-0.9, {align:'center'});
-        x+=13.5;
-        doc.setFont(pdfFont,'normal');
-        doc.setFontSize(6.8);
-        doc.setTextColor(99,112,160);
-        doc.text(it.label, x, y);
-        x+=doc.getTextWidth(it.label)+7;
-      });
-    }
-
-    function drawHeaderFooter(){
-      // แถบหัวเรื่องสีน้ำเงิน
-      doc.setFillColor(74,111,165);
-      doc.rect(0,0,pageW,BANNER_H,'F');
-      doc.setFont(pdfFont,'bold');
-      doc.setFontSize(13);
-      doc.setTextColor(255,255,255);
-      doc.text('Summary Report', 8, 11);
-      doc.setFont(pdfFont,'normal');
-      doc.setFontSize(7.5);
-      doc.setTextColor(225,232,250);
-      doc.text('แบบฟอร์ม : Running Performance Check', 8, 16.5);
-      doc.setLineWidth(0.2);
-      doc.setDrawColor(255,255,255);
-      doc.line(pageW-78, 3, pageW-78, BANNER_H-3);
-      drawTopRightBlock();
-
-      // บรรทัดตัวกรองที่ใช้ + บรรทัด legend สี
-      doc.setFont(pdfFont,'bold');
-      doc.setFontSize(10.5);
-      doc.setTextColor(30,37,66);
-      doc.text(`เดือน: ${inf.month} ${inf.year}   |   Plant: ${pla}   |   Type: ${typ}   |   Equipment: ${eqp}   |   Source: ${src}`, 8, BANNER_H+6.5);
-      doc.setFont(pdfFont,'normal');
-      drawLegendLine(BANNER_H+12.5);
-
-      // footer
-      doc.setFont(pdfFont,'normal');
-      doc.setFontSize(7);
-      doc.setTextColor(160,169,200);
-      doc.text(`พิมพ์เมื่อ ${stamp}`, 8, pageH-6);
-    }
-
     const lastIdx=scraped.lastIdx;
     const columnStyles={
       0:{cellWidth:32, halign:'left', fontStyle:'bold'},
       [lastIdx]:{cellWidth:55, halign:'left'}
     };
 
-    doc.autoTable({
-      head:[scraped.headers],
-      body:scraped.bodyRows,
-      startY:BANNER_H+15.5,
-      theme:'grid',
-      styles:{font:pdfFont, fontSize:6.8, cellPadding:1.4, valign:'middle', lineColor:[0,0,0], lineWidth:0.25, textColor:[45,53,82]},
-      headStyles:{font:pdfFont, fontStyle:'bold', fillColor:[91,125,181], textColor:255, fontSize:7, halign:'center'},
-      bodyStyles:{halign:'center'},
-      columnStyles,
-      horizontalPageBreak:true,
-      horizontalPageBreakRepeat:0,
-      margin:{top:BANNER_H+15.5, left:6, right:6, bottom:34},
-      didDrawPage:drawHeaderFooter,
-      didParseCell:function(data){
-        if(data.section!=='body') return;
-        const keys=scraped.statusMeta[data.row.index+'_'+data.column.index];
-        if(!keys) return;
-        data.cell.text=new Array(keys.length).fill(' '); // กันพื้นที่ไว้ วาดสีจริงทีหลัง
-      },
-      didDrawCell:function(data){
-        if(data.section!=='body') return;
-        const keys=scraped.statusMeta[data.row.index+'_'+data.column.index];
-        if(!keys || !keys.length) return;
-        const {x,y,width,height}=data.cell;
-        const pad=0.4;
-        const lineH=(height-pad*2)/keys.length;
-        keys.forEach((k,i)=>{
-          const info=STATUS_COLOR_CODE_PDF[k];
-          const cy=y+pad+lineH*i;
-          doc.setFillColor(...hexToRgbArrPdf(info.bg));
-          doc.roundedRect(x+0.8, cy+0.25, width-1.6, lineH-0.5, 0.6, 0.6, 'F');
+    // ── สร้าง PDF 1 รอบ ที่ระดับการย่อขนาด (scale) ที่กำหนด ──────────────────
+    // scale=1 คือขนาดปกติเต็มที่ ถ้าตารางยาวจนล้นเป็นหน้า 2 จะถูกเรียกซ้ำด้วย scale ที่เล็กลง
+    async function buildAttempt(scale){
+      const doc=new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+      const fontOk=await ensurePdfThaiFont(doc);
+      const pdfFont=fontOk?'Sarabun':'helvetica';
+      if(!fontOk){
+        console.warn('ใช้ฟอนต์สำรอง (helvetica) — ข้อความภาษาไทยบางส่วนอาจแสดงไม่ถูกต้อง');
+      }
+
+      const pageW=doc.internal.pageSize.getWidth();
+      const pageH=doc.internal.pageSize.getHeight();
+      const BANNER_H=32;      // ความสูงแถบหัวเรื่อง (น้ำเงิน) — เพิ่มระยะให้บรรทัดไม่ซ้อนกัน
+      const RIGHT_BLOCK_X=pageW-8;
+      const PAGE_LINE_Y=28.4; // ตำแหน่งบรรทัด "หน้า X / Y" ในกล่องขวาบน — ใช้ตอน fix เลขหน้าตอนจบ
+
+      // กล่องข้อมูลเอกสาร (มุมขวาบน) — กรอกครบตามฟอร์มต้นฉบับ (เว้นระยะห่างแต่ละบรรทัดให้พอ ไม่ให้ตัวอักษรซ้อน/ขาด)
+      function drawTopRightBlock(){
+        doc.setFont(pdfFont,'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(225,232,250);
+        doc.text('ห้องปฏิบัติการกลาง', RIGHT_BLOCK_X, 6.5, {align:'right'});
+        doc.text('บริษัท เพอร์เฟค คอมพาเนียน กรุ๊ป จำกัด', RIGHT_BLOCK_X, 10.3, {align:'right'});
+        doc.setFont(pdfFont,'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(255,255,255);
+        doc.text('F-LAB-17-26', RIGHT_BLOCK_X, 15.2, {align:'right'});
+        doc.setFont(pdfFont,'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(225,232,250);
+        doc.text('เริ่มใช้วันที่ 06/07/2026', RIGHT_BLOCK_X, 19.4, {align:'right'});
+        doc.text('แก้ไขครั้งที่ : 01', RIGHT_BLOCK_X, 23.2, {align:'right'});
+        // บรรทัดเลขหน้า — ใส่เลขหน้าปัจจุบันไปก่อน แล้วค่อย fix เป็น "X / Y" ทีหลังหลัง autoTable เสร็จ (รู้จำนวนหน้าทั้งหมด)
+        doc.setFontSize(7);
+        doc.text(`หน้า ${doc.internal.getCurrentPageInfo().pageNumber}`, RIGHT_BLOCK_X, PAGE_LINE_Y, {align:'right'});
+      }
+
+      function drawLegendLine(y){
+        let x=8;
+        Object.values(STATUS_COLOR_CODE_PDF).forEach(it=>{
+          doc.setFillColor(...hexToRgbArrPdf(it.bg));
+          doc.roundedRect(x, y-2.7, 11, 3.6, 0.6, 0.6, 'F');
           doc.setFont(pdfFont,'bold');
-          doc.setFontSize(keys.length>1?5.3:6.3);
-          doc.setTextColor(...hexToRgbArrPdf(info.fg));
-          doc.text(info.code, x+width/2, cy+lineH/2, {align:'center', baseline:'middle'});
+          doc.setFontSize(6.3);
+          doc.setTextColor(...hexToRgbArrPdf(it.fg));
+          doc.text(it.code, x+5.5, y-0.9, {align:'center'});
+          x+=13.5;
+          doc.setFont(pdfFont,'normal');
+          doc.setFontSize(6.8);
+          doc.setTextColor(99,112,160);
+          doc.text(it.label, x, y);
+          x+=doc.getTextWidth(it.label)+7;
         });
       }
-    });
 
-    // ── ช่องลงชื่อ Approve ──────────────────────────────────────────────────
-    // ตรวจพื้นที่ว่างท้ายหน้าสุดท้าย ถ้าไม่พอ (อาจชนตาราง/แถบเลขหน้า) ให้ขึ้นหน้าใหม่ก่อน
-    const SIG_BLOCK_H=26;
-    let sigBaseY=(doc.lastAutoTable && doc.lastAutoTable.finalY)?doc.lastAutoTable.finalY:(pageH-40);
-    if(sigBaseY+SIG_BLOCK_H > pageH-12){
-      doc.addPage();
-      drawHeaderFooter(); // หน้าที่เพิ่มเอง ไม่ผ่าน autoTable ต้องวาดแถบหัวเรื่อง/มุมขวาบนเองด้วย
-      sigBaseY=BANNER_H+18;
+      function drawHeaderFooter(){
+        // แถบหัวเรื่องสีน้ำเงิน
+        doc.setFillColor(74,111,165);
+        doc.rect(0,0,pageW,BANNER_H,'F');
+        doc.setFont(pdfFont,'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(255,255,255);
+        doc.text('Summary Report', 8, 11);
+        doc.setFont(pdfFont,'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(225,232,250);
+        doc.text('แบบฟอร์ม : Running Performance Check', 8, 16.5);
+        doc.setLineWidth(0.2);
+        doc.setDrawColor(255,255,255);
+        doc.line(pageW-78, 3, pageW-78, BANNER_H-3);
+        drawTopRightBlock();
+
+        // บรรทัดตัวกรองที่ใช้ + บรรทัด legend สี
+        doc.setFont(pdfFont,'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(30,37,66);
+        doc.text(`เดือน: ${inf.month} ${inf.year}   |   Plant: ${pla}   |   Type: ${typ}   |   Equipment: ${eqp}   |   Source: ${src}`, 8, BANNER_H+6.5);
+        doc.setFont(pdfFont,'normal');
+        drawLegendLine(BANNER_H+12.5);
+
+        // footer
+        doc.setFont(pdfFont,'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(160,169,200);
+        doc.text(`พิมพ์เมื่อ ${stamp}`, 8, pageH-6);
+      }
+
+      // แถวหัวข้อกลุ่ม Type (RM/FG/...) ที่ scrape มา ใช้ fontSize คงที่ 7 — ย่อตาม scale ด้วย
+      const bodyRows=scraped.bodyRows.map(row=>{
+        if(row.length===1 && row[0] && row[0].colSpan){
+          return [{...row[0], styles:{...row[0].styles, fontSize:7*scale}}];
+        }
+        return row;
+      });
+
+      doc.autoTable({
+        head:[scraped.headers],
+        body:bodyRows,
+        startY:BANNER_H+15.5,
+        theme:'grid',
+        styles:{font:pdfFont, fontSize:6.8*scale, cellPadding:1.4*scale, valign:'middle', lineColor:[0,0,0], lineWidth:0.25, textColor:[45,53,82]},
+        headStyles:{font:pdfFont, fontStyle:'bold', fillColor:[91,125,181], textColor:255, fontSize:7*scale, halign:'center'},
+        bodyStyles:{halign:'center'},
+        columnStyles,
+        horizontalPageBreak:true,
+        horizontalPageBreakRepeat:0,
+        margin:{top:BANNER_H+15.5, left:6, right:6, bottom:40},
+        didDrawPage:drawHeaderFooter,
+        didParseCell:function(data){
+          if(data.section!=='body') return;
+          const keys=scraped.statusMeta[data.row.index+'_'+data.column.index];
+          if(!keys) return;
+          data.cell.text=new Array(keys.length).fill(' '); // กันพื้นที่ไว้ วาดสีจริงทีหลัง
+        },
+        didDrawCell:function(data){
+          if(data.section!=='body') return;
+          const keys=scraped.statusMeta[data.row.index+'_'+data.column.index];
+          if(!keys || !keys.length) return;
+          const {x,y,width,height}=data.cell;
+          const pad=0.4*scale;
+          const lineH=(height-pad*2)/keys.length;
+          keys.forEach((k,i)=>{
+            const info=STATUS_COLOR_CODE_PDF[k];
+            const cy=y+pad+lineH*i;
+            doc.setFillColor(...hexToRgbArrPdf(info.bg));
+            doc.roundedRect(x+0.8, cy+0.25, width-1.6, lineH-0.5, 0.6, 0.6, 'F');
+            doc.setFont(pdfFont,'bold');
+            doc.setFontSize((keys.length>1?5.3:6.3)*scale);
+            doc.setTextColor(...hexToRgbArrPdf(info.fg));
+            doc.text(info.code, x+width/2, cy+lineH/2, {align:'center', baseline:'middle'});
+          });
+        }
+      });
+
+      // ── ช่องลงชื่อ Approve ──────────────────────────────────────────────
+      // ตรวจพื้นที่ว่างท้ายหน้าสุดท้าย ถ้าไม่พอ (อาจชนตาราง/แถบเลขหน้า) ให้ขึ้นหน้าใหม่ก่อน
+      const SIG_BLOCK_H=26;
+      let sigBaseY=(doc.lastAutoTable && doc.lastAutoTable.finalY)?doc.lastAutoTable.finalY:(pageH-40);
+      if(sigBaseY+SIG_BLOCK_H > pageH-12){
+        doc.addPage();
+        drawHeaderFooter(); // หน้าที่เพิ่มเอง ไม่ผ่าน autoTable ต้องวาดแถบหัวเรื่อง/มุมขวาบนเองด้วย
+        sigBaseY=BANNER_H+18;
+      }
+
+      // มุมซ้ายล่าง: Prepared by (ภาษาอังกฤษ) / มุมขวาล่าง: Approved by — พร้อมวันที่ทั้งสองฝั่ง
+      const sigY1=sigBaseY+16;
+      const sigY2=sigY1+7;
+      const sigLeftX=14;
+      const sigRightBlockW=96;
+      const sigRightX=pageW-14-sigRightBlockW;
+      doc.setFont(pdfFont,'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(45,53,82);
+      doc.text('Prepared by : ......................................................', sigLeftX, sigY1);
+      doc.text('Date : ........... / ........... / ...........', sigLeftX, sigY2);
+      doc.text('Approved by : ......................................................', sigRightX, sigY1);
+      doc.text('Date : ........... / ........... / ...........', sigRightX, sigY2);
+
+      return {doc, pdfFont, pageW, RIGHT_BLOCK_X, PAGE_LINE_Y, pages:doc.internal.getNumberOfPages()};
     }
 
-    // มุมซ้ายล่าง: Prepared by (ภาษาอังกฤษ) / มุมขวาล่าง: Approved by — พร้อมวันที่ทั้งสองฝั่ง
-    const sigY1=sigBaseY+16;
-    const sigY2=sigY1+7;
-    const sigLeftX=14;
-    const sigRightBlockW=96;
-    const sigRightX=pageW-14-sigRightBlockW;
-    doc.setFont(pdfFont,'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(45,53,82);
-    doc.text('Prepared by : ......................................................', sigLeftX, sigY1);
-    doc.text('Date : ........... / ........... / ...........', sigLeftX, sigY2);
-    doc.text('Approved by : ......................................................', sigRightX, sigY1);
-    doc.text('Date : ........... / ........... / ...........', sigRightX, sigY2);
+    // ปรับขนาดตัวอักษร/ระยะบรรทัดในตารางอัตโนมัติ ให้ตาราง + ช่องลงชื่อ อยู่ในหน้าเดียวกันเสมอ
+    // ลองพิมพ์เต็มขนาดก่อน (scale=1) ถ้าล้นเป็นหน้า 2 ให้ลดขนาดตัวอักษร/ระยะบรรทัดลงทีละนิดแล้วลองใหม่
+    // จนกว่าจะพอดี 1 หน้า หรือถึงขนาดเล็กสุดที่ยังอ่านออกได้ (กันไม่ให้เล็กจนอ่านไม่ออก)
+    const MIN_SCALE=0.55;
+    let scale=1;
+    let attempt=await buildAttempt(scale);
+    while(attempt.pages>1 && scale>MIN_SCALE){
+      scale=Math.max(MIN_SCALE, +(scale-0.07).toFixed(2));
+      attempt=await buildAttempt(scale);
+    }
+
+    const {doc, pdfFont, pageW, RIGHT_BLOCK_X, PAGE_LINE_Y}=attempt;
 
     // แก้บรรทัด "หน้า X" ในกล่องขวาบนทุกหน้าให้เป็น "หน้า X / Y" — ทำเป็นลำดับสุดท้าย
-    // เพราะถ้าช่องลงชื่อทำให้ต้องเพิ่มหน้าใหม่ จำนวนหน้ารวม (Y) จะถูกต้องครบทุกหน้า
     const totalPages=doc.internal.getNumberOfPages();
     for(let i=1;i<=totalPages;i++){
       doc.setPage(i);
