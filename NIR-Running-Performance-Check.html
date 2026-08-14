@@ -53,7 +53,7 @@ select:hover:not(:focus){border-color:var(--border2)}
 #searchInput{border:none;outline:none;font-size:12px;color:var(--txt);background:transparent;min-width:90px;flex:1;padding:1px 2px;font-family:var(--font)}
 #searchInput::placeholder{color:var(--txt3)}
 .s-clear{padding:0 4px;cursor:pointer;color:var(--txt3);font-size:13px;align-self:center;transition:color .1s}.s-clear:hover{color:var(--red)}
-.search-dd{position:absolute;top:calc(100%+4px);left:0;right:0;z-index:9999;background:var(--bg2);border:1.5px solid var(--border2);border-radius:var(--r-lg);max-height:220px;overflow-y:auto;box-shadow:0 8px 32px rgba(26,29,46,0.12);display:none}
+.search-dd{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;background:var(--bg2);border:1.5px solid var(--border2);border-radius:var(--r-lg);max-height:220px;overflow-y:auto;box-shadow:0 8px 32px rgba(26,29,46,0.12);display:none}
 .search-dd.open{display:block}
 .search-dd::-webkit-scrollbar{width:4px}.search-dd::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 .dd-item{padding:8px 14px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;transition:background .1s}
@@ -943,8 +943,8 @@ function buildDropItems(q){
   const ql=q.toLowerCase(),items=[];
   RAW.seps.forEach((s,i)=>{if(!q||s.toLowerCase().includes(ql))items.push({key:'sep:'+i,type:'sep',idx:i,main:s,sub:'SEP Code'});});
   RAW.products.forEach((p,i)=>{if(!q||p.toLowerCase().includes(ql))items.push({key:'product:'+i,type:'product',idx:i,main:p,sub:'Product'});});
-  if(q){const seen=new Set();for(const r of RAW.records){if(seen.size>=20)break;const s=r[I.SMP];if(s&&String(s).toLowerCase().includes(ql)&&!seen.has(s)){seen.add(s);items.push({key:'sample:'+s,type:'sample',idx:s,main:s,sub:'Sample — '+RAW.seps[r[I.SEP]]+(r[I.PRD]>=0?' / '+RAW.products[r[I.PRD]]:'')});}}}
-  return items.slice(0,50);
+  if(q){const seen=new Set();for(const r of RAW.records){if(seen.size>=200)break;const s=r[I.SMP];if(s&&String(s).toLowerCase().includes(ql)&&!seen.has(s)){seen.add(s);items.push({key:'sample:'+s,type:'sample',idx:s,main:s,sub:'Sample — '+RAW.seps[r[I.SEP]]+(r[I.PRD]>=0?' / '+RAW.products[r[I.PRD]]:'')});}}}
+  return items.slice(0,300);
 }
 function renderDropItems(items,q){
   if(!items.length){searchDrop.innerHTML='<div class="dd-item"><span class="dd-sub">ไม่พบผลลัพธ์</span></div>';return;}
@@ -953,9 +953,15 @@ function renderDropItems(items,q){
 }
 function refreshDDContent(){renderDropItems(_dropItems,searchInput.value.trim());}
 function showDD(q){_dropItems=buildDropItems(q);renderDropItems(_dropItems,q);searchDrop.classList.add('open');}
-searchInput.addEventListener('input',()=>{const q=searchInput.value.trim();if(!q){searchDrop.classList.remove('open');return;}showDD(q);});
+let _searchDebounce=null;
+searchInput.addEventListener('input',()=>{
+  const q=searchInput.value.trim();
+  if(!q){searchDrop.classList.remove('open');}else{showDD(q);}
+  clearTimeout(_searchDebounce);
+  _searchDebounce=setTimeout(()=>{refreshAllDD();if(currentView==='raw')renderRawTable();else renderChart();},150);
+});
 searchInput.addEventListener('focus',()=>{const q=searchInput.value.trim();if(q)showDD(q);});
-searchInput.addEventListener('keydown',e=>{if(e.key==='Escape'){searchDrop.classList.remove('open');searchInput.value='';}});
+searchInput.addEventListener('keydown',e=>{if(e.key==='Escape'){searchDrop.classList.remove('open');searchInput.value='';refreshAllDD();if(currentView==='raw')renderRawTable();else renderChart();}});
 document.addEventListener('click',e=>{if(!e.target.closest('.search-wrap'))searchDrop.classList.remove('open');});
 function clearAllFilters(){
   try{sessionStorage.removeItem(NIR_FILTER_KEY);}catch(e){}
@@ -973,7 +979,18 @@ function clearAllFilters(){
   refreshAllDD();if(currentView==='raw')renderRawTable();else renderChart();
 }
 function getFilters(){const g=id=>{const v=document.getElementById(id).value;return v===''?null:parseInt(v,10);};return{fPlant:g('fPlant'),fType:g('fType'),fProduct:g('fProduct'),fEquip:g('fEquip'),fSource:g('fSource'),fSep:g('fSep'),fDateFrom:g('fDateFrom'),fDateTo:g('fDateTo')};}
-function matchSearch(r){if(selectedMap.size===0)return true;for(const[,item]of selectedMap){if(item.type==='sep'&&r[I.SEP]===item.idx)return true;if(item.type==='product'&&r[I.PRD]===item.idx)return true;if(item.type==='sample'&&r[I.SMP]===item.idx)return true;}return false;}
+function matchSearch(r){
+  const q=(typeof searchInput!=='undefined'&&searchInput?searchInput.value.trim().toLowerCase():'');
+  if(selectedMap.size===0&&!q)return true;
+  for(const[,item]of selectedMap){if(item.type==='sep'&&r[I.SEP]===item.idx)return true;if(item.type==='product'&&r[I.PRD]===item.idx)return true;if(item.type==='sample'&&r[I.SMP]===item.idx)return true;}
+  if(q){
+    const sepName=String(RAW.seps[r[I.SEP]]||'').toLowerCase();
+    const prdName=String(r[I.PRD]>=0?RAW.products[r[I.PRD]]:'').toLowerCase();
+    const smpName=String(r[I.SMP]||'').toLowerCase();
+    if(sepName.includes(q)||prdName.includes(q)||smpName.includes(q))return true;
+  }
+  return false;
+}
 function filterExcluding(excludeId){
   const f=getFilters();
   return RAW.records.filter(r=>{
@@ -1048,7 +1065,8 @@ function buildParamTabs(availParams){
 }
 function hasActiveFilter(){
   const f=getFilters();const dTo=RAW.months.length-1;
-  return selectedMap.size>0||f.fPlant!==null||f.fType!==null||f.fProduct!==null||f.fEquip!==null||f.fSource!==null||f.fSep!==null||f.fDateFrom!==null||(f.fDateTo!==null&&f.fDateTo!==dTo);
+  const hasTypedSearch=(typeof searchInput!=='undefined' && searchInput && searchInput.value.trim()!=='');
+  return selectedMap.size>0||hasTypedSearch||f.fPlant!==null||f.fType!==null||f.fProduct!==null||f.fEquip!==null||f.fSource!==null||f.fSep!==null||f.fDateFrom!==null||(f.fDateTo!==null&&f.fDateTo!==dTo);
 }
 function updateLimitsTable(sepLimits){
   const tbody=document.getElementById('limitsBody'),card=document.getElementById('statsCard'),keys=Object.keys(sepLimits);
@@ -1306,6 +1324,7 @@ function buildRawWide() {
 function applyRawFilters(rows) {
   if(!RAW) return rows;
   const f = getFilters();
+  const q = (typeof searchInput!=='undefined' && searchInput) ? searchInput.value.trim().toLowerCase() : '';
   return rows.filter(r => {
     if(f.fPlant!==null && r.pla!==f.fPlant) return false;
     if(f.fType!==null && r.typ!==f.fType) return false;
@@ -1323,6 +1342,11 @@ function applyRawFilters(rows) {
         if(item.type==='product' && RAW.products[r.prd]===item.label) ok=true;
       });
       if(!ok) return false;
+    } else if(q) {
+      const sepName = String(RAW.seps[r.sep]||'').toLowerCase();
+      const prdName = String(r.prd>=0?RAW.products[r.prd]:'').toLowerCase();
+      const smpName = String(r.sample||'').toLowerCase();
+      if(!(sepName.includes(q)||prdName.includes(q)||smpName.includes(q))) return false;
     }
     return true;
   });
@@ -1345,7 +1369,8 @@ function renderRawTable() {
     // ไม่ต้อง sort ซ้ำ
   }
 
-  document.getElementById('rawCountLabel').textContent = rows.length + ' แถว';
+  const _qLbl = (typeof searchInput!=='undefined' && searchInput && searchInput.value.trim() && selectedMap.size===0) ? ' (ค้นหา: "'+searchInput.value.trim()+'")' : '';
+  document.getElementById('rawCountLabel').textContent = rows.length + ' แถว' + _qLbl;
 
   const fixCols=[
     {label:'Month', cls:'col-fix col-fix-0'},
@@ -1518,6 +1543,8 @@ function getFilterSummary() {
   parts.push('Period: ' + fromLbl + ' – ' + toLbl);
   if(selectedMap.size > 0)
     parts.push('Search: ' + [...selectedMap.values()].map(v=>v.label).join(', '));
+  else if(typeof searchInput!=='undefined' && searchInput && searchInput.value.trim())
+    parts.push('Search: ' + searchInput.value.trim());
   return parts; // คืน array เสมอ
 }
 
@@ -1977,7 +2004,7 @@ function exportExcel() {
     ['SEP Code',   f2.fSep !== null       ? RAW.seps[f2.fSep]             : 'All'],
     ['From Month', f2.fDateFrom !== null  ? RAW.monthLabels[f2.fDateFrom] : RAW.monthLabels[0]],
     ['To Month',   f2.fDateTo !== null    ? RAW.monthLabels[f2.fDateTo]   : RAW.monthLabels[RAW.months.length-1]],
-    ['Search Tags', selectedMap.size > 0 ? [...selectedMap.values()].map(v=>v.label).join(', ') : 'None'],
+    ['Search Tags', selectedMap.size > 0 ? [...selectedMap.values()].map(v=>v.label).join(', ') : ((typeof searchInput!=='undefined' && searchInput && searchInput.value.trim()) ? searchInput.value.trim() : 'None')],
     [''],
     ['Total Rows', rows.length],
     ['Export Date', new Date().toLocaleDateString('th-TH', {year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})],
