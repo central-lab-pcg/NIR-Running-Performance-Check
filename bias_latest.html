@@ -95,6 +95,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
 .fchip.rm.active{border-color:#d97706;background:#d97706;color:#fff}
 .fchip.wf.active{border-color:#3b82f6;background:#3b82f6;color:#fff}
 .fchip.poc.active{border-color:#9333ea;background:#9333ea;color:#fff}
+.fchip.nironline.active{border-color:#ca8a04;background:#ca8a04;color:#fff}
 .spinner{width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .no-data{text-align:center;padding:40px;color:var(--txt3)}
@@ -144,6 +145,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
       <button class="fchip rm" data-val="RM" onclick="setFilter('type','RM')">🟠 RM</button>
       <button class="fchip wf" data-val="WF" onclick="setFilter('type','WF')">🔵 WF</button>
       <button class="fchip poc" data-val="POC" onclick="setFilter('type','POC')">🟣 POC</button>
+      <button class="fchip nironline" data-val="NIROnline" onclick="setFilter('type','NIROnline')">🟡 NIR Online</button>
     </div>
   </div>
 </div>
@@ -195,7 +197,10 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
               <option>RB S</option><option>RB ext , F</option><option>YC</option><option>FFS</option>
               <option>Wheat Gain</option><option>Wheat Bran</option><option>Wheat Product</option>
               <option>SB.G</option><option>Casava</option><option>Chicken oil</option>
-              <option>Wheat flour</option><option>Mix1</option>
+              <option>Wheat flour</option>
+            </optgroup>
+            <optgroup label="── NIR Online ──">
+              <option>FG-Online</option><option>Mix1</option>
             </optgroup>
             <optgroup label="── Wet Food ──">
               <option>Paste,Gravy,Jelly,Soup,Stick</option><option>Stick + Miniroll</option>
@@ -349,9 +354,13 @@ async function patchJB(mutatorFn, maxRetries=3){
 const FG_PRODUCTS=new Set(['Dog Kibble','Cat Kibble','Bird Kibble','Horse Kibble','Rodent Kibble',
   'Dog Mix2','Cat Mix2','Bird Mix2','Horse Mix2','Rodent Mix2','Aqua FG&Mix2','Cat Mix2 and Pocket']);
 const WF_PRODUCTS=new Set(['Paste,Gravy,Jelly,Soup,Stick','Stick + Miniroll','Goat Milk','Wet Food','WFCP 18+']);
-const RM_PRODUCTS=new Set(['FM','HFEM','AP1','SHM','MBM','SBM, SBC','SBH','CGM','CKO','BP PL','Br,P','RB S','RB ext , F','YC','FFS','Wheat Gain','Wheat Bran','Wheat Product','SB.G','Casava','Chicken oil','Wheat flour','Mix1','SDF I01','1R06901N , 1R06221N , 1R10221N']);
+const RM_PRODUCTS=new Set(['FM','HFEM','AP1','SHM','MBM','SBM, SBC','SBH','CGM','CKO','BP PL','Br,P','RB S','RB ext , F','YC','FFS','Wheat Gain','Wheat Bran','Wheat Product','SB.G','Casava','Chicken oil','Wheat flour','SDF I01','1R06901N , 1R06221N , 1R10221N']);
+const NIR_ONLINE_PRODUCTS=new Set(['FG-Online','Mix1']);
 
 function guessType(product, type_val){
+  // FG-Online / Mix1 ให้บังคับเป็น NIR Online เสมอ แม้ข้อมูลเก่าบางรายการ (เช่นจาก Correction/Summary Report)
+  // จะมี type_val เดิมติดมาจากตอนที่ยังไม่มีกลุ่ม NIR Online (เช่น FG-Online เคยถูกเก็บเป็น 'FG' มาก่อน)
+  if(NIR_ONLINE_PRODUCTS.has(product)) return 'NIROnline';
   if(type_val&&type_val!=='') return type_val;
   if(FG_PRODUCTS.has(product)) return 'FG';
   if(WF_PRODUCTS.has(product)) return 'WF';
@@ -721,9 +730,9 @@ function render(){
   const sortedParams=PARAMS_DEF.filter(p=>usedParams.has(p));
 
   // TYPE_ORDER และสี
-  const TYPE_ORDER=['FG','RM','WF','POC','Other'];
-  const TYPE_LABEL={'FG':'🟢 FG — Finished Goods','RM':'🟠 RM — Raw Material','WF':'🔵 WF — Wet Food','POC':'🟣 POC','Other':'📋 Other'};
-  const TYPE_COLOR={'FG':'#16a34a','RM':'#d97706','WF':'#3b82f6','POC':'#9333ea','Other':'#94a3b8'};
+  const TYPE_ORDER=['FG','RM','WF','POC','NIROnline','Other'];
+  const TYPE_LABEL={'FG':'🟢 FG — Finished Goods','RM':'🟠 RM — Raw Material','WF':'🔵 WF — Wet Food','POC':'🟣 POC','NIROnline':'🟡 NIR Online','Other':'📋 Other'};
+  const TYPE_COLOR={'FG':'#16a34a','RM':'#d97706','WF':'#3b82f6','POC':'#9333ea','NIROnline':'#ca8a04','Other':'#94a3b8'};
 
   // จัดกลุ่ม: label → type → [products]
   const byLabel=new Map();
