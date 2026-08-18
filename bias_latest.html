@@ -115,6 +115,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
   <div style="display:flex;gap:8px;align-items:center">
     <button onclick="openRecordModal()" style="background:var(--purple);color:#fff;border:none;padding:7px 16px;border-radius:var(--r);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px">➕ บันทึก Install / Adjust</button>
     <button class="btn-export" onclick="exportCSV()">⬇ Export CSV</button>
+    <button class="btn-export" style="border-color:#bfdbfe;background:var(--blue-bg);color:var(--blue)" onclick="exportBackup(event)" title="ดาวน์โหลดข้อมูลดิบทั้งหมด (JSON) เก็บไว้กันข้อมูลหาย">💾 สำรองข้อมูล</button>
   </div>
 </div>
 
@@ -364,6 +365,12 @@ function guessType(product, type_val){
 // ── Canonicalize Product name: ชื่อเดียวกัน (ต่างแค่ตัวพิมพ์เล็ก-ใหญ่ / เว้นวรรค / พหูพจน์) = สมการเดียวกัน ──
 // รวมชื่อ Product ที่พิมพ์ต่างกันเล็กน้อย (เช่น "Cat Kibble" vs "Cat Kibbles") ให้กลายเป็นแถวเดียวกัน
 // โดยยึดรายชื่อจาก dropdown Product (#recProduct) เป็นชื่อมาตรฐาน (canonical) — ไม่แก้ไขข้อมูลดิบที่บันทึกไว้ แค่ normalize ตอนแสดงผล/จัดกลุ่ม
+//
+// PRODUCT_ALIASES: ชื่อเก่า/ชื่อพิมพ์ผิดที่ไม่มีอยู่ใน dropdown แล้ว แต่ยังมีข้อมูลเก่าติดอยู่ในฐานข้อมูล
+// ระบุคู่ "ชื่อ (ตัวพิมพ์เล็กหมด)" -> "ชื่อมาตรฐานที่ต้องการให้รวมเข้าไป" เพิ่มได้เรื่อยๆ ที่นี่จุดเดียว
+const PRODUCT_ALIASES={
+  'aqua food':'Aqua FG&Mix2',
+};
 let _CANON_MAP=null;
 function getCanonMap(){
   if(_CANON_MAP)return _CANON_MAP;
@@ -374,6 +381,7 @@ function getCanonMap(){
     const key=v.toLowerCase().replace(/\s+/g,' ');
     _CANON_MAP.set(key,v);
   });
+  Object.entries(PRODUCT_ALIASES).forEach(([k,v])=>{_CANON_MAP.set(k,v);});
   return _CANON_MAP;
 }
 function canonicalizeProduct(name){
@@ -510,7 +518,7 @@ function calcLatest(evts){
 
   evts.forEach(evt=>{
     const lpKey=`${evt.label}|${evt.product}`;
-    if(!result.has(lpKey)) result.set(lpKey,{label:evt.label,product:evt.product,type_val:evt.type_val||'',params:{},install:null});
+    if(!result.has(lpKey)) result.set(lpKey,{label:evt.label,product:evt.product,type_val:evt.type_val||'',params:{},install:null,installHistory:[]});
     const rec=result.get(lpKey);
     // อัปเดต type_val ถ้ามีค่า
     if(evt.type_val) rec.type_val=evt.type_val;
@@ -519,6 +527,7 @@ function calcLatest(evts){
       Object.keys(state).filter(k=>k.startsWith(lpKey+'|')).forEach(k=>{state[k]=0;});
       Object.entries(evt.params).forEach(([p,delta])=>{ state[`${lpKey}|${p}`]=delta; });
       rec.install={date:evt.date, adjuster:evt.adjuster};
+      rec.installHistory.push({date:evt.date,adjuster:evt.adjuster,note:evt.note||'',params:{...evt.params},_id:evt._id||'',_src:evt._src||''});
       Object.entries(evt.params).forEach(([p,delta])=>{
         if(!rec.params[p]) rec.params[p]={bias:delta,date:evt.date,adjuster:evt.adjuster,reviewer:evt.reviewer||'',history:[]};
         rec.params[p].bias=delta; rec.params[p].date=evt.date;
@@ -543,6 +552,8 @@ function calcLatest(evts){
 // ── History Popup ─────────────────────────────────────────────────────────────
 // เก็บ history ทั้งหมดไว้ใน global map key="label|product|param"
 let HIST_MAP={};
+// เก็บประวัติ Install ทั้งหมด (รวมรายการ Install ที่ไม่มีค่า Bias ผูกอยู่เลย) ไว้ใน global map key="label|product"
+let INSTALL_HIST_MAP={};
 
 function showHist(key){
   const hist=HIST_MAP[key];
@@ -616,6 +627,65 @@ function showHist(key){
   document.body.appendChild(popup);
 }
 
+// ── Install History Popup (สำหรับลบ/ดูรายการ Install ที่บันทึกผิด) ────────────
+function showInstallHist(key){
+  const hist=INSTALL_HIST_MAP[key]||[];
+  if(!hist.length)return;
+  const parts=key.split('|');
+  const product=parts[1];
+
+  document.getElementById('histPopup')?.remove();
+  const popup=document.createElement('div');
+  popup.id='histPopup';
+  popup.style.cssText=`position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(3px);z-index:300;display:flex;align-items:center;justify-content:center`;
+
+  const sorted=[...hist].sort((a,b)=>b.date.localeCompare(a.date));
+  const rows=sorted.map(h=>{
+    const dStr=h.date.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>`${d}/${m}/${y.slice(2)}`);
+    const paramStr=Object.entries(h.params||{}).map(([p,v])=>`${p} ${v>=0?'+':''}${v}`).join(', ')||'<span style="color:#94a3b8">— (ไม่มีค่า Bias ผูกไว้)</span>';
+    const canEdit=h._src==='manual'&&h._id;
+    let actionBtn='';
+    if(canEdit){
+      actionBtn=`<button onclick="openEditModal('${h._id}')" style="font-size:10px;padding:2px 8px;border:1px solid #c7d2fe;border-radius:5px;background:#eef2ff;color:#4f46e5;cursor:pointer;font-weight:600">✏️ แก้ไข</button>
+        <button onclick="quickDeleteRecord('${h._id}')" style="font-size:10px;padding:2px 8px;border:1px solid #fca5a5;border-radius:5px;background:#fef2f2;color:#dc2626;cursor:pointer;font-weight:600;margin-left:4px">🗑️ ลบ</button>`;
+    }else{
+      actionBtn=`<span style="font-size:9px;color:#94a3b8" title="รายการนี้มาจากไฟล์ Excel เก่า ยังลบผ่านหน้านี้ไม่ได้">มาจาก Excel</span>`;
+    }
+    return `<tr style="border-bottom:1px solid #e2e8f0">
+      <td style="padding:7px 12px;font-family:monospace;font-size:11px;color:#7c3aed;font-weight:700">🔄 ${dStr}</td>
+      <td style="padding:7px 12px;font-size:11px;color:#475569">${h.adjuster||'—'}</td>
+      <td style="padding:7px 12px;font-size:11px;color:#475569;font-family:monospace">${paramStr}</td>
+      <td style="padding:7px 8px">${actionBtn}</td>
+    </tr>`;
+  }).join('');
+
+  popup.innerHTML=`<div style="background:#fff;border-radius:14px;width:min(560px,96vw);max-height:80vh;display:flex;flex-direction:column;box-shadow:0 25px 50px rgba(0,0,0,.2);overflow:hidden">
+    <div style="background:#1e293b;color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:15px;font-weight:700">🔄 ประวัติ Install</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:2px">${parts[0]||'—'} · ${product}</div>
+      </div>
+      <button onclick="document.getElementById('histPopup').remove()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px">✕</button>
+    </div>
+    <div style="overflow-y:auto;flex:1">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#f1f5f9">
+            <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">วันที่ Install</th>
+            <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">ผู้ Install</th>
+            <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">Parameter เริ่มต้น</th>
+            <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left"></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="padding:10px 18px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center">${hist.length} รายการ · ลบแล้วกู้คืนไม่ได้ · คลิกนอกกรอบเพื่อปิด</div>
+  </div>`;
+  popup.addEventListener('click',e=>{if(e.target===popup)popup.remove();});
+  document.body.appendChild(popup);
+}
+
 // ── Render ────────────────────────────────────────────────────────────────────
 function render(){
   const fLabel  =FILTER_PLANT;
@@ -632,10 +702,12 @@ function render(){
 
   // reset HIST_MAP
   HIST_MAP={};
+  INSTALL_HIST_MAP={};
   entries.forEach(([k,v])=>{
     Object.entries(v.params).forEach(([p,pd])=>{
       HIST_MAP[`${v.label}|${v.product}|${p}`]=pd.history||[];
     });
+    INSTALL_HIST_MAP[`${v.label}|${v.product}`]=v.installHistory||[];
   });
 
   if(!entries.length){
@@ -733,8 +805,8 @@ function render(){
           <div style="font-weight:600">${v.product}</div>
           ${lastAdj?`<div style="font-size:10px;color:var(--txt3);margin-top:2px">👤 ${lastAdj}</div>`:''}
         </td>
-        <td style="text-align:center"><span class="install-date">${installDate}</span></td>
-        <td style="text-align:center"><span class="install-who">${installAdj}</span></td>
+        <td style="text-align:center;cursor:pointer" onclick="showInstallHist(decodeURIComponent('${encodeURIComponent(`${v.label}|${v.product}`)}'))" title="คลิกดู/ลบประวัติ Install"><span class="install-date">${installDate}</span></td>
+        <td style="text-align:center;cursor:pointer" onclick="showInstallHist(decodeURIComponent('${encodeURIComponent(`${v.label}|${v.product}`)}'))" title="คลิกดู/ลบประวัติ Install"><span class="install-who">${installAdj}</span></td>
         <td style="text-align:center">${approveBadge}</td>
         ${sortedParams.map(p=>{
           const pd=v.params[p];
@@ -827,6 +899,36 @@ function exportCSV(){
   a.href=URL.createObjectURL(blob);
   a.download='BiasLatest_'+new Date().toISOString().slice(0,10)+'.csv';
   a.click();
+}
+
+// ── สำรองข้อมูล (Backup) ─────────────────────────────────────────────────────
+// ดึงข้อมูลดิบล่าสุดจากฐานข้อมูลตรงๆ (ไม่ใช่ข้อมูลที่แปลงแล้วในหน้าจอ) แล้วดาวน์โหลดเป็นไฟล์ .json
+// เก็บไว้กันเหนียว — ถ้าข้อมูลในระบบหายหรือพัง เอาไฟล์นี้ไปให้ Claude ช่วยกู้คืน/ตรวจสอบได้
+async function exportBackup(evt){
+  const btn=evt?evt.currentTarget:null;
+  const oldTxt=btn?btn.innerHTML:'';
+  try{
+    if(btn){btn.disabled=true;btn.innerHTML='⏳ กำลังดึงข้อมูล...';}
+    const r=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    const data=j.record||j;
+    const backup={
+      _backup_note:'ไฟล์สำรองข้อมูลดิบทั้งหมดจาก NIR Install & Bias (JSONBin) — เก็บไว้กันข้อมูลหาย ถ้าจำเป็นเอาไฟล์นี้ไปให้ Claude ช่วยตรวจสอบ/กู้คืนได้',
+      _backup_at:new Date().toISOString(),
+      ...data,
+    };
+    const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json;charset=utf-8'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    const stamp=new Date().toISOString().replace(/[:T]/g,'-').slice(0,19);
+    a.download='NIR_Bias_Backup_'+stamp+'.json';
+    a.click();
+  }catch(e){
+    alert('❌ สำรองข้อมูลไม่สำเร็จ: '+e.message);
+  }finally{
+    if(btn){btn.disabled=false;btn.innerHTML=oldTxt;}
+  }
 }
 
 function chipVal(name){const r=document.querySelector(`input[name="${name}"]:checked`);return r?r.value:'';}
