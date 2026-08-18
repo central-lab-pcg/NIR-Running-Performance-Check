@@ -533,7 +533,9 @@ function calcLatest(evts){
     if(evt.type_val) rec.type_val=evt.type_val;
 
     if(evt.is_install){
-      Object.keys(state).filter(k=>k.startsWith(lpKey+'|')).forEach(k=>{state[k]=0;});
+      // แก้บั๊ก: เดิมรีเซ็ตค่าสะสม (state) ของ "ทุก Parameter" ของสินค้านี้เป็น 0 ทันทีที่มี Install ใหม่
+      // ทั้งที่ Install รอบนั้นอาจไม่ได้กรอกค่าพารามิเตอร์นั้นไว้เลย ทำให้ยอดสะสมของพารามิเตอร์ที่ไม่เกี่ยวข้องหายไปโดยไม่มีเหตุผล
+      // ตอนนี้รีเซ็ต/ตั้งค่าเฉพาะพารามิเตอร์ที่มีอยู่จริงใน evt.params ของ Install รอบนั้นเท่านั้น พารามิเตอร์อื่นสะสมต่อเนื่องตามปกติ
       Object.entries(evt.params).forEach(([p,delta])=>{ state[`${lpKey}|${p}`]=delta; });
       rec.install={date:evt.date, adjuster:evt.adjuster};
       rec.installHistory.push({date:evt.date,adjuster:evt.adjuster,note:evt.note||'',params:{...evt.params},_id:evt._id||'',_src:evt._src||''});
