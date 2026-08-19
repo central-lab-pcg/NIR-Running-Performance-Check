@@ -348,6 +348,23 @@ async function corrGetAll(force) {
 
 async function corrSaveAll(data) {
   try {
+    // ⚠️ จุดที่แก้ (บั๊กสำคัญ): เดิมโค้ดนี้เขียนทับฐานข้อมูลทั้งก้อนด้วยแค่ { corrections: data }
+    // โดยไม่อ่านของเดิมมาก่อน ทำให้ manual_records / bias_records / approvals ที่หน้า bias_latest.html
+    // ใช้ร่วมกันอยู่ใน Bin เดียวกันนี้ หายไปทุกครั้งที่มีการบันทึก/ลบ correction จากหน้านี้
+    // แก้โดยอ่านข้อมูลเต็มก้อนก่อน แล้วเขียนทับเฉพาะ key "corrections" เท่านั้น ส่วนอื่นคงเดิมไว้ทั้งหมด
+    let full = {};
+    try {
+      const rFull = await fetch(JSONBIN_URL + '/latest', {
+        cache: 'no-store',
+        headers: { 'X-Master-Key': JSONBIN_MASTER, 'X-Bin-Meta': 'false' }
+      });
+      if (rFull.ok) {
+        const jFull = await rFull.json();
+        full = jFull.record || jFull || {};
+      }
+    } catch(eFull) {
+      console.error('อ่านข้อมูลเต็มก้อนก่อนบันทึกไม่สำเร็จ (จะยังพยายามบันทึกต่อ แต่เสี่ยงข้อมูลอื่นหาย):', eFull);
+    }
     const res = await fetch(JSONBIN_URL, {
       method: 'PUT',
       headers: {
@@ -355,7 +372,7 @@ async function corrSaveAll(data) {
         'X-Master-Key': JSONBIN_MASTER,
         'X-Access-Key': JSONBIN_ACCESS
       },
-      body: JSON.stringify({ corrections: data })
+      body: JSON.stringify({ ...full, corrections: data })
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return true;
