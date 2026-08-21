@@ -170,49 +170,40 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
         ⚠️ Bias จะรีเซ็ต = 0 ถ้ามีค่า Bias เริ่มต้นหลัง Install ให้กรอกใน Parameter
       </div>
 
-      <!-- Date + Product -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div>
-          <label class="flabel">วันที่ *</label>
-          <div style="display:flex;gap:6px">
-            <input class="finput" type="text" inputmode="numeric" id="recDate" placeholder="dd/mm/yyyy" maxlength="10" style="flex:1">
-            <button type="button" onclick="openCalendarPicker('recDate')" style="flex-shrink:0;width:38px;border:1.5px solid var(--border2);border-radius:var(--r);background:#fff;cursor:pointer;font-size:15px" title="เลือกวันที่จากปฏิทิน">📅</button>
-          </div>
-        </div>
-        <div>
-          <label class="flabel">Product *</label>
-          <select class="finput" id="recProduct">
-            <option value="">— เลือก Product —</option>
-            <optgroup label="── FG ──">
-              <option>Dog Kibble</option><option>Cat Kibble</option><option>Bird Kibble</option>
-              <option>Horse Kibble</option><option>Rodent Kibble</option>
-              <option>Dog Mix2</option><option>Cat Mix2</option><option>Bird Mix2</option>
-              <option>Horse Mix2</option><option>Rodent Mix2</option>
-              <option>Aqua FG&amp;Mix2</option><option>Cat Mix2 and Pocket</option>
-            </optgroup>
-            <optgroup label="── RM ──">
-              <option>FM</option><option>HFEM</option><option>AP1</option><option>SHM</option>
-              <option>MBM</option><option>SBM, SBC</option><option>SBH</option><option>CGM</option>
-              <option>CKO</option><option>BP PL</option><option>Br,P</option>
-              <option>RB S</option><option>RB ext , F</option><option>YC</option><option>FFS</option>
-              <option>Wheat Gain</option><option>Wheat Bran</option><option>Wheat Product</option>
-              <option>SB.G</option><option>Casava</option><option>Chicken oil</option>
-              <option>Wheat flour</option>
-            </optgroup>
-            <optgroup label="── NIR Online ──">
-              <option>FG-Online</option><option>Mix1</option>
-            </optgroup>
-            <optgroup label="── Wet Food ──">
-              <option>Paste,Gravy,Jelly,Soup,Stick</option><option>Stick + Miniroll</option>
-              <option>Goat Milk</option><option>Wet Food</option><option>WFCP 18+</option>
-            </optgroup>
-            <optgroup label="── POC ──">
-              <option>MF01</option><option>FP01</option><option>FP02 04 05 + Mix P</option>
-              <option>Egg PU</option><option>Egg LU</option><option>FPB01</option>
-              <option>CP01 03 04</option><option>CK LIV, Lamb Liver</option><option>PEC+LH+SDF</option><option>PE C06</option><option>PED+LH02</option><option>HPB03 04</option><option>FEC01 03 05</option><option>FED04 07 08</option>
-            </optgroup>
-          </select>
-        </div>
+      <!-- Product -->
+      <div>
+        <label class="flabel">Product *</label>
+        <select class="finput" id="recProduct">
+          <option value="">— เลือก Product —</option>
+          <optgroup label="── FG ──">
+            <option>Dog Kibble</option><option>Cat Kibble</option><option>Bird Kibble</option>
+            <option>Horse Kibble</option><option>Rodent Kibble</option>
+            <option>Dog Mix2</option><option>Cat Mix2</option><option>Bird Mix2</option>
+            <option>Horse Mix2</option><option>Rodent Mix2</option>
+            <option>Aqua FG&amp;Mix2</option><option>Cat Mix2 and Pocket</option>
+          </optgroup>
+          <optgroup label="── RM ──">
+            <option>FM</option><option>HFEM</option><option>AP1</option><option>SHM</option>
+            <option>MBM</option><option>SBM, SBC</option><option>SBH</option><option>CGM</option>
+            <option>CKO</option><option>BP PL</option><option>Br,P</option>
+            <option>RB S</option><option>RB ext , F</option><option>YC</option><option>FFS</option>
+            <option>Wheat Gain</option><option>Wheat Bran</option><option>Wheat Product</option>
+            <option>SB.G</option><option>Casava</option><option>Chicken oil</option>
+            <option>Wheat flour</option>
+          </optgroup>
+          <optgroup label="── NIR Online ──">
+            <option>FG-Online</option><option>Mix1</option>
+          </optgroup>
+          <optgroup label="── Wet Food ──">
+            <option>Paste,Gravy,Jelly,Soup,Stick</option><option>Stick + Miniroll</option>
+            <option>Goat Milk</option><option>Wet Food</option><option>WFCP 18+</option>
+          </optgroup>
+          <optgroup label="── POC ──">
+            <option>MF01</option><option>FP01</option><option>FP02 04 05 + Mix P</option>
+            <option>Egg PU</option><option>Egg LU</option><option>FPB01</option>
+            <option>CP01 03 04</option><option>CK LIV, Lamb Liver</option><option>PEC+LH+SDF</option><option>PE C06</option><option>PED+LH02</option><option>HPB03 04</option><option>FEC01 03 05</option><option>FED04 07 08</option>
+          </optgroup>
+        </select>
       </div>
 
       <!-- Plant / Machine chips — เลือกได้หลายอัน (checkbox) -->
@@ -238,12 +229,9 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
         <div><label class="flabel">หมายเหตุ</label><input class="finput" type="text" id="recNote" placeholder="หมายเหตุ"></div>
       </div>
 
-      <!-- Parameters -->
-      <div>
-        <label class="flabel">Parameters ที่ปรับ *</label>
-        <div id="recParams" style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto"></div>
-        <button onclick="addRecParam()" style="margin-top:6px;font-size:11px;padding:5px 12px;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0;border-radius:8px;cursor:pointer;font-weight:600">+ เพิ่ม Parameter</button>
-      </div>
+      <!-- Entries: แต่ละอันมีวันที่ + Parameters ของตัวเอง — กด Duplicate เพื่อเพิ่มวันที่ใหม่ในการบันทึกครั้งเดียวกัน -->
+      <div id="recEntries" style="display:flex;flex-direction:column;gap:10px"></div>
+      <button onclick="addRecEntry()" style="align-self:flex-start;font-size:11px;padding:6px 14px;background:#eef2ff;color:#4f46e5;border:1.5px solid #c7d2fe;border-radius:8px;cursor:pointer;font-weight:700">📋 + Duplicate (เพิ่มวันที่/ชุด Bias ใหม่)</button>
     </div>
     <div class="ap-ftr">
       <button class="btn-cancel" onclick="closeRecordModal()">ยกเลิก</button>
@@ -793,7 +781,7 @@ function render(){
       const safePrd=encodeURIComponent(v.product);
       const safeLabel=encodeURIComponent(v.label);
       const approveBadge=apStatus
-        ?`<div><span class="ap-ok">✅ ${apStatus.approver}</span><br><span style="font-size:9px;color:var(--txt3)">${apStatus.approvedAt||''}</span></div>`
+        ?`<div><span class="ap-ok">✅ ${apStatus.approver}</span></div>`
         :`<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">
             <span class="ap-wait">⏳ รอ Approve</span>
             <button class="btn-export" style="font-size:10px;padding:3px 10px;margin-top:2px"
@@ -991,8 +979,9 @@ function toggleInstall(){
   const cb=document.getElementById('isInstall'); cb.checked=!cb.checked;
   document.getElementById('installHint').style.display=cb.checked?'':'none';
 }
-function addRecParam(){
-  const wrap=document.getElementById('recParams');
+let _recEntrySeq=0;
+function addRecParam(wrapEl){
+  const wrap=wrapEl||document.getElementById('recParams');
   const row=document.createElement('div');
   row.style.cssText='display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center';
   row.innerHTML=`<select class="finput" style="padding:6px 8px"><option value="">— Parameter —</option>${PARAMS_DEF.map(p=>`<option value="${p}">${p}</option>`).join('')}</select>
@@ -1000,13 +989,53 @@ function addRecParam(){
     <button onclick="this.parentElement.remove()" style="background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:4px 8px;cursor:pointer;font-weight:700">✕</button>`;
   wrap.appendChild(row);
 }
+// เพิ่มชุด "วันที่ + Parameters" ใหม่ในโมดัล ให้กรอก Bias หลายวันในการกด Save ครั้งเดียว
+// (Product / Plant / ผู้บันทึก / ติดตั้งสมการใหม่ ใช้ร่วมกันทุกชุด ต่างกันแค่วันที่กับค่า Bias)
+function addRecEntry(prefillDateStr){
+  const id=_recEntrySeq++;
+  const wrap=document.getElementById('recEntries');
+  const block=document.createElement('div');
+  block.className='rec-entry-block';
+  block.dataset.entryId=id;
+  block.style.cssText='border:1.5px solid #e2e8f0;border-radius:10px;padding:12px;position:relative;background:#fafbff';
+  block.innerHTML=`
+    <button type="button" class="rec-entry-remove" onclick="removeRecEntry(${id})" title="ลบชุดนี้"
+      style="position:absolute;top:8px;right:8px;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;width:22px;height:22px;cursor:pointer;font-weight:700;font-size:12px;line-height:1">✕</button>
+    <label class="flabel">วันที่ *</label>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <input class="finput rec-entry-date" type="text" inputmode="numeric" id="recDate_${id}" placeholder="dd/mm/yyyy" maxlength="10" style="flex:1">
+      <button type="button" onclick="openCalendarPicker('recDate_${id}')" style="flex-shrink:0;width:38px;border:1.5px solid var(--border2);border-radius:var(--r);background:#fff;cursor:pointer;font-size:15px" title="เลือกวันที่จากปฏิทิน">📅</button>
+    </div>
+    <label class="flabel">Parameters ที่ปรับ *</label>
+    <div class="rec-entry-params" id="recParams_${id}" style="display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto"></div>
+    <button type="button" onclick="addRecParam(document.getElementById('recParams_${id}'))" style="margin-top:6px;font-size:11px;padding:5px 12px;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0;border-radius:8px;cursor:pointer;font-weight:600">+ เพิ่ม Parameter</button>
+  `;
+  wrap.appendChild(block);
+  document.getElementById(`recDate_${id}`).value=prefillDateStr||fmtDDMMYYYY(new Date());
+  bindDateMask(`recDate_${id}`);
+  addRecParam(document.getElementById(`recParams_${id}`));
+  updateRecEntryRemoveButtons();
+}
+function removeRecEntry(id){
+  const block=document.querySelector(`.rec-entry-block[data-entry-id="${id}"]`);
+  if(block)block.remove();
+  updateRecEntryRemoveButtons();
+}
+// ซ่อนปุ่มลบถ้าเหลือชุดเดียว (ต้องมีอย่างน้อย 1 ชุดเสมอ)
+function updateRecEntryRemoveButtons(){
+  const blocks=document.querySelectorAll('.rec-entry-block');
+  blocks.forEach(b=>{
+    const btn=b.querySelector('.rec-entry-remove');
+    if(btn)btn.style.display=blocks.length>1?'':'none';
+  });
+}
 function openRecordModal(keepOpenValues){
-  document.getElementById('recDate').value=fmtDDMMYYYY(new Date());
   document.getElementById('recProduct').value='';
   document.getElementById('recNote').value='';
   document.getElementById('isInstall').checked=false;
   document.getElementById('installHint').style.display='none';
-  document.getElementById('recParams').innerHTML='';
+  document.getElementById('recEntries').innerHTML='';
+  _recEntrySeq=0;
   if(keepOpenValues){
     // บันทึก & กรอกต่อ: จำชื่อผู้บันทึกและ Plant ที่เลือกไว้ ไม่ต้องกรอกซ้ำทุกรอบ (สำหรับกรอกข้อมูลย้อนหลังหลายรายการรวด)
     document.getElementById('recAdjuster').value=keepOpenValues.adjuster||'';
@@ -1015,28 +1044,38 @@ function openRecordModal(keepOpenValues){
     document.getElementById('recAdjuster').value='';
     resetLabelChips();
   }
-  addRecParam();
-  bindDateMask('recDate');
+  addRecEntry();
   document.getElementById('recModal').classList.add('open');
-  document.getElementById('recDate').focus();
+  document.getElementById(`recDate_0`).focus();
 }
 function closeRecordModal(){document.getElementById('recModal').classList.remove('open');}
 
 async function saveRecord(keepOpen){
-  const date    = ddmmyyyyToISO(document.getElementById('recDate').value);
   const product = document.getElementById('recProduct').value;
   const labels  = getSelectedLabels();
-  if(!date||!product||!labels.length){alert('กรุณากรอก วันที่ (dd/mm/yyyy) ให้ถูกต้อง, Plant และ Product');return;}
-  const params={};
-  document.querySelectorAll('#recParams div').forEach(row=>{
-    const s=row.querySelector('select'),inp=row.querySelector('input[type=number]');
-    if(s&&s.value&&inp&&inp.value!=='')params[s.value]=parseFloat(inp.value);
-  });
   const isInstall=document.getElementById('isInstall').checked;
-  if(!Object.keys(params).length&&!isInstall){alert('กรุณากรอกอย่างน้อย 1 Parameter');return;}
+
+  // เก็บข้อมูลจากทุกชุด "วันที่ + Parameters" ที่กรอกไว้ในโมดัล
+  const entryBlocks=[...document.querySelectorAll('.rec-entry-block')];
+  const entries=[];
+  for(const block of entryBlocks){
+    const dateInput=block.querySelector('.rec-entry-date');
+    const date=ddmmyyyyToISO(dateInput.value);
+    if(!date){alert('กรุณากรอกวันที่ (dd/mm/yyyy) ให้ถูกต้องในทุกชุดที่กรอกไว้');return;}
+    const params={};
+    block.querySelectorAll('.rec-entry-params > div').forEach(row=>{
+      const s=row.querySelector('select'),inp=row.querySelector('input[type=number]');
+      if(s&&s.value&&inp&&inp.value!=='')params[s.value]=parseFloat(inp.value);
+    });
+    if(!Object.keys(params).length&&!isInstall){alert('กรุณากรอกอย่างน้อย 1 Parameter ในทุกชุดที่กรอกไว้');return;}
+    entries.push({date,params});
+  }
+  if(!product||!labels.length||!entries.length){alert('กรุณากรอก Plant และ Product');return;}
+
   const btn=document.getElementById(keepOpen?'recSaveAgainBtn':'recSaveBtn');
   const otherBtn=document.getElementById(keepOpen?'recSaveBtn':'recSaveAgainBtn');
-  btn.disabled=true; otherBtn.disabled=true; btn.textContent=`⏳ บันทึก ${labels.length} Plant...`;
+  const totalCount=entries.length*labels.length;
+  btn.disabled=true; otherBtn.disabled=true; btn.textContent=`⏳ บันทึก ${totalCount} รายการ...`;
   try{
     const now=new Date();
     const ts=`${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
@@ -1045,14 +1084,16 @@ async function saveRecord(keepOpen){
     let manual;
     const patched=await patchJB(data=>{
       manual=[...(data.manual_records||[])];
-      // บันทึกทีละ label ที่เลือก
-      labels.forEach(label=>{
-        const cfg=LMAP[label]||{};
-        manual.push({
-          _id: Date.now().toString()+Math.random().toString(36).slice(2,6),
-          _src:'manual', date, month:date.slice(0,7), product, label,
-          plant:cfg.plant||'', equipment:cfg.equipment||'', source:cfg.source||'',
-          params, is_install:isInstall, adjuster, note, created_at:ts,
+      // บันทึกทุกชุด (วันที่+Parameters) × ทุก label ที่เลือก
+      entries.forEach(({date,params})=>{
+        labels.forEach(label=>{
+          const cfg=LMAP[label]||{};
+          manual.push({
+            _id: Date.now().toString()+Math.random().toString(36).slice(2,6),
+            _src:'manual', date, month:date.slice(0,7), product, label,
+            plant:cfg.plant||'', equipment:cfg.equipment||'', source:cfg.source||'',
+            params, is_install:isInstall, adjuster, note, created_at:ts,
+          });
         });
       });
       return {...data,manual_records:manual};
@@ -1060,11 +1101,11 @@ async function saveRecord(keepOpen){
     RAW_MANUAL=patched.manual_records.map(r=>norm(r,'manual'));
     render();
     if(keepOpen){
-      showSaveToast(`✅ บันทึก "${product}" แล้ว — กรอกรายการถัดไปได้เลย`);
+      showSaveToast(`✅ บันทึก "${product}" (${totalCount} รายการ) แล้ว — กรอกรายการถัดไปได้เลย`);
       openRecordModal({adjuster,labels});
     }else{
       closeRecordModal();
-      alert(`✅ บันทึกสำเร็จ! ${labels.length} Plant`);
+      alert(`✅ บันทึกสำเร็จ! ${totalCount} รายการ`);
     }
   }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
   btn.disabled=false; otherBtn.disabled=false;
