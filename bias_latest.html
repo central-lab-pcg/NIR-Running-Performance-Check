@@ -117,6 +117,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
     <button onclick="openRecordModal()" style="background:var(--purple);color:#fff;border:none;padding:7px 16px;border-radius:var(--r);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px">➕ บันทึก Install / Adjust</button>
     <button class="btn-export" onclick="exportCSV()">⬇ Export CSV</button>
     <button class="btn-export" style="border-color:#bfdbfe;background:var(--blue-bg);color:var(--blue)" onclick="exportBackup(event)" title="ดาวน์โหลดข้อมูลดิบทั้งหมด (JSON) เก็บไว้กันข้อมูลหาย">💾 สำรองข้อมูล</button>
+    <button class="btn-export" style="border-color:#e9d5ff;background:#faf5ff;color:#9333ea" onclick="openSettingsModal()" title="เพิ่ม/ลบ Product และ Parameter ได้เอง">⚙️ จัดการ Product/Parameter</button>
   </div>
 </div>
 
@@ -175,34 +176,6 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
         <label class="flabel">Product *</label>
         <select class="finput" id="recProduct">
           <option value="">— เลือก Product —</option>
-          <optgroup label="── FG ──">
-            <option>Dog Kibble</option><option>Cat Kibble</option><option>Bird Kibble</option>
-            <option>Horse Kibble</option><option>Rodent Kibble</option>
-            <option>Dog Mix2</option><option>Cat Mix2</option><option>Bird Mix2</option>
-            <option>Horse Mix2</option><option>Rodent Mix2</option>
-            <option>Aqua FG&amp;Mix2</option><option>Cat Mix2 and Pocket</option>
-          </optgroup>
-          <optgroup label="── RM ──">
-            <option>FM</option><option>HFEM</option><option>AP1</option><option>SHM</option>
-            <option>MBM</option><option>SBM, SBC</option><option>SBH</option><option>CGM</option>
-            <option>CKO</option><option>BP PL</option><option>Br,P</option>
-            <option>RB S</option><option>RB ext , F</option><option>YC</option><option>FFS</option>
-            <option>Wheat Gain</option><option>Wheat Bran</option><option>Wheat Product</option>
-            <option>SB.G</option><option>Casava</option><option>Chicken oil</option>
-            <option>Wheat flour</option>
-          </optgroup>
-          <optgroup label="── NIR Online ──">
-            <option>FG-Online</option><option>Mix1</option>
-          </optgroup>
-          <optgroup label="── Wet Food ──">
-            <option>Paste,Gravy,Jelly,Soup,Stick</option><option>Stick + Miniroll</option>
-            <option>Goat Milk</option><option>Wet Food</option><option>WFCP 18+</option>
-          </optgroup>
-          <optgroup label="── POC ──">
-            <option>MF01</option><option>FP01</option><option>FP02 04 05 + Mix P</option>
-            <option>Egg PU</option><option>Egg LU</option><option>FPB01</option>
-            <option>CP01 03 04</option><option>CK LIV, Lamb Liver</option><option>PEC+LH+SDF</option><option>PE C06</option><option>PED+LH02</option><option>HPB03 04</option><option>FEC01 03 05</option><option>FED04 07 08</option>
-          </optgroup>
         </select>
       </div>
 
@@ -237,6 +210,41 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
       <button class="btn-cancel" onclick="closeRecordModal()">ยกเลิก</button>
       <button class="btn-approve" id="recSaveAgainBtn" onclick="saveRecord(true)" style="background:#0d9488">💾 บันทึก & กรอกต่อ</button>
       <button class="btn-approve" id="recSaveBtn" onclick="saveRecord(false)" style="background:#7c3aed">💾 บันทึก & Sync</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal: จัดการ Product / Parameter เอง -->
+<div class="ap-overlay" id="settingsModal">
+  <div class="ap-modal" style="max-width:560px">
+    <div class="ap-hdr">
+      <span>⚙️ จัดการ Product / Parameter</span>
+      <button onclick="closeSettingsModal()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:15px">✕</button>
+    </div>
+    <div class="ap-body" style="gap:16px;max-height:65vh;overflow-y:auto">
+      <div style="background:#faf5ff;border:1px solid #ede9fe;border-radius:8px;padding:10px 12px;font-size:11px;color:#7c3aed;line-height:1.6">
+        ⚠️ ลบ Product/Parameter ออกจากรายการนี้ <b>ไม่ได้ลบข้อมูลย้อนหลังที่เคยบันทึกไว้แล้ว</b> — แค่ทำให้เลือกชื่อนั้นไม่ได้อีกตอนกรอกข้อมูลใหม่เท่านั้น<br>
+        ✏️ แก้ไขชื่อ <b>Product</b> — ข้อมูลเก่าที่เคยใช้ชื่อเดิมจะถูก "รวม" เข้ากับชื่อใหม่ให้อัตโนมัติ (เหมือนที่เคยทำให้ตอนรวม Aqua Food)<br>
+        ✏️ แก้ไขชื่อ <b>Parameter</b> — เปลี่ยนแค่ชื่อที่เลือกได้ตอนกรอกข้อมูลใหม่ <b>ไม่ย้อนไปเปลี่ยนชื่อคอลัมน์ของข้อมูลเก่า</b> (ถ้าต้องการย้ายข้อมูลเก่าด้วย บอกผมแยกได้)
+      </div>
+
+      <div>
+        <label class="flabel" style="font-size:13px">🧪 Parameters</label>
+        <div id="setParamChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <input class="finput" type="text" id="setParamInput" placeholder="ชื่อ Parameter ใหม่ เช่น Sugar" style="flex:1">
+          <button onclick="addSettingsParam()" style="flex-shrink:0;padding:0 16px;background:#16a34a;color:#fff;border:none;border-radius:var(--r);font-weight:700;cursor:pointer;font-size:12px">+ เพิ่ม</button>
+        </div>
+      </div>
+
+      <div>
+        <label class="flabel" style="font-size:13px">📦 Products (แยกตามกลุ่ม)</label>
+        <div id="setProductGroups" style="display:flex;flex-direction:column;gap:14px;margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="ap-ftr">
+      <button class="btn-cancel" onclick="closeSettingsModal()">ยกเลิก</button>
+      <button class="btn-approve" id="setSaveBtn" onclick="saveSettings()" style="background:#9333ea">💾 บันทึกการเปลี่ยนแปลง</button>
     </div>
   </div>
 </div>
@@ -302,7 +310,19 @@ const JB_MK  = '$2a$10$oCl17sk5FL69HRjvcyDZPefF/QkDJbfVDS.qpBYNwiFnb2ufVSMdi';
 const JB_URL = 'https://api.jsonbin.io/v3/b/'+JB_ID;
 
 const LABEL_ORDER = ['169 LAB-DS2500','169 QC-DS2500','169 QC-DS3','Rayong','Indo DS2500','Indo DS3F','Myanmar','Wet Food','POC'];
-const PARAMS_DEF  = ['M','CP','EE','AH','FIB','ASH','Ca','P','Aw','NaCl','PD','TVBN','Sand','Starch','BHT','pH','Fat-C'];
+// PARAMS_DEF / PRODUCT_GROUPS เป็นค่าเริ่มต้น (default) — ถ้ามีข้อมูลที่ผู้ใช้แก้ไขเองผ่านหน้า "⚙️ จัดการ Product/Parameter"
+// เก็บไว้ในฐานข้อมูลแล้ว (data.param_list / data.product_groups) ค่าจาก loadData() จะ "ทับ" ค่า default พวกนี้แทน
+let PARAMS_DEF  = ['M','CP','EE','AH','FIB','ASH','Ca','P','Aw','NaCl','PD','TVBN','Sand','Starch','BHT','pH','Fat-C'];
+// PRODUCT_GROUPS: key = ตัวโค้ด Type ภายใน (ต้องตรงกับ TYPE_ORDER/TYPE_LABEL/TYPE_COLOR), value = รายชื่อ Product ในกลุ่มนั้น
+// ใช้เป็นแหล่งข้อมูลเดียว (single source of truth) ทั้งสำหรับ dropdown Product ในฟอร์มกรอกข้อมูล และการจัดกลุ่ม Type ในตารางหลัก (guessType)
+let PRODUCT_GROUPS = {
+  FG: ['Dog Kibble','Cat Kibble','Bird Kibble','Horse Kibble','Rodent Kibble','Dog Mix2','Cat Mix2','Bird Mix2','Horse Mix2','Rodent Mix2','Aqua FG&Mix2','Cat Mix2 and Pocket'],
+  RM: ['FM','HFEM','AP1','SHM','MBM','SBM, SBC','SBH','CGM','CKO','BP PL','Br,P','RB S','RB ext , F','YC','FFS','Wheat Gain','Wheat Bran','Wheat Product','SB.G','Casava','Chicken oil','Wheat flour'],
+  NIROnline: ['FG-Online','Mix1'],
+  WF: ['Paste,Gravy,Jelly,Soup,Stick','Stick + Miniroll','Goat Milk','Wet Food','WFCP 18+'],
+  POC: ['MF01','FP01','FP02 04 05 + Mix P','Egg PU','Egg LU','FPB01','CP01 03 04','CK LIV, Lamb Liver','PEC+LH+SDF','PE C06','PED+LH02','HPB03 04','FEC01 03 05','FED04 07 08'],
+};
+const PRODUCT_GROUP_LABEL = {FG:'── FG ──', RM:'── RM ──', NIROnline:'── NIR Online ──', WF:'── Wet Food ──', POC:'── POC ──'};
 const JB_AK = '$2a$10$KUCt03lbeTKyErlWNAdVheQ0dGdoVzYq5y.hnbhTnnWgT3oLxKk5e';
 const LMAP = {'169 LAB-DS2500':{plant:'169',equipment:'DS2500',source:'LAB'},'169 QC-DS2500':{plant:'169',equipment:'DS2500',source:'QC'},'169 QC-DS3':{plant:'169',equipment:'DS3',source:'QC'},'Rayong':{plant:'RY',equipment:'DS3F',source:''},'Indo DS2500':{plant:'Indo',equipment:'DS2500',source:''},'Indo DS3F':{plant:'Indo',equipment:'DS3F',source:''},'Myanmar':{plant:'MM',equipment:'DS2500',source:''},'Wet Food':{plant:'169',equipment:'DS2500',source:'Wet Food'},'POC':{plant:'POC',equipment:'DS2500',source:''}};
 
@@ -339,20 +359,12 @@ async function patchJB(mutatorFn, maxRetries=3){
 }
 
 // ── Type detection จากชื่อ Product ──────────────────────────────────────────
-const FG_PRODUCTS=new Set(['Dog Kibble','Cat Kibble','Bird Kibble','Horse Kibble','Rodent Kibble',
-  'Dog Mix2','Cat Mix2','Bird Mix2','Horse Mix2','Rodent Mix2','Aqua FG&Mix2','Cat Mix2 and Pocket']);
-const WF_PRODUCTS=new Set(['Paste,Gravy,Jelly,Soup,Stick','Stick + Miniroll','Goat Milk','Wet Food','WFCP 18+']);
-const RM_PRODUCTS=new Set(['FM','HFEM','AP1','SHM','MBM','SBM, SBC','SBH','CGM','CKO','BP PL','Br,P','RB S','RB ext , F','YC','FFS','Wheat Gain','Wheat Bran','Wheat Product','SB.G','Casava','Chicken oil','Wheat flour','SDF I01','1R06901N , 1R06221N , 1R10221N']);
-const NIR_ONLINE_PRODUCTS=new Set(['FG-Online','Mix1']);
-
+// เดิมใช้ Set แยกฮาร์ดโค้ด (FG_PRODUCTS/RM_PRODUCTS/...) — ตอนนี้ยึด PRODUCT_GROUPS (แก้ไขได้เองผ่านหน้า ⚙️ จัดการ) เป็นแหล่งเดียว
 function guessType(product, type_val){
-  // FG-Online / Mix1 ให้บังคับเป็น NIR Online เสมอ แม้ข้อมูลเก่าบางรายการ (เช่นจาก Correction/Summary Report)
-  // จะมี type_val เดิมติดมาจากตอนที่ยังไม่มีกลุ่ม NIR Online (เช่น FG-Online เคยถูกเก็บเป็น 'FG' มาก่อน)
-  if(NIR_ONLINE_PRODUCTS.has(product)) return 'NIROnline';
+  for(const grp of Object.keys(PRODUCT_GROUPS)){
+    if(PRODUCT_GROUPS[grp].includes(product)) return grp;
+  }
   if(type_val&&type_val!=='') return type_val;
-  if(FG_PRODUCTS.has(product)) return 'FG';
-  if(WF_PRODUCTS.has(product)) return 'WF';
-  if(RM_PRODUCTS.has(product)) return 'RM';
   const p=(product||'').toLowerCase();
   if(p.includes('kibble')||p.includes('mix2')||p.includes('pocket')) return 'FG';
   if(p.includes('paste')||p.includes('gravy')||p.includes('jelly')||p.includes('soup')||p.includes('stick')||p.includes('goat')) return 'WF';
@@ -365,7 +377,8 @@ function guessType(product, type_val){
 //
 // PRODUCT_ALIASES: ชื่อเก่า/ชื่อพิมพ์ผิดที่ไม่มีอยู่ใน dropdown แล้ว แต่ยังมีข้อมูลเก่าติดอยู่ในฐานข้อมูล
 // ระบุคู่ "ชื่อ (ตัวพิมพ์เล็กหมด)" -> "ชื่อมาตรฐานที่ต้องการให้รวมเข้าไป" เพิ่มได้เรื่อยๆ ที่นี่จุดเดียว
-const PRODUCT_ALIASES={
+// (ตอนนี้เก็บ/โหลดจากฐานข้อมูลด้วย — ตอน "แก้ไขชื่อ" Product ในหน้า ⚙️ จัดการ ระบบจะเติมคู่นี้ให้อัตโนมัติ เพื่อให้ข้อมูลเก่าย้ายมารวมกับชื่อใหม่)
+let PRODUCT_ALIASES={
   'aqua food':'Aqua FG&Mix2',
 };
 let _CANON_MAP=null;
@@ -397,6 +410,135 @@ function canonicalizeProduct(name){
   return raw;
 }
 
+// ── สร้าง options ของ dropdown Product จาก PRODUCT_GROUPS (เรียกใหม่ทุกครั้งที่ PRODUCT_GROUPS เปลี่ยน) ──
+function renderProductDropdown(){
+  const sel=document.getElementById('recProduct');
+  if(!sel)return;
+  const curVal=sel.value;
+  let html='<option value="">— เลือก Product —</option>';
+  Object.keys(PRODUCT_GROUPS).forEach(grp=>{
+    const label=PRODUCT_GROUP_LABEL[grp]||`── ${grp} ──`;
+    html+=`<optgroup label="${label}">`+PRODUCT_GROUPS[grp].map(p=>`<option>${p}</option>`).join('')+'</optgroup>';
+  });
+  sel.innerHTML=html;
+  sel.value=curVal; // คงค่าที่เลือกไว้ (ถ้ายังมีอยู่ในลิสต์)
+  _CANON_MAP=null; // รายชื่อ Product เปลี่ยนไปแล้ว ต้องสร้าง canonical map ใหม่
+}
+
+// ── หน้าจัดการ Product / Parameter เอง (ไม่ต้องพึ่งแก้โค้ด) ──────────────────────
+// ทำงานบน "สำเนาชั่วคราว" (_SET_PARAMS / _SET_GROUPS) ก่อน กด "บันทึกการเปลี่ยนแปลง" ถึงจะเขียนขึ้นฐานข้อมูลจริง
+// กด "ยกเลิก" แล้วสำเนานี้จะถูกทิ้งไป ไม่กระทบของจริง
+let _SET_PARAMS=[];
+let _SET_GROUPS={};
+let _SET_PRODUCT_RENAMES={}; // {ชื่อเก่า(ตัวพิมพ์เล็ก): ชื่อใหม่} — จะถูก merge เข้า PRODUCT_ALIASES ตอนกดบันทึก
+function openSettingsModal(){
+  _SET_PARAMS=[...PARAMS_DEF];
+  _SET_GROUPS={};
+  Object.keys(PRODUCT_GROUPS).forEach(g=>{_SET_GROUPS[g]=[...PRODUCT_GROUPS[g]];});
+  _SET_PRODUCT_RENAMES={};
+  renderSettingsParams();
+  renderSettingsProducts();
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettingsModal(){document.getElementById('settingsModal').classList.remove('open');}
+
+function renderSettingsParams(){
+  const wrap=document.getElementById('setParamChips');
+  wrap.innerHTML=_SET_PARAMS.map(p=>`
+    <span style="display:inline-flex;align-items:center;gap:5px;background:#f0fdf4;border:1.5px solid #bbf7d0;color:#16a34a;border-radius:20px;padding:4px 6px 4px 12px;font-size:12px;font-weight:600">
+      ${p}
+      <button onclick="renameSettingsParam('${p.replace(/'/g,"\\'")}')" style="background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:50%;width:16px;height:16px;cursor:pointer;font-size:9px;line-height:1;font-weight:700" title="แก้ไขชื่อ">✏️</button>
+      <button onclick="removeSettingsParam('${p.replace(/'/g,"\\'")}')" style="background:#fff;border:1px solid #fca5a5;color:#dc2626;border-radius:50%;width:16px;height:16px;cursor:pointer;font-size:9px;line-height:1;font-weight:700" title="ลบ">✕</button>
+    </span>`).join('')||'<span style="font-size:11px;color:var(--txt3)">ยังไม่มี Parameter</span>';
+}
+function addSettingsParam(){
+  const inp=document.getElementById('setParamInput');
+  const v=inp.value.trim();
+  if(!v)return;
+  if(_SET_PARAMS.some(p=>p.toLowerCase()===v.toLowerCase())){alert('มี Parameter นี้อยู่แล้ว');return;}
+  _SET_PARAMS.push(v);
+  inp.value='';
+  renderSettingsParams();
+}
+function removeSettingsParam(name){
+  if(!confirm(`ลบ Parameter "${name}" ออกจากรายการที่เลือกได้? (ข้อมูลเก่าที่เคยบันทึกไว้จะไม่หาย)`))return;
+  _SET_PARAMS=_SET_PARAMS.filter(p=>p!==name);
+  renderSettingsParams();
+}
+function renameSettingsParam(oldName){
+  const v=(prompt(`เปลี่ยนชื่อ Parameter "${oldName}" เป็น:`, oldName)||'').trim();
+  if(!v||v===oldName)return;
+  if(_SET_PARAMS.some(p=>p.toLowerCase()===v.toLowerCase())){alert('มี Parameter ชื่อนี้อยู่แล้ว');return;}
+  const idx=_SET_PARAMS.indexOf(oldName);
+  if(idx===-1)return;
+  _SET_PARAMS[idx]=v;
+  renderSettingsParams();
+}
+
+function renderSettingsProducts(){
+  const wrap=document.getElementById('setProductGroups');
+  wrap.innerHTML=Object.keys(_SET_GROUPS).map(grp=>{
+    const label=PRODUCT_GROUP_LABEL[grp]||grp;
+    const chips=_SET_GROUPS[grp].map(p=>`
+      <span style="display:inline-flex;align-items:center;gap:5px;background:#eff6ff;border:1.5px solid #bfdbfe;color:#2563eb;border-radius:20px;padding:4px 6px 4px 12px;font-size:12px;font-weight:600">
+        ${p}
+        <button onclick="renameSettingsProduct('${grp}','${p.replace(/'/g,"\\'")}')" style="background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:50%;width:16px;height:16px;cursor:pointer;font-size:9px;line-height:1;font-weight:700" title="แก้ไขชื่อ">✏️</button>
+        <button onclick="removeSettingsProduct('${grp}','${p.replace(/'/g,"\\'")}')" style="background:#fff;border:1px solid #fca5a5;color:#dc2626;border-radius:50%;width:16px;height:16px;cursor:pointer;font-size:9px;line-height:1;font-weight:700" title="ลบ">✕</button>
+      </span>`).join('')||'<span style="font-size:11px;color:var(--txt3)">ยังไม่มี Product</span>';
+    return `<div>
+      <div style="font-size:11px;font-weight:700;color:var(--txt3);letter-spacing:.5px;margin-bottom:6px">${label}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <input class="finput" type="text" id="setProdInput_${grp}" placeholder="ชื่อ Product ใหม่ในกลุ่มนี้" style="flex:1;font-size:12px;padding:6px 10px">
+        <button onclick="addSettingsProduct('${grp}')" style="flex-shrink:0;padding:0 14px;background:#2563eb;color:#fff;border:none;border-radius:var(--r);font-weight:700;cursor:pointer;font-size:12px">+ เพิ่ม</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function addSettingsProduct(grp){
+  const inp=document.getElementById(`setProdInput_${grp}`);
+  const v=inp.value.trim();
+  if(!v)return;
+  const allExisting=Object.values(_SET_GROUPS).flat();
+  if(allExisting.some(p=>p.toLowerCase()===v.toLowerCase())){alert('มี Product ชื่อนี้อยู่แล้ว (ในกลุ่มใดกลุ่มหนึ่ง)');return;}
+  _SET_GROUPS[grp].push(v);
+  inp.value='';
+  renderSettingsProducts();
+}
+function removeSettingsProduct(grp,name){
+  if(!confirm(`ลบ Product "${name}" ออกจากรายการที่เลือกได้? (ข้อมูลเก่าที่เคยบันทึกไว้จะไม่หาย)`))return;
+  _SET_GROUPS[grp]=_SET_GROUPS[grp].filter(p=>p!==name);
+  renderSettingsProducts();
+}
+function renameSettingsProduct(grp,oldName){
+  const v=(prompt(`เปลี่ยนชื่อ Product "${oldName}" เป็น:\n(ข้อมูลเก่าที่เคยใช้ชื่อ "${oldName}" จะถูกรวมเข้ากับชื่อใหม่ให้อัตโนมัติ)`, oldName)||'').trim();
+  if(!v||v===oldName)return;
+  const allExisting=Object.values(_SET_GROUPS).flat();
+  if(allExisting.some(p=>p.toLowerCase()===v.toLowerCase())){alert('มี Product ชื่อนี้อยู่แล้ว (ในกลุ่มใดกลุ่มหนึ่ง)');return;}
+  const idx=_SET_GROUPS[grp].indexOf(oldName);
+  if(idx===-1)return;
+  _SET_GROUPS[grp][idx]=v;
+  _SET_PRODUCT_RENAMES[oldName.toLowerCase()]=v;
+  renderSettingsProducts();
+}
+
+async function saveSettings(){
+  const btn=document.getElementById('setSaveBtn');
+  btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...';
+  try{
+    const newAliases={...PRODUCT_ALIASES, ..._SET_PRODUCT_RENAMES};
+    const patched=await patchJB(data=>({...data, product_groups:_SET_GROUPS, param_list:_SET_PARAMS, product_aliases:newAliases}));
+    PRODUCT_GROUPS=patched.product_groups;
+    PARAMS_DEF=patched.param_list;
+    PRODUCT_ALIASES=patched.product_aliases;
+    renderProductDropdown();
+    render();
+    closeSettingsModal();
+    showSaveToast('✅ บันทึกรายการ Product/Parameter แล้ว');
+  }catch(e){alert('❌ บันทึกไม่สำเร็จ: '+e.message);}
+  btn.disabled=false; btn.textContent='💾 บันทึกการเปลี่ยนแปลง';
+}
+
 // ── Load ──────────────────────────────────────────────────────────────────────
 async function loadData(){
   try{
@@ -409,6 +551,11 @@ async function loadData(){
     RAW_CORR  =data.corrections||{};
     APPROVALS =data.approvals||{};
     BIAS_APPLIED=data.biasApplied||{};
+    // ถ้ามี Product/Parameter ที่ผู้ใช้แก้ไขเองไว้ในฐานข้อมูลแล้ว ให้ใช้ค่านั้นแทนค่า default
+    if(data.product_groups && Object.keys(data.product_groups).length) PRODUCT_GROUPS=data.product_groups;
+    if(Array.isArray(data.param_list) && data.param_list.length) PARAMS_DEF=data.param_list;
+    if(data.product_aliases) PRODUCT_ALIASES={...PRODUCT_ALIASES, ...data.product_aliases};
+    renderProductDropdown();
     if(data.generated_at)document.getElementById('lastUpdated').textContent=data.generated_at;
     document.getElementById('loadingOverlay').style.display='none';
     document.getElementById('app').style.display='block';
