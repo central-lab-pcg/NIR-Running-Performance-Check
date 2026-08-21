@@ -349,7 +349,14 @@ async function patchJB(mutatorFn, maxRetries=3){
         // ข้อมูลเปลี่ยนไปแล้ว -> ลองใหม่โดยอ่านข้อมูลล่าสุดอีกรอบแทนการเขียนทับ
         continue;
       }
-      await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify(patched)});
+      await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify(patched)}).then(async res=>{
+        if(!res.ok){
+          // แสดงข้อความ error จริงจาก JSONBin (เช่น โควตาหมด/สิทธิ์ไม่พอ) แทนที่จะโชว์แค่ "HTTP 403" เฉยๆ
+          let detail='';
+          try{const errJson=await res.json(); detail=errJson.message||'';}catch(eParse){}
+          throw new Error(`HTTP ${res.status}${detail?' — '+detail:''}`);
+        }
+      });
       return patched;
     }catch(e){
       lastErr=e;

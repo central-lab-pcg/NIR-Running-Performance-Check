@@ -374,7 +374,12 @@ async function corrSaveAll(data) {
       },
       body: JSON.stringify({ ...full, corrections: data })
     });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) {
+      // แสดงข้อความ error จริงจาก JSONBin (เช่น โควตาหมด/สิทธิ์ไม่พอ) แทนที่จะโชว์แค่ "HTTP 403" เฉยๆ
+      let detail = '';
+      try { const errJson = await res.json(); detail = errJson.message || ''; } catch(eParse) {}
+      throw new Error(`HTTP ${res.status}${detail ? ' — ' + detail : ''}`);
+    }
     return true;
   } catch(e) {
     console.error('JSONBin save error:', e);
