@@ -298,9 +298,11 @@ const DATA_URL="https://central-lab-pcg.github.io/NIR-Running-Performance-Check/
 const DATA_URL2="https://central-lab-pcg.github.io/NIR-Running-Performance-Check/data2.json";
 
 // ── Shared Correction Storage (JSONBin.io) ────────────────────────────────────
-const JSONBIN_ID     = '69d5c4f4856a6821890d184e';
-const JSONBIN_MASTER = '$2a$10$gYrVf.NPt4ySc9eUlwWo1O8FxYUvJMu/5mLv.3MdGMwUHse8sKXxq';
-const JSONBIN_ACCESS = '$2a$10$Ohq6FsEj2BnQUMGq5NYPqO4WWFJL/vbLidCxvHtrUGA3aRdQIS.zq';
+// แยกเป็น 2 Bin แล้ว — หน้านี้ใช้แค่คีย์ "corrections" ซึ่งย้ายไปอยู่ Bin B (ข้อมูลตั้งค่า/ปรับแก้)
+// Bin A (bias_records/manual_records) อยู่คนละ bin แล้ว ไม่เกี่ยวกับหน้านี้
+const JSONBIN_ID     = '6a87fbe7da38895dfefe931b';
+const JSONBIN_MASTER = '$2a$10$b9Qo1O9aMwMwNZo6tImEG.RG2P.7dnoKqfv/5SN0lAOz4G6ipFSe.';
+const JSONBIN_ACCESS = '$2a$10$iszaw3owKggqOri5kPRk2uy/n8qM4Ijuh4AMJsaDU8gJM1VvrNf8m';
 const JSONBIN_URL    = 'https://api.jsonbin.io/v3/b/' + JSONBIN_ID;
 
 // cache สั้น ๆ (in-memory) กันไม่ให้ยิง request ซ้ำจำนวนมากตอน render ตาราง (เดิมยิง 1 ครั้งต่อแถวสินค้า ไม่มี cache เลย)

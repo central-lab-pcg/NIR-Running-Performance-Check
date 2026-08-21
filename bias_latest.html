@@ -305,9 +305,28 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
 </div>
 
 <script>
-const JB_ID  = '69d5c4f4856a6821890d184e';
-const JB_MK  = '$2a$10$oCl17sk5FL69HRjvcyDZPefF/QkDJbfVDS.qpBYNwiFnb2ufVSMdi';
-const JB_URL = 'https://api.jsonbin.io/v3/b/'+JB_ID;
+// ── แยกเป็น 2 Bin เพื่อเลี่ยงลิมิตขนาด 100kb/bin ของ jsonbin.io free tier ──────
+// Bin A: ข้อมูลตัวอย่าง (bias_records, manual_records) — ก้อนใหญ่ โตเร็ว
+// Bin B: ข้อมูลตั้งค่า/ปรับแก้ (corrections, approvals, biasApplied, param_list, product_groups, product_aliases, generated_at) — ก้อนเล็ก ใช้ร่วมกับ summary_5.html
+const JB_ID_A = '6a87fa96da38895dfefe8ed9';
+const JB_ID_B = '6a87fbe7da38895dfefe931b';
+const JB_MK   = '$2a$10$b9Qo1O9aMwMwNZo6tImEG.RG2P.7dnoKqfv/5SN0lAOz4G6ipFSe.';
+const JB_URL_A = 'https://api.jsonbin.io/v3/b/'+JB_ID_A;
+const JB_URL_B = 'https://api.jsonbin.io/v3/b/'+JB_ID_B;
+// เก็บ key ที่อยู่ใน Bin A ไว้ที่เดียว ใช้แยก patched object ตอนเขียนกลับ
+const BIN_A_KEYS = ['bias_records','manual_records'];
+// อ่านข้อมูลจากทั้ง 2 bin มารวมเป็นก้อนเดียว (เหมือนของเดิมก่อนแยก bin)
+async function fetchMerged(){
+  const [rA, rB] = await Promise.all([
+    fetch(JB_URL_A+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}}),
+    fetch(JB_URL_B+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}})
+  ]);
+  if(!rA.ok) throw new Error('Bin A HTTP '+rA.status);
+  if(!rB.ok) throw new Error('Bin B HTTP '+rB.status);
+  const [jA, jB] = await Promise.all([rA.json(), rB.json()]);
+  const dataA = jA.record||jA, dataB = jB.record||jB;
+  return {...dataA, ...dataB};
+}
 
 const LABEL_ORDER = ['169 LAB-DS2500','169 QC-DS2500','169 QC-DS3','Rayong','Indo DS2500','Indo DS3F','Myanmar','Wet Food','POC'];
 // PARAMS_DEF / PRODUCT_GROUPS เป็นค่าเริ่มต้น (default) — ถ้ามีข้อมูลที่ผู้ใช้แก้ไขเองผ่านหน้า "⚙️ จัดการ Product/Parameter"
@@ -323,7 +342,7 @@ let PRODUCT_GROUPS = {
   POC: ['MF01','FP01','FP02 04 05 + Mix P','Egg PU','Egg LU','FPB01','CP01 03 04','CK LIV, Lamb Liver','PEC+LH+SDF','PE C06','PED+LH02','HPB03 04','FEC01 03 05','FED04 07 08'],
 };
 const PRODUCT_GROUP_LABEL = {FG:'── FG ──', RM:'── RM ──', NIROnline:'── NIR Online ──', WF:'── Wet Food ──', POC:'── POC ──'};
-const JB_AK = '$2a$10$KUCt03lbeTKyErlWNAdVheQ0dGdoVzYq5y.hnbhTnnWgT3oLxKk5e';
+const JB_AK = '$2a$10$iszaw3owKggqOri5kPRk2uy/n8qM4Ijuh4AMJsaDU8gJM1VvrNf8m';
 const LMAP = {'169 LAB-DS2500':{plant:'169',equipment:'DS2500',source:'LAB'},'169 QC-DS2500':{plant:'169',equipment:'DS2500',source:'QC'},'169 QC-DS3':{plant:'169',equipment:'DS3',source:'QC'},'Rayong':{plant:'RY',equipment:'DS3F',source:''},'Indo DS2500':{plant:'Indo',equipment:'DS2500',source:''},'Indo DS3F':{plant:'Indo',equipment:'DS3F',source:''},'Myanmar':{plant:'MM',equipment:'DS2500',source:''},'Wet Food':{plant:'169',equipment:'DS2500',source:'Wet Food'},'POC':{plant:'POC',equipment:'DS2500',source:''}};
 
 let RAW_BIAS=[], RAW_MANUAL=[], RAW_CORR={}, APPROVALS={}, BIAS_APPLIED={};
@@ -336,27 +355,34 @@ async function patchJB(mutatorFn, maxRetries=3){
   let lastErr=null;
   for(let attempt=0; attempt<maxRetries; attempt++){
     try{
-      const r1=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
-      const j1=await r1.json();
-      const data1=j1.record||j1;
+      const data1=await fetchMerged();
       const snapshot=JSON.stringify(data1);
       const patched=await mutatorFn({...data1});
       // เช็กซ้ำก่อนเขียนจริง ว่าไม่มีใคร/ปุ่มอื่นแก้ข้อมูลแทรกเข้ามาระหว่างที่เรากำลังเตรียม patch
-      const r2=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
-      const j2=await r2.json();
-      const data2=j2.record||j2;
+      const data2=await fetchMerged();
       if(JSON.stringify(data2)!==snapshot){
         // ข้อมูลเปลี่ยนไปแล้ว -> ลองใหม่โดยอ่านข้อมูลล่าสุดอีกรอบแทนการเขียนทับ
         continue;
       }
-      await fetch(JB_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK},body:JSON.stringify(patched)}).then(async res=>{
+      // แยก patched object กลับเป็น 2 ก้อนตาม bin ที่แต่ละ key ควรอยู่
+      const partA={}, partB={};
+      for(const k of Object.keys(patched)){
+        if(BIN_A_KEYS.includes(k)) partA[k]=patched[k];
+        else partB[k]=patched[k];
+      }
+      const putHeaders={'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK};
+      const [resA, resB] = await Promise.all([
+        fetch(JB_URL_A,{method:'PUT',headers:putHeaders,body:JSON.stringify(partA)}),
+        fetch(JB_URL_B,{method:'PUT',headers:putHeaders,body:JSON.stringify(partB)})
+      ]);
+      for(const [label,res] of [['Bin A',resA],['Bin B',resB]]){
         if(!res.ok){
           // แสดงข้อความ error จริงจาก JSONBin (เช่น โควตาหมด/สิทธิ์ไม่พอ) แทนที่จะโชว์แค่ "HTTP 403" เฉยๆ
           let detail='';
           try{const errJson=await res.json(); detail=errJson.message||'';}catch(eParse){}
-          throw new Error(`HTTP ${res.status}${detail?' — '+detail:''}`);
+          throw new Error(`${label} HTTP ${res.status}${detail?' — '+detail:''}`);
         }
-      });
+      }
       return patched;
     }catch(e){
       lastErr=e;
@@ -549,10 +575,7 @@ async function saveSettings(){
 // ── Load ──────────────────────────────────────────────────────────────────────
 async function loadData(){
   try{
-    const r=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const j=await r.json();
-    const data=j.record||j;
+    const data=await fetchMerged();
     RAW_BIAS  =(data.bias_records  ||[]).map(r=>norm(r,'excel'));
     RAW_MANUAL=(data.manual_records||[]).map(r=>norm(r,'manual'));
     RAW_CORR  =data.corrections||{};
@@ -1062,10 +1085,7 @@ async function exportBackup(evt){
   const oldTxt=btn?btn.innerHTML:'';
   try{
     if(btn){btn.disabled=true;btn.innerHTML='⏳ กำลังดึงข้อมูล...';}
-    const r=await fetch(JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const j=await r.json();
-    const data=j.record||j;
+    const data=await fetchMerged();
     const backup={
       _backup_note:'ไฟล์สำรองข้อมูลดิบทั้งหมดจาก NIR Install & Bias (JSONBin) — เก็บไว้กันข้อมูลหาย ถ้าจำเป็นเอาไฟล์นี้ไปให้ Claude ช่วยตรวจสอบ/กู้คืนได้',
       _backup_at:new Date().toISOString(),
