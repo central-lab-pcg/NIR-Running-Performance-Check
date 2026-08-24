@@ -118,6 +118,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
     <button class="btn-export" onclick="exportCSV()">⬇ Export CSV</button>
     <button class="btn-export" style="border-color:#bfdbfe;background:var(--blue-bg);color:var(--blue)" onclick="exportBackup(event)" title="ดาวน์โหลดข้อมูลดิบทั้งหมด (JSON) เก็บไว้กันข้อมูลหาย">💾 สำรองข้อมูล</button>
     <button class="btn-export" style="border-color:#bbf7d0;background:#ecfdf5;color:#047857" onclick="openOfflineSync()" title="นำข้อมูลที่บันทึก Offline ขึ้น JSONBin โดยตรวจข้อมูลซ้ำก่อน">☁️ Sync Offline → Online</button>
+    <button class="btn-export" style="border-color:#bfdbfe;background:#eff6ff;color:#2563eb" onclick="openGlobalBiasManager()" title="Adjust / Approve Bias จากจุดเดียว">⚙️ Adjust / Approve Bias</button>
     <button class="btn-export" style="border-color:#e9d5ff;background:#faf5ff;color:#9333ea" onclick="openSettingsModal()" title="เพิ่ม/ลบ Product และ Parameter ได้เอง">⚙️ จัดการ Product/Parameter</button>
   </div>
 </div>
@@ -250,6 +251,47 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
   </div>
 </div>
 
+<!-- Global Adjust / Approve Bias Modal -->
+<div class="ap-overlay" id="globalBiasModal">
+  <div class="ap-modal" style="width:min(900px,97vw);max-height:92vh;overflow:hidden;display:flex;flex-direction:column">
+    <div class="ap-hdr" style="background:#2563eb">
+      <span>⚙️ Adjust / Approve Bias — จุดเดียว</span>
+      <button onclick="closeGlobalBiasManager()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:15px">✕</button>
+    </div>
+    <div class="ap-body" style="overflow:auto;gap:12px">
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:10px 12px;font-size:12px;color:#1d4ed8;line-height:1.6">
+        <b>ไม่ต้องกด Adjust Bias ทีละช่องแล้ว</b> — เลือกรายการที่ต้องการจากตารางนี้ แล้วกดดำเนินการครั้งเดียวได้หลายรายการ
+      </div>
+      <div id="globalBiasSummary" style="font-size:12px;color:#475569"></div>
+      <div id="globalBiasList" style="display:flex;flex-direction:column;gap:12px"></div>
+      <div id="globalBiasActionPanel" style="display:none;border:1px solid #dbeafe;border-radius:10px;padding:12px;background:#f8fbff">
+        <div style="font-size:12px;font-weight:700;color:#1e40af;margin-bottom:8px">ข้อมูลการดำเนินการ</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label class="flabel">วันที่ Adjust / Approve</label>
+            <div style="display:flex;gap:6px">
+              <input class="finput" type="text" inputmode="numeric" id="globalBiasDate" placeholder="dd/mm/yyyy" maxlength="10">
+              <button type="button" onclick="openCalendarPicker('globalBiasDate')" style="flex-shrink:0;width:38px;border:1.5px solid var(--border2);border-radius:var(--r);background:#fff;cursor:pointer;font-size:15px">📅</button>
+            </div>
+          </div>
+          <div>
+            <label class="flabel">ชื่อผู้ดำเนินการ</label>
+            <input class="finput" type="text" id="globalBiasUser" placeholder="ชื่อผู้ Approve / ผู้ดำเนินการ">
+          </div>
+        </div>
+        <div id="globalBiasActionHint" style="margin-top:8px;font-size:11px;color:#64748b"></div>
+      </div>
+    </div>
+    <div class="ap-ftr" style="justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <button class="btn-cancel" onclick="closeGlobalBiasManager()">ปิด</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button id="globalBiasApplyBtn" onclick="bulkApplyBiasStage1()" style="background:#2563eb;color:#fff;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-family:var(--font);font-size:12px">⚙️ Adjust + Approve ขั้นที่ 1</button>
+        <button id="globalBiasApproveBtn" onclick="bulkApproveBiasStage2()" style="background:#16a34a;color:#fff;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-family:var(--font);font-size:12px">✔ Approve ขั้นที่ 2</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Approve Modal -->
 <div class="ap-overlay" id="apModal">
   <div class="ap-modal">
@@ -339,9 +381,9 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
 // ── แยกเป็น 2 Bin เพื่อเลี่ยงลิมิตขนาด 100kb/bin ของ jsonbin.io free tier ──────
 // Bin A: ข้อมูลตัวอย่าง (bias_records, manual_records) — ก้อนใหญ่ โตเร็ว
 // Bin B: ข้อมูลตั้งค่า/ปรับแก้ (corrections, approvals, biasApplied, param_list, product_groups, product_aliases, generated_at) — ก้อนเล็ก ใช้ร่วมกับ summary_5.html
-const JB_ID_A = '6a87fa96da38895dfefe8ed9';
-const JB_ID_B = '6a87fbe7da38895dfefe931b';
-const JB_MK   = '$2a$10$b9Qo1O9aMwMwNZo6tImEG.RG2P.7dnoKqfv/5SN0lAOz4G6ipFSe.';
+const JB_ID_A = '6a8bfeb1da38895dfe09a3cd';
+const JB_ID_B = '6a8bfecbda38895dfe09a454';
+const JB_MK   = '';
 const JB_URL_A = 'https://api.jsonbin.io/v3/b/'+JB_ID_A;
 const JB_URL_B = 'https://api.jsonbin.io/v3/b/'+JB_ID_B;
 // เก็บ key ที่อยู่ใน Bin A ไว้ที่เดียว ใช้แยก patched object ตอนเขียนกลับ
@@ -349,8 +391,8 @@ const BIN_A_KEYS = ['bias_records','manual_records'];
 // อ่านข้อมูลจากทั้ง 2 bin มารวมเป็นก้อนเดียว (เหมือนของเดิมก่อนแยก bin)
 async function fetchMerged(){
   const [rA, rB] = await Promise.all([
-    fetch(JB_URL_A+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}}),
-    fetch(JB_URL_B+'/latest',{cache:'no-store',headers:{'X-Master-Key':JB_MK,'X-Bin-Meta':'false'}})
+    fetch(JB_URL_A+'/latest',{cache:'no-store',headers:{'X-Access-Key':JB_AK,'X-Bin-Meta':'false'}}),
+    fetch(JB_URL_B+'/latest',{cache:'no-store',headers:{'X-Access-Key':JB_AK,'X-Bin-Meta':'false'}})
   ]);
   if(!rA.ok) throw new Error('Bin A HTTP '+rA.status);
   if(!rB.ok) throw new Error('Bin B HTTP '+rB.status);
@@ -373,7 +415,7 @@ let PRODUCT_GROUPS = {
   POC: ['MF01','FP01','FP02 04 05 + Mix P','Egg PU','Egg LU','FPB01','CP01 03 04','CK LIV, Lamb Liver','PEC+LH+SDF','PE C06','PED+LH02','HPB03 04','FEC01 03 05','FED04 07 08'],
 };
 const PRODUCT_GROUP_LABEL = {FG:'── FG ──', RM:'── RM ──', NIROnline:'── NIR Online ──', WF:'── Wet Food ──', POC:'── POC ──'};
-const JB_AK = '$2a$10$iszaw3owKggqOri5kPRk2uy/n8qM4Ijuh4AMJsaDU8gJM1VvrNf8m';
+const JB_AK   = '$2a$10$sRR0uY/keH7vYhBBEntAaOTLhAQnI/4hOYO99qz2ffNXuZMoXzRsy';
 const LMAP = {'169 LAB-DS2500':{plant:'169',equipment:'DS2500',source:'LAB'},'169 QC-DS2500':{plant:'169',equipment:'DS2500',source:'QC'},'169 QC-DS3':{plant:'169',equipment:'DS3',source:'QC'},'Rayong':{plant:'RY',equipment:'DS3F',source:''},'Indo DS2500':{plant:'Indo',equipment:'DS2500',source:''},'Indo DS3F':{plant:'Indo',equipment:'DS3F',source:''},'Myanmar':{plant:'MM',equipment:'DS2500',source:''},'Wet Food':{plant:'169',equipment:'DS2500',source:'Wet Food'},'POC':{plant:'POC',equipment:'DS2500',source:''}};
 
 let RAW_BIAS=[], RAW_MANUAL=[], RAW_CORR={}, APPROVALS={}, BIAS_APPLIED={};
@@ -401,7 +443,7 @@ async function patchJB(mutatorFn, maxRetries=3){
         if(BIN_A_KEYS.includes(k)) partA[k]=patched[k];
         else partB[k]=patched[k];
       }
-      const putHeaders={'Content-Type':'application/json','X-Master-Key':JB_MK,'X-Access-Key':JB_AK};
+      const putHeaders={'Content-Type':'application/json','X-Access-Key':JB_AK};
       const [resA, resB] = await Promise.all([
         fetch(JB_URL_A,{method:'PUT',headers:putHeaders,body:JSON.stringify(partA)}),
         fetch(JB_URL_B,{method:'PUT',headers:putHeaders,body:JSON.stringify(partB)})
@@ -1037,16 +1079,14 @@ function render(){
           const isPending=applied&&!isFullyApproved;
           let statusHtml;
           if(!applied){
-            statusHtml=`<button onclick="event.stopPropagation();openAdjustBiasChoice('${applyKeyEnc}')" style="margin-top:2px;font-size:9px;padding:1px 7px;border:1px solid #93c5fd;border-radius:10px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-family:var(--font)">Adjust Bias</button>`;
+            statusHtml=`<span style="font-size:9px;color:#2563eb;font-weight:700" title="เลือกจากปุ่ม ⚙️ Adjust / Approve Bias ด้านบน">⚙️ รอ Adjust</span>`;
           }else if(isPending){
             const names=approvals.map(a=>a.name).join(', ')||'—';
-            statusHtml=`<span style="font-size:9px;color:#d97706;font-weight:700" title="รออนุมัติ ${approvals.length}/2">⏳ ${appliedDateOnly} (${approvals.length}/2)</span>
-                <button onclick="event.stopPropagation();openApproverNameModal('${applyKeyEnc}','${applied.appliedAt}',${approvals.length+1})" style="margin-left:3px;font-size:8px;padding:0 5px;border:1px solid #fde68a;border-radius:8px;background:#fffbeb;color:#d97706;cursor:pointer;font-weight:700;font-family:var(--font)" title="Approve ขั้นที่ ${approvals.length+1}">✔ Approve</button>
-                <br><span style="font-size:8px;color:#b45309;font-weight:600">👤 ${names}</span>`;
+            statusHtml=`<span style="font-size:9px;color:#d97706;font-weight:700" title="เลือกจากปุ่ม ⚙️ Adjust / Approve Bias ด้านบน">⏳ ${appliedDateOnly} (${approvals.length}/2)</span>
+                ${names!=='—'?`<br><span style="font-size:8px;color:#b45309;font-weight:600">👤 ${names}</span>`:''}`;
           }else{
             const names=approvals.map(a=>a.name).join(', ')||'—';
             statusHtml=`<span style="font-size:9px;color:#2563eb;font-weight:700" title="ปรับ Bias ที่เครื่องแล้วเมื่อ ${applied.appliedAt}${applied.reason?(' · เหตุผลแก้ไขล่าสุด: '+applied.reason):''}">✓ ${appliedDateOnly}</span>
-                <button onclick="event.stopPropagation();openEditAppliedModal('${applyKeyEnc}')" style="margin-left:3px;font-size:8px;padding:0 5px;border:1px solid #bfdbfe;border-radius:8px;background:#fff;color:#2563eb;cursor:pointer;font-weight:700;font-family:var(--font)" title="แก้ไขวันที่ (ต้องระบุเหตุผล)">✏️</button>
                 ${names!=='—'?`<br><span style="font-size:8px;color:#1d4ed8;font-weight:600">👤 ${names}</span>`:''}`;
           }
           return`<td class="${cls}${isFullyApproved?' bias-applied-cell':''}" style="cursor:pointer;transition:background .15s"
@@ -1727,6 +1767,136 @@ async function confirmApproverName(){
   document.getElementById('approverPopup')?.remove();
   if(stage===1) await saveApprovalStage1(encodedKey,appliedAt,name);
   else await saveApprovalStage2(encodedKey,name);
+}
+
+// ── Global Adjust / Approve Bias: จุดเดียวสำหรับทั้งหน้า ───────────────────────
+let GLOBAL_BIAS_ITEMS=[];
+let GLOBAL_BIAS_MODE='';
+
+function closeGlobalBiasManager(){
+  document.getElementById('globalBiasModal')?.classList.remove('open');
+  GLOBAL_BIAS_ITEMS=[]; GLOBAL_BIAS_MODE='';
+}
+
+function globalBiasEsc(s){
+  return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function openGlobalBiasManager(){
+  const allEvts=getAllEvents();
+  const latest=calcLatest(allEvts);
+  GLOBAL_BIAS_ITEMS=[];
+  for(const [,v] of latest.entries()){
+    if(FILTER_PLANT && v.label && v.label!==FILTER_PLANT) continue;
+    if(FILTER_TYPE && guessType(v.product,v.type_val||'')!==FILTER_TYPE) continue;
+    for(const [p,pd] of Object.entries(v.params||{})){
+      const rawKey=`${v.label}|${v.product}|${p}|${pd.date}`;
+      const applied=BIAS_APPLIED[rawKey];
+      const approvals=applied?(applied.approvals||[]):[];
+      const legacy=applied&&!applied.approvals;
+      const fully=applied&&(legacy||approvals.length>=2);
+      if(fully) continue;
+      GLOBAL_BIAS_ITEMS.push({key:rawKey,label:v.label,product:v.product,param:p,bias:pd.bias,date:pd.date,applied,approvals});
+    }
+  }
+  const pending=GLOBAL_BIAS_ITEMS.filter(x=>x.applied&&x.approvals.length<2);
+  const fresh=GLOBAL_BIAS_ITEMS.filter(x=>!x.applied);
+  const list=document.getElementById('globalBiasList');
+  document.getElementById('globalBiasSummary').innerHTML=`พบรายการที่ต้องดำเนินการ <b>${GLOBAL_BIAS_ITEMS.length}</b> รายการ · ยังไม่ Adjust <b style="color:#2563eb">${fresh.length}</b> · รอ Approve ขั้นที่ 2 <b style="color:#d97706">${pending.length}</b>`;
+  let html='';
+  if(fresh.length){
+    html+=`<div style="border:1px solid #bfdbfe;border-radius:9px;overflow:hidden">
+      <div style="padding:8px 10px;background:#eff6ff;display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <b style="font-size:12px;color:#1d4ed8">⚙️ ยังไม่ได้ Adjust (${fresh.length})</b>
+        <label style="font-size:10px;color:#2563eb;cursor:pointer"><input type="checkbox" onchange="toggleGlobalBiasGroup('fresh',this.checked)"> เลือกทั้งหมด</label>
+      </div>
+      <div style="max-height:260px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#f8fafc"><th style="padding:6px;width:30px"></th><th style="text-align:left;padding:6px">Plant</th><th style="text-align:left;padding:6px">Product</th><th style="padding:6px">Parameter</th><th style="padding:6px">Bias</th><th style="padding:6px">วันที่</th></tr></thead><tbody>`;
+    html+=fresh.map((x,i)=>`<tr style="border-top:1px solid #e2e8f0"><td style="padding:5px;text-align:center"><input class="global-bias-cb" data-group="fresh" data-key="${globalBiasEsc(x.key)}" type="checkbox" checked></td><td style="padding:5px">${globalBiasEsc(x.label)}</td><td style="padding:5px">${globalBiasEsc(x.product)}</td><td style="padding:5px;text-align:center;font-family:monospace;font-weight:700">${globalBiasEsc(x.param)}</td><td style="padding:5px;text-align:center;font-family:monospace;font-weight:700;color:${x.bias>=0?'#16a34a':'#dc2626'}">${x.bias>=0?'+':''}${Number(x.bias).toFixed(3)}</td><td style="padding:5px;text-align:center;font-family:monospace">${globalBiasEsc(x.date)}</td></tr>`).join('');
+    html+=`</tbody></table></div></div>`;
+  }
+  if(pending.length){
+    html+=`<div style="border:1px solid #fde68a;border-radius:9px;overflow:hidden">
+      <div style="padding:8px 10px;background:#fffbeb;display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <b style="font-size:12px;color:#b45309">⏳ รอ Approve ขั้นที่ 2 (${pending.length})</b>
+        <label style="font-size:10px;color:#b45309;cursor:pointer"><input type="checkbox" onchange="toggleGlobalBiasGroup('pending',this.checked)"> เลือกทั้งหมด</label>
+      </div>
+      <div style="max-height:220px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#f8fafc"><th style="padding:6px;width:30px"></th><th style="text-align:left;padding:6px">Plant</th><th style="text-align:left;padding:6px">Product</th><th style="padding:6px">Parameter</th><th style="padding:6px">ผู้อนุมัติ</th></tr></thead><tbody>`;
+    html+=pending.map(x=>`<tr style="border-top:1px solid #e2e8f0"><td style="padding:5px;text-align:center"><input class="global-bias-cb" data-group="pending" data-key="${globalBiasEsc(x.key)}" type="checkbox"></td><td style="padding:5px">${globalBiasEsc(x.label)}</td><td style="padding:5px">${globalBiasEsc(x.product)}</td><td style="padding:5px;text-align:center;font-family:monospace;font-weight:700">${globalBiasEsc(x.param)}</td><td style="padding:5px">${globalBiasEsc(x.approvals.map(a=>a.name).join(', '))}</td></tr>`).join('');
+    html+=`</tbody></table></div></div>`;
+  }
+  if(!html) html='<div style="padding:30px;text-align:center;color:#64748b">✅ ไม่มีรายการที่ต้อง Adjust / Approve แล้ว</div>';
+  list.innerHTML=html;
+  const panel=document.getElementById('globalBiasActionPanel'); panel.style.display=(fresh.length||pending.length)?'block':'none';
+  document.getElementById('globalBiasDate').value=fmtDDMMYYYY(new Date());
+  bindDateMask('globalBiasDate');
+  document.getElementById('globalBiasUser').value='';
+  document.getElementById('globalBiasActionHint').textContent='เลือกหลายรายการได้ แล้วใช้ปุ่มด้านล่างเพื่อบันทึกครั้งเดียว';
+  document.getElementById('globalBiasModal').classList.add('open');
+}
+
+function toggleGlobalBiasGroup(group,on){
+  document.querySelectorAll(`.global-bias-cb[data-group="${group}"]`).forEach(cb=>cb.checked=on);
+}
+
+function getGlobalBiasSelected(group){
+  const keys=[...document.querySelectorAll(`.global-bias-cb[data-group="${group}"]:checked`)].map(cb=>cb.dataset.key);
+  return GLOBAL_BIAS_ITEMS.filter(x=>keys.includes(x.key));
+}
+
+async function bulkApplyBiasStage1(){
+  const items=getGlobalBiasSelected('fresh');
+  if(!items.length){alert('กรุณาเลือกรายการที่ยังไม่ได้ Adjust อย่างน้อย 1 รายการ');return;}
+  const user=document.getElementById('globalBiasUser').value.trim();
+  const dateVal=document.getElementById('globalBiasDate').value.trim();
+  const parsed=parseDDMMYYYY(dateVal);
+  if(!parsed){alert('กรุณากรอกวันที่ให้ถูกต้องในรูปแบบ dd/mm/yyyy');return;}
+  if(!user){alert('กรุณากรอกชื่อผู้ดำเนินการ');return;}
+  const appliedAt=`${parsed.dd}/${parsed.mm}/${parsed.yyyy}`;
+  const btn=document.getElementById('globalBiasApplyBtn'); btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...';
+  try{
+    const patched=await patchJB(data=>{
+      const biasApplied={...(data.biasApplied||{})};
+      items.forEach(x=>{
+        if(!biasApplied[x.key]) biasApplied[x.key]={appliedAt,approvals:[{name:user,approvedAt:nowStr()}]};
+      });
+      return {...data,biasApplied};
+    });
+    BIAS_APPLIED=patched.biasApplied;
+    render();
+    openGlobalBiasManager();
+    showSaveToast(`✅ Adjust + Approve ขั้นที่ 1 สำเร็จ ${items.length} รายการ`);
+  }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
+  btn.disabled=false; btn.textContent='⚙️ Adjust + Approve ขั้นที่ 1';
+}
+
+async function bulkApproveBiasStage2(){
+  const items=getGlobalBiasSelected('pending');
+  if(!items.length){alert('กรุณาเลือกรายการที่รอ Approve ขั้นที่ 2 อย่างน้อย 1 รายการ');return;}
+  const user=document.getElementById('globalBiasUser').value.trim();
+  if(!user){alert('กรุณากรอกชื่อผู้อนุมัติขั้นที่ 2');return;}
+  for(const x of items){
+    const first=(x.approvals[0]?.name||'').trim().toLowerCase();
+    if(first && first===user.toLowerCase()){alert(`รายการ ${x.product} / ${x.param}: ผู้อนุมัติขั้นที่ 2 ต้องเป็นคนละคนกับขั้นที่ 1`);return;}
+  }
+  const btn=document.getElementById('globalBiasApproveBtn'); btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...';
+  try{
+    const patched=await patchJB(data=>{
+      const biasApplied={...(data.biasApplied||{})};
+      items.forEach(x=>{
+        const cur=biasApplied[x.key];
+        if(!cur)return;
+        const approvals=[...(cur.approvals||[])];
+        if(approvals.length<2) approvals.push({name:user,approvedAt:nowStr()});
+        biasApplied[x.key]={...cur,approvals};
+      });
+      return {...data,biasApplied};
+    });
+    BIAS_APPLIED=patched.biasApplied;
+    render();
+    openGlobalBiasManager();
+    showSaveToast(`✅ Approve ขั้นที่ 2 สำเร็จ ${items.length} รายการ`);
+  }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
+  btn.disabled=false; btn.textContent='✔ Approve ขั้นที่ 2';
 }
 
 // ── เลือก Now / Advanced เมื่อกด Adjust Bias ──────────────────────────────────
