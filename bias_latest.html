@@ -112,6 +112,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
   <div class="topbar-title">
     🔧 Install & Bias
     <span class="topbar-sub" id="lastUpdated"></span>
+    <span id="binCStatus" style="font-size:10px;color:#fbbf24;margin-left:6px"></span>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
     <button onclick="openRecordModal()" style="background:var(--purple);color:#fff;border:none;padding:7px 16px;border-radius:var(--r);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px">➕ บันทึก Install / Adjust</button>
@@ -263,6 +264,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
         <b>ไม่ต้องกด Adjust Bias ทีละช่องแล้ว</b> — เลือกรายการที่ต้องการจากตารางนี้ แล้วกดดำเนินการครั้งเดียวได้หลายรายการ
       </div>
       <div id="globalBiasSummary" style="font-size:12px;color:#475569"></div>
+      <div id="globalBiasTypeChips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       <div id="globalBiasList" style="display:flex;flex-direction:column;gap:12px"></div>
       <div id="globalBiasActionPanel" style="display:none;border:1px solid #dbeafe;border-radius:10px;padding:12px;background:#f8fbff">
         <div style="font-size:12px;font-weight:700;color:#1e40af;margin-bottom:8px">ข้อมูลการดำเนินการ</div>
@@ -381,26 +383,77 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
 // ── แยกเป็น 2 Bin เพื่อเลี่ยงลิมิตขนาด 100kb/bin ของ jsonbin.io free tier ──────
 // Bin A: ข้อมูลตัวอย่าง (bias_records, manual_records) — ก้อนใหญ่ โตเร็ว
 // Bin B: ข้อมูลตั้งค่า/ปรับแก้ (corrections, approvals, biasApplied, param_list, product_groups, product_aliases, generated_at) — ก้อนเล็ก ใช้ร่วมกับ summary_5.html
+// ── JSONBin แยกเป็น 3 Bin เพื่อให้แต่ละก้อนไม่เกิน 100 KB ───────────────
+// A = bias_records + manual_records
+// B = corrections + approvals + param_list + product_groups + product_aliases + generated_at
+// C = biasApplied (ก้อนนี้โตเร็วและเดิมทำให้ Bin B เกิน 100 KB)
 const JB_ID_A = '6a8bfeb1da38895dfe09a3cd';
 const JB_ID_B = '6a8bfecbda38895dfe09a454';
+// สร้าง Bin ชื่อ NIR-BIAS-C แล้วนำ Bin ID มาใส่ตรงนี้
+const JB_ID_C = 'PUT_BIN_C_ID_HERE';
 const JB_MK   = '';
 const JB_URL_A = 'https://api.jsonbin.io/v3/b/'+JB_ID_A;
 const JB_URL_B = 'https://api.jsonbin.io/v3/b/'+JB_ID_B;
-// เก็บ key ที่อยู่ใน Bin A ไว้ที่เดียว ใช้แยก patched object ตอนเขียนกลับ
+const JB_URL_C = 'https://api.jsonbin.io/v3/b/'+JB_ID_C;
 const BIN_A_KEYS = ['bias_records','manual_records'];
-// อ่านข้อมูลจากทั้ง 2 bin มารวมเป็นก้อนเดียว (เหมือนของเดิมก่อนแยก bin)
-async function fetchMerged(){
-  const [rA, rB] = await Promise.all([
-    fetch(JB_URL_A+'/latest',{cache:'no-store',headers:{'X-Access-Key':JB_AK,'X-Bin-Meta':'false'}}),
-    fetch(JB_URL_B+'/latest',{cache:'no-store',headers:{'X-Access-Key':JB_AK,'X-Bin-Meta':'false'}})
-  ]);
-  if(!rA.ok) throw new Error('Bin A HTTP '+rA.status);
-  if(!rB.ok) throw new Error('Bin B HTTP '+rB.status);
-  const [jA, jB] = await Promise.all([rA.json(), rB.json()]);
-  const dataA = jA.record||jA, dataB = jB.record||jB;
-  return {...dataA, ...dataB};
+const BIN_C_KEYS = ['biasApplied'];
+
+// ── Sync "Adjust Bias" จากหน้า Summary ───────────────────────────────────────
+// หน้า Summary (summary_5.html) เก็บ correction/"Adjust Bias …" ไว้คนละ Bin
+// (JSONBIN_ID ของ Summary) ซึ่งไม่ใช่ Bin B ตัวเดียวกับที่หน้านี้ใช้อยู่จริง (แม้คอมเมนต์เดิมตั้งใจให้ใช้ร่วมกัน)
+// จึงต้องดึง "corrections" จาก Bin ของ Summary มาเสริม/รวมเข้ากับของหน้านี้ทุกครั้งที่โหลดข้อมูล
+// เพื่อให้ตัวเลข Adjust Bias ที่กรอกจากหน้า Summary ถูกดึงมาคำนวณที่หน้านี้โดยอัตโนมัติ
+const SUMMARY_JB_ID  = '6a87fbe7da38895dfefe931b';
+const SUMMARY_JB_URL = 'https://api.jsonbin.io/v3/b/'+SUMMARY_JB_ID;
+const SUMMARY_JB_READKEY = '$2a$10$b9Qo1O9aMwMwNZo6tImEG.RG2P.7dnoKqfv/5SN0lAOz4G6ipFSe.'; // master key (read-only ใช้งานในหน้านี้)
+
+async function fetchSummaryCorrections(){
+  try{
+    const res=await fetch(SUMMARY_JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':SUMMARY_JB_READKEY,'X-Bin-Meta':'false'}});
+    if(!res.ok) return {};
+    const j=await res.json();
+    const rec=j.record||j;
+    return rec.corrections||{};
+  }catch(e){
+    console.error('sync corrections from Summary failed:', e);
+    return {};
+  }
 }
 
+function hasBinC(){ return JB_ID_C && JB_ID_C !== 'PUT_BIN_C_ID_HERE'; }
+
+async function fetchOneBin(url,label){
+  const res=await fetch(url+'/latest',{cache:'no-store',headers:{'X-Access-Key':JB_AK,'X-Bin-Meta':'false'}});
+  if(!res.ok){
+    let detail='';
+    try{const j=await res.json(); detail=j.message||'';}catch(e){}
+    throw new Error(`${label} HTTP ${res.status}${detail?' — '+detail:''}`);
+  }
+  const j=await res.json();
+  return j.record||j;
+}
+
+// อ่าน A+B+C มารวมเป็นก้อนเดียว; C จะทับ biasApplied ที่ยังค้างอยู่ใน B
+// พร้อมทั้งดึง "corrections" (Adjust Bias) จาก Bin ของหน้า Summary มา merge เพิ่มเข้าไปด้วย
+// (union กัน — ถ้ามีคีย์ซ้ำ ให้ค่าจากหน้า Summary ทับ เพราะ Summary คือหน้าที่เป็นคนสร้าง/แก้ Adjust Bias จริง)
+async function fetchMerged(){
+  const requests=[
+    fetchOneBin(JB_URL_A,'Bin A'),
+    fetchOneBin(JB_URL_B,'Bin B')
+  ];
+  if(hasBinC()) requests.push(fetchOneBin(JB_URL_C,'Bin C'));
+  requests.push(fetchSummaryCorrections());
+  const parts=await Promise.all(requests);
+  const summaryCorr=parts.pop(); // ผลลัพธ์ตัวสุดท้ายคือ corrections จาก Summary
+  const merged=Object.assign({},...parts);
+  merged.corrections=Object.assign({},merged.corrections||{},summaryCorr||{});
+  return merged;
+}
+
+function updateBinCStatus(){
+  const el=document.getElementById('binCStatus');
+  if(el) el.textContent=hasBinC()?'☁️ 3-Bin Online':'⚠️ ต้องตั้งค่า Bin C';
+}
 const LABEL_ORDER = ['169 LAB-DS2500','169 QC-DS2500','169 QC-DS3','Rayong','Indo DS2500','Indo DS3F','Myanmar','Wet Food','POC'];
 // PARAMS_DEF / PRODUCT_GROUPS เป็นค่าเริ่มต้น (default) — ถ้ามีข้อมูลที่ผู้ใช้แก้ไขเองผ่านหน้า "⚙️ จัดการ Product/Parameter"
 // เก็บไว้ในฐานข้อมูลแล้ว (data.param_list / data.product_groups) ค่าจาก loadData() จะ "ทับ" ค่า default พวกนี้แทน
@@ -437,20 +490,37 @@ async function patchJB(mutatorFn, maxRetries=3){
         // ข้อมูลเปลี่ยนไปแล้ว -> ลองใหม่โดยอ่านข้อมูลล่าสุดอีกรอบแทนการเขียนทับ
         continue;
       }
-      // แยก patched object กลับเป็น 2 ก้อนตาม bin ที่แต่ละ key ควรอยู่
-      const partA={}, partB={};
+      // แยก patched object เป็น 3 ก้อน
+      // ถ้าเดิม biasApplied ยังอยู่ใน Bin B การบันทึกครั้งแรกจะย้ายมันไป Bin C ให้อัตโนมัติ
+      const partA={}, partB={}, partC={};
       for(const k of Object.keys(patched)){
         if(BIN_A_KEYS.includes(k)) partA[k]=patched[k];
+        else if(BIN_C_KEYS.includes(k)) partC[k]=patched[k];
         else partB[k]=patched[k];
       }
+
+      if(!hasBinC() && Object.keys(partC).length){
+        throw new Error('ยังไม่ได้ตั้งค่า Bin C — กรุณาสร้าง Bin ชื่อ NIR-BIAS-C แล้วใส่ Bin ID ในตัวแปร JB_ID_C');
+      }
+
       const putHeaders={'Content-Type':'application/json','X-Access-Key':JB_AK};
-      const [resA, resB] = await Promise.all([
-        fetch(JB_URL_A,{method:'PUT',headers:putHeaders,body:JSON.stringify(partA)}),
-        fetch(JB_URL_B,{method:'PUT',headers:putHeaders,body:JSON.stringify(partB)})
-      ]);
-      for(const [label,res] of [['Bin A',resA],['Bin B',resB]]){
+      const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+      const oldA={}, oldB={}, oldC={};
+      for(const k of Object.keys(data1)){
+        if(BIN_A_KEYS.includes(k)) oldA[k]=data1[k];
+        else if(BIN_C_KEYS.includes(k)) oldC[k]=data1[k];
+        else oldB[k]=data1[k];
+      }
+
+      // เขียนเฉพาะ Bin ที่เปลี่ยน ลดโอกาสชนกัน และไม่เขียนทับข้อมูลอีกฝั่งโดยไม่จำเป็น
+      const jobs=[];
+      if(!same(oldA,partA)) jobs.push(['Bin A',JB_URL_A,partA]);
+      if(!same(oldB,partB)) jobs.push(['Bin B',JB_URL_B,partB]);
+      if(hasBinC() && !same(oldC,partC)) jobs.push(['Bin C',JB_URL_C,partC]);
+
+      for(const [label,url,body] of jobs){
+        const res=await fetch(url,{method:'PUT',headers:putHeaders,body:JSON.stringify(body)});
         if(!res.ok){
-          // แสดงข้อความ error จริงจาก JSONBin (เช่น โควตาหมด/สิทธิ์ไม่พอ) แทนที่จะโชว์แค่ "HTTP 403" เฉยๆ
           let detail='';
           try{const errJson=await res.json(); detail=errJson.message||'';}catch(eParse){}
           throw new Error(`${label} HTTP ${res.status}${detail?' — '+detail:''}`);
@@ -1788,7 +1858,8 @@ function openGlobalBiasManager(){
   GLOBAL_BIAS_ITEMS=[];
   for(const [,v] of latest.entries()){
     if(FILTER_PLANT && v.label && v.label!==FILTER_PLANT) continue;
-    if(FILTER_TYPE && guessType(v.product,v.type_val||'')!==FILTER_TYPE) continue;
+    const typ=guessType(v.product,v.type_val||'');
+    if(FILTER_TYPE && typ!==FILTER_TYPE) continue;
     for(const [p,pd] of Object.entries(v.params||{})){
       const rawKey=`${v.label}|${v.product}|${p}|${pd.date}`;
       const applied=BIAS_APPLIED[rawKey];
@@ -1796,23 +1867,44 @@ function openGlobalBiasManager(){
       const legacy=applied&&!applied.approvals;
       const fully=applied&&(legacy||approvals.length>=2);
       if(fully) continue;
-      GLOBAL_BIAS_ITEMS.push({key:rawKey,label:v.label,product:v.product,param:p,bias:pd.bias,date:pd.date,applied,approvals});
+      GLOBAL_BIAS_ITEMS.push({key:rawKey,label:v.label,product:v.product,type:typ,param:p,bias:pd.bias,date:pd.date,applied,approvals});
     }
   }
   const pending=GLOBAL_BIAS_ITEMS.filter(x=>x.applied&&x.approvals.length<2);
   const fresh=GLOBAL_BIAS_ITEMS.filter(x=>!x.applied);
   const list=document.getElementById('globalBiasList');
   document.getElementById('globalBiasSummary').innerHTML=`พบรายการที่ต้องดำเนินการ <b>${GLOBAL_BIAS_ITEMS.length}</b> รายการ · ยังไม่ Adjust <b style="color:#2563eb">${fresh.length}</b> · รอ Approve ขั้นที่ 2 <b style="color:#d97706">${pending.length}</b>`;
+  // จัดกลุ่มตามชนิดสินค้า (RM/FG/WF/POC/NIR-Online) เหมือนตารางหลัก
+  const GB_TYPE_ORDER=['FG','RM','WF','POC','NIROnline','Other'];
+  const GB_TYPE_LABEL={'FG':'🟢 FG — Finished Goods','RM':'🟠 RM — Raw Material','WF':'🔵 WF — Wet Food','POC':'🟣 POC','NIROnline':'🟡 NIR Online','Other':'📋 Other'};
+  const GB_TYPE_COLOR={'FG':'#16a34a','RM':'#d97706','WF':'#3b82f6','POC':'#9333ea','NIROnline':'#ca8a04','Other':'#94a3b8'};
+  function gbGroupByType(rows){
+    const byType=new Map();
+    rows.forEach(x=>{ if(!byType.has(x.type)) byType.set(x.type,[]); byType.get(x.type).push(x); });
+    const extraTypes=[...byType.keys()].filter(t=>!GB_TYPE_ORDER.includes(t)).sort();
+    return [...GB_TYPE_ORDER.filter(t=>byType.has(t)),...extraTypes].map(t=>[t,byType.get(t).sort((a,b)=>a.product.localeCompare(b.product))]);
+  }
+
   let html='';
   if(fresh.length){
-    html+=`<div style="border:1px solid #bfdbfe;border-radius:9px;overflow:hidden">
+    html+=`<div style="border:1px solid #bfdbfe;border-radius:9px;overflow:hidden;margin-bottom:10px">
       <div style="padding:8px 10px;background:#eff6ff;display:flex;align-items:center;justify-content:space-between;gap:8px">
         <b style="font-size:12px;color:#1d4ed8">⚙️ ยังไม่ได้ Adjust (${fresh.length})</b>
         <label style="font-size:10px;color:#2563eb;cursor:pointer"><input type="checkbox" onchange="toggleGlobalBiasGroup('fresh',this.checked)"> เลือกทั้งหมด</label>
       </div>
-      <div style="max-height:260px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#f8fafc"><th style="padding:6px;width:30px"></th><th style="text-align:left;padding:6px">Plant</th><th style="text-align:left;padding:6px">Product</th><th style="padding:6px">Parameter</th><th style="padding:6px">Bias</th><th style="padding:6px">วันที่</th></tr></thead><tbody>`;
-    html+=fresh.map((x,i)=>`<tr style="border-top:1px solid #e2e8f0"><td style="padding:5px;text-align:center"><input class="global-bias-cb" data-group="fresh" data-key="${globalBiasEsc(x.key)}" type="checkbox" checked></td><td style="padding:5px">${globalBiasEsc(x.label)}</td><td style="padding:5px">${globalBiasEsc(x.product)}</td><td style="padding:5px;text-align:center;font-family:monospace;font-weight:700">${globalBiasEsc(x.param)}</td><td style="padding:5px;text-align:center;font-family:monospace;font-weight:700;color:${x.bias>=0?'#16a34a':'#dc2626'}">${x.bias>=0?'+':''}${Number(x.bias).toFixed(3)}</td><td style="padding:5px;text-align:center;font-family:monospace">${globalBiasEsc(x.date)}</td></tr>`).join('');
-    html+=`</tbody></table></div></div>`;
+      <div style="max-height:320px;overflow:auto">`;
+    gbGroupByType(fresh).forEach(([typ,rows])=>{
+      const col=GB_TYPE_COLOR[typ]||'#94a3b8';
+      html+=`<div class="gb-type-block" data-gbtype="${globalBiasEsc(typ)}">
+      <div style="background:${col}18;border-left:4px solid ${col};padding:5px 10px;font-size:11px;font-weight:700;color:${col};display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span>${GB_TYPE_LABEL[typ]||typ} <span style="opacity:.7;font-weight:400">${rows.length} รายการ</span></span>
+        <label style="font-size:10px;font-weight:600;cursor:pointer;color:${col}"><input type="checkbox" onchange="toggleGlobalBiasGroupType('fresh','${globalBiasEsc(typ)}',this.checked)" checked> เลือกกลุ่มนี้</label>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#f8fafc"><th style="padding:6px;width:30px"></th><th style="text-align:left;padding:6px">Plant</th><th style="text-align:left;padding:6px">Product</th><th style="padding:6px">Parameter</th><th style="padding:6px">Bias</th><th style="padding:6px">วันที่</th></tr></thead><tbody>`;
+      html+=rows.map(x=>`<tr style="border-top:1px solid #e2e8f0"><td style="padding:5px;text-align:center"><input class="global-bias-cb" data-group="fresh" data-type="${globalBiasEsc(x.type)}" data-key="${globalBiasEsc(x.key)}" type="checkbox" checked></td><td style="padding:5px">${globalBiasEsc(x.label)}</td><td style="padding:5px">${globalBiasEsc(x.product)}</td><td style="padding:5px;text-align:center;font-family:monospace;font-weight:700">${globalBiasEsc(x.param)}</td><td style="padding:5px;text-align:center;font-family:monospace;font-weight:700;color:${x.bias>=0?'#16a34a':'#dc2626'}">${x.bias>=0?'+':''}${Number(x.bias).toFixed(3)}</td><td style="padding:5px;text-align:center;font-family:monospace">${globalBiasEsc(x.date)}</td></tr>`).join('');
+      html+=`</tbody></table></div>`;
+    });
+    html+=`</div></div>`;
   }
   if(pending.length){
     html+=`<div style="border:1px solid #fde68a;border-radius:9px;overflow:hidden">
@@ -1820,12 +1912,40 @@ function openGlobalBiasManager(){
         <b style="font-size:12px;color:#b45309">⏳ รอ Approve ขั้นที่ 2 (${pending.length})</b>
         <label style="font-size:10px;color:#b45309;cursor:pointer"><input type="checkbox" onchange="toggleGlobalBiasGroup('pending',this.checked)"> เลือกทั้งหมด</label>
       </div>
-      <div style="max-height:220px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#f8fafc"><th style="padding:6px;width:30px"></th><th style="text-align:left;padding:6px">Plant</th><th style="text-align:left;padding:6px">Product</th><th style="padding:6px">Parameter</th><th style="padding:6px">ผู้อนุมัติ</th></tr></thead><tbody>`;
-    html+=pending.map(x=>`<tr style="border-top:1px solid #e2e8f0"><td style="padding:5px;text-align:center"><input class="global-bias-cb" data-group="pending" data-key="${globalBiasEsc(x.key)}" type="checkbox"></td><td style="padding:5px">${globalBiasEsc(x.label)}</td><td style="padding:5px">${globalBiasEsc(x.product)}</td><td style="padding:5px;text-align:center;font-family:monospace;font-weight:700">${globalBiasEsc(x.param)}</td><td style="padding:5px">${globalBiasEsc(x.approvals.map(a=>a.name).join(', '))}</td></tr>`).join('');
-    html+=`</tbody></table></div></div>`;
+      <div style="max-height:280px;overflow:auto">`;
+    gbGroupByType(pending).forEach(([typ,rows])=>{
+      const col=GB_TYPE_COLOR[typ]||'#94a3b8';
+      html+=`<div class="gb-type-block" data-gbtype="${globalBiasEsc(typ)}">
+      <div style="background:${col}18;border-left:4px solid ${col};padding:5px 10px;font-size:11px;font-weight:700;color:${col};display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span>${GB_TYPE_LABEL[typ]||typ} <span style="opacity:.7;font-weight:400">${rows.length} รายการ</span></span>
+        <label style="font-size:10px;font-weight:600;cursor:pointer;color:${col}"><input type="checkbox" onchange="toggleGlobalBiasGroupType('pending','${globalBiasEsc(typ)}',this.checked)"> เลือกกลุ่มนี้</label>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#f8fafc"><th style="padding:6px;width:30px"></th><th style="text-align:left;padding:6px">Plant</th><th style="text-align:left;padding:6px">Product</th><th style="padding:6px">Parameter</th><th style="padding:6px">ผู้อนุมัติ</th></tr></thead><tbody>`;
+      html+=rows.map(x=>`<tr style="border-top:1px solid #e2e8f0"><td style="padding:5px;text-align:center"><input class="global-bias-cb" data-group="pending" data-type="${globalBiasEsc(x.type)}" data-key="${globalBiasEsc(x.key)}" type="checkbox"></td><td style="padding:5px">${globalBiasEsc(x.label)}</td><td style="padding:5px">${globalBiasEsc(x.product)}</td><td style="padding:5px;text-align:center;font-family:monospace;font-weight:700">${globalBiasEsc(x.param)}</td><td style="padding:5px">${globalBiasEsc(x.approvals.map(a=>a.name).join(', '))}</td></tr>`).join('');
+      html+=`</tbody></table></div>`;
+    });
+    html+=`</div></div>`;
   }
   if(!html) html='<div style="padding:30px;text-align:center;color:#64748b">✅ ไม่มีรายการที่ต้อง Adjust / Approve แล้ว</div>';
   list.innerHTML=html;
+
+  // ── แถบ label เลือกชนิดสินค้าด้านบน (กรองการแสดงผล ไม่กระทบรายการที่เลือกไว้) ──
+  const presentTypes=[...new Set([...fresh,...pending].map(x=>x.type))];
+  const orderedPresent=[...GB_TYPE_ORDER.filter(t=>presentTypes.includes(t)),...presentTypes.filter(t=>!GB_TYPE_ORDER.includes(t))];
+  const chipsEl=document.getElementById('globalBiasTypeChips');
+  if(orderedPresent.length){
+    let chipsHtml=`<button type="button" class="gb-type-chip active" data-chip-type="__all__" onclick="gbFilterByType('__all__')" style="border:1.5px solid #94a3b8;background:#94a3b822;color:#475569;border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">ทั้งหมด</button>`;
+    chipsHtml+=orderedPresent.map(typ=>{
+      const col=GB_TYPE_COLOR[typ]||'#94a3b8';
+      return `<button type="button" class="gb-type-chip" data-chip-type="${globalBiasEsc(typ)}" onclick="gbFilterByType('${globalBiasEsc(typ)}')" style="border:1.5px solid ${col};background:${col}18;color:${col};border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">${GB_TYPE_LABEL[typ]||typ}</button>`;
+    }).join('');
+    chipsEl.innerHTML=chipsHtml;
+    chipsEl.style.display='flex';
+  }else{
+    chipsEl.innerHTML='';
+    chipsEl.style.display='none';
+  }
+  gbFilterByType('__all__');
   const panel=document.getElementById('globalBiasActionPanel'); panel.style.display=(fresh.length||pending.length)?'block':'none';
   document.getElementById('globalBiasDate').value=fmtDDMMYYYY(new Date());
   bindDateMask('globalBiasDate');
@@ -1836,6 +1956,22 @@ function openGlobalBiasManager(){
 
 function toggleGlobalBiasGroup(group,on){
   document.querySelectorAll(`.global-bias-cb[data-group="${group}"]`).forEach(cb=>cb.checked=on);
+}
+
+function toggleGlobalBiasGroupType(group,type,on){
+  document.querySelectorAll(`.global-bias-cb[data-group="${group}"][data-type="${type}"]`).forEach(cb=>cb.checked=on);
+}
+
+function gbFilterByType(typ){
+  document.querySelectorAll('.gb-type-block').forEach(el=>{
+    el.style.display=(typ==='__all__'||el.dataset.gbtype===typ)?'':'none';
+  });
+  document.querySelectorAll('.gb-type-chip').forEach(btn=>{
+    const active=btn.dataset.chipType===typ;
+    btn.style.fontWeight=active?'800':'700';
+    btn.style.boxShadow=active?'inset 0 0 0 1.5px currentColor':'none';
+    btn.style.opacity=active?'1':'.75';
+  });
 }
 
 function getGlobalBiasSelected(group){
