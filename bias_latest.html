@@ -289,6 +289,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button id="globalBiasApplyBtn" onclick="bulkApplyBiasStage1()" style="background:#2563eb;color:#fff;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-family:var(--font);font-size:12px">⚙️ Adjust + Approve ขั้นที่ 1</button>
         <button id="globalBiasApproveBtn" onclick="bulkApproveBiasStage2()" style="background:#16a34a;color:#fff;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-family:var(--font);font-size:12px">✔ Approve ขั้นที่ 2</button>
+        <button id="globalBiasUndoBtn" onclick="bulkUndoBiasStage()" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-family:var(--font);font-size:12px">✕ ยกเลิกที่เลือก</button>
       </div>
     </div>
   </div>
@@ -773,14 +774,6 @@ async function loadData(){
     RAW_MANUAL=(data.manual_records||[]).map(r=>norm(r,'manual'));
     RAW_CORR  =data.corrections||{};
     APPROVALS =data.approvals||{};
-    // ซ่อน/ตัด Approve ที่เป็น Mintra ออกจากหน้า Bias_latest โดยเฉพาะ
-    // ไม่ลบข้อมูล Correction / Adjust Bias และไม่กระทบชื่อผู้ Install
-    // ใช้กรองเฉพาะ approval ที่มีผู้อนุมัติชื่อ Mintra (ไม่สนตัวพิมพ์เล็ก/ใหญ่)
-    APPROVALS = Object.fromEntries(
-      Object.entries(APPROVALS).filter(([k,a]) =>
-        String(a?.approver||'').trim().toLowerCase() !== 'mintra'
-      )
-    );
     BIAS_APPLIED=data.biasApplied||{};
     // ถ้ามี Product/Parameter ที่ผู้ใช้แก้ไขเองไว้ในฐานข้อมูลแล้ว ให้ใช้ค่านั้นแทนค่า default
     if(data.product_groups && Object.keys(data.product_groups).length) PRODUCT_GROUPS=data.product_groups;
@@ -1756,6 +1749,51 @@ async function doApprove(){
 document.getElementById('apModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeApprove();});
 document.getElementById('apName').addEventListener('keydown',e=>{if(e.key==='Enter')doApprove();});
 
+// ── ยกเลิก Adjust/Approve ขั้นที่ 1 ของ Bias รายพารามิเตอร์ (เผื่อกดผิด) ──────────
+async function undoBiasStage(rawApplyKey){
+  const applied=BIAS_APPLIED[rawApplyKey];
+  if(!applied){alert('ไม่พบรายการนี้แล้ว (อาจถูกยกเลิกไปแล้ว)');return;}
+  const approvals=applied.approvals||[];
+  const lastName=approvals.length?approvals[approvals.length-1].name:'';
+  if(!confirm(`ยืนยันยกเลิก Adjust/Approve ล่าสุดของ "${lastName||'รายการนี้'}" ?\n(ถ้าเป็นการ Approve ครั้งเดียว รายการนี้จะกลับไปเป็น "รอ Adjust")`)) return;
+  try{
+    const patched=await patchJB(data=>{
+      const biasApplied={...(data.biasApplied||{})};
+      const cur=biasApplied[rawApplyKey];
+      if(!cur) return {...data,biasApplied};
+      const curApprovals=cur.approvals||[];
+      if(curApprovals.length<=1){
+        // เหลือ approve เดียว → ยกเลิกแล้วลบรายการทิ้งทั้งหมด กลับไปเป็น "รอ Adjust"
+        delete biasApplied[rawApplyKey];
+      }else{
+        // ถอด approve ล่าสุดออกอันเดียว เหลือขั้นก่อนหน้าไว้
+        biasApplied[rawApplyKey]={...cur,approvals:curApprovals.slice(0,-1)};
+      }
+      return {...data,biasApplied};
+    });
+    BIAS_APPLIED=patched.biasApplied;
+    render();
+    if(typeof showSaveToast==='function') showSaveToast('✅ ยกเลิกเรียบร้อย'); else alert('✅ ยกเลิกเรียบร้อย');
+  }catch(e){alert('❌ ยกเลิกไม่สำเร็จ: '+e.message);}
+}
+
+
+async function unapproveItem(apKey, prd, label){
+  if(!apKey) return;
+  const approver=(APPROVALS[apKey]&&APPROVALS[apKey].approver)||'';
+  if(!confirm(`ยืนยันยกเลิกการ Approve ของ "${approver}" สำหรับ ${prd} (${label}) ?`)) return;
+  try{
+    const patched=await patchJB(data=>{
+      const approvals={...(data.approvals||{})};
+      delete approvals[apKey];
+      return {...data,approvals};
+    });
+    APPROVALS=patched.approvals;
+    render();
+    showSaveToast? showSaveToast(`✅ ยกเลิก Approve ของ ${prd} เรียบร้อย`) : alert('✅ ยกเลิก Approve เรียบร้อย');
+  }catch(e){alert('❌ ยกเลิกไม่สำเร็จ: '+e.message);}
+}
+
 // ── Edit Record ───────────────────────────────────────────────────────────────
 let _editId='';
 
@@ -2001,8 +2039,7 @@ function openGlobalBiasManager(){
         <b style="font-size:12px;color:#b45309">⏳ รอ Approve ขั้นที่ 2 (${pending.length})</b>
         <label style="font-size:10px;color:#b45309;cursor:pointer"><input type="checkbox" onchange="toggleGlobalBiasGroup('pending',this.checked)"> เลือกทั้งหมด</label>
       </div>
-      <div style="max-height:280px;overflow:auto">`;
-    gbGroupByType(pending).forEach(([typ,rows])=>{
+      <div style="max-height:280px;overflow:auto">`;    gbGroupByType(pending).forEach(([typ,rows])=>{
       const col=GB_TYPE_COLOR[typ]||'#94a3b8';
       html+=`<div class="gb-type-block" data-gbtype="${globalBiasEsc(typ)}">
       <div style="background:${col}18;border-left:4px solid ${col};padding:5px 10px;font-size:11px;font-weight:700;color:${col};display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -2066,6 +2103,34 @@ function gbFilterByType(typ){
 function getGlobalBiasSelected(group){
   const keys=[...document.querySelectorAll(`.global-bias-cb[data-group="${group}"]:checked`)].map(cb=>cb.dataset.key);
   return GLOBAL_BIAS_ITEMS.filter(x=>keys.includes(x.key));
+}
+
+async function bulkUndoBiasStage(){
+  const items=getGlobalBiasSelected('pending');
+  if(!items.length){alert('กรุณาเลือกรายการที่ต้องการยกเลิก (ติ๊กในช่อง "รอ Approve ขั้นที่ 2") อย่างน้อย 1 รายการ');return;}
+  if(!confirm(`ยืนยันยกเลิก Adjust/Approve ${items.length} รายการที่เลือก?\n(รายการที่ Approve ครั้งเดียวจะกลับไปเป็น "รอ Adjust" ทั้งหมด)`)) return;
+  const btn=document.getElementById('globalBiasUndoBtn'); btn.disabled=true; btn.textContent='⏳ กำลังยกเลิก...';
+  try{
+    const patched=await patchJB(data=>{
+      const biasApplied={...(data.biasApplied||{})};
+      items.forEach(x=>{
+        const cur=biasApplied[x.key];
+        if(!cur)return;
+        const approvals=cur.approvals||[];
+        if(approvals.length<=1){
+          delete biasApplied[x.key];
+        }else{
+          biasApplied[x.key]={...cur,approvals:approvals.slice(0,-1)};
+        }
+      });
+      return {...data,biasApplied};
+    });
+    BIAS_APPLIED=patched.biasApplied;
+    render();
+    openGlobalBiasManager();
+    showSaveToast(`✅ ยกเลิกเรียบร้อย ${items.length} รายการ`);
+  }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
+  btn.disabled=false; btn.textContent='✕ ยกเลิกที่เลือก';
 }
 
 async function bulkApplyBiasStage1(){
