@@ -762,6 +762,14 @@ async function loadData(){
     RAW_MANUAL=(data.manual_records||[]).map(r=>norm(r,'manual'));
     RAW_CORR  =data.corrections||{};
     APPROVALS =data.approvals||{};
+    // ซ่อน/ตัด Approve ที่เป็น Mintra ออกจากหน้า Bias_latest โดยเฉพาะ
+    // ไม่ลบข้อมูล Correction / Adjust Bias และไม่กระทบชื่อผู้ Install
+    // ใช้กรองเฉพาะ approval ที่มีผู้อนุมัติชื่อ Mintra (ไม่สนตัวพิมพ์เล็ก/ใหญ่)
+    APPROVALS = Object.fromEntries(
+      Object.entries(APPROVALS).filter(([k,a]) =>
+        String(a?.approver||'').trim().toLowerCase() !== 'mintra'
+      )
+    );
     BIAS_APPLIED=data.biasApplied||{};
     // ถ้ามี Product/Parameter ที่ผู้ใช้แก้ไขเองไว้ในฐานข้อมูลแล้ว ให้ใช้ค่านั้นแทนค่า default
     if(data.product_groups && Object.keys(data.product_groups).length) PRODUCT_GROUPS=data.product_groups;
