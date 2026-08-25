@@ -397,6 +397,13 @@ const JB_WRITE_KEY = ''; // ใช้ Access Key ของชุด Bias ด้�
 const JB_URL_A = 'https://api.jsonbin.io/v3/b/'+JB_ID_A;
 const JB_URL_B = 'https://api.jsonbin.io/v3/b/'+JB_ID_B;
 const JB_URL_C = 'https://api.jsonbin.io/v3/b/'+JB_ID_C;
+
+// ── CORS Proxy ─────────────────────────────────────────────────────────────
+// JSONBin หยุดส่ง header Access-Control-Allow-Origin กลับมาให้โดเมนนี้ (central-lab-pcg.github.io)
+// ทำให้ browser บล็อก fetch ทุกครั้ง (Failed to fetch / CORS policy) ทั้งที่ Bin ID และ Access Key ถูกต้อง
+// แก้ชั่วคราวโดยส่ง request ผ่านตัวกลาง corsproxy.io ซึ่งรองรับโดเมน *.github.io แบบฟรี และเติม CORS header ให้เอง
+// ถ้า JSONBin แก้ปัญหาฝั่งเขาแล้วในอนาคต ลบฟังก์ชันนี้ออกและเปลี่ยน viaProxy(url) กลับเป็น url เฉยๆ ได้เลย
+function viaProxy(url){ return 'https://corsproxy.io/?url='+encodeURIComponent(url); }
 const BIN_A_KEYS = ['bias_records','manual_records'];
 const BIN_C_KEYS = ['biasApplied'];
 
@@ -411,7 +418,7 @@ const SUMMARY_JB_READKEY = '$2a$10$b9Qo1O9aMwMwNZo6tImEG.RG2P.7dnoKqfv/5SN0lAOz4
 
 async function fetchSummaryCorrections(){
   try{
-    const res=await fetch(SUMMARY_JB_URL+'/latest',{cache:'no-store',headers:{'X-Master-Key':SUMMARY_JB_READKEY,'X-Bin-Meta':'false'}});
+    const res=await fetch(viaProxy(SUMMARY_JB_URL+'/latest'),{cache:'no-store',headers:{'X-Master-Key':SUMMARY_JB_READKEY,'X-Bin-Meta':'false'}});
     if(!res.ok) return {};
     const j=await res.json();
     const rec=j.record||j;
@@ -475,7 +482,7 @@ async function fetchOneBin(url,label){
   // ใช้ query ?meta=false แทน X-Bin-Meta เพื่อลด CORS preflight headers
   let res;
   try{
-    res=await fetch(url+'/latest?meta=false',{cache:'no-store',mode:'cors',headers:{'X-Access-Key':JB_AK}});
+    res=await fetch(viaProxy(url+'/latest?meta=false'),{cache:'no-store',mode:'cors',headers:{'X-Access-Key':JB_AK}});
   }catch(e){
     throw new Error(`${label} เชื่อมต่อ JSONBin ไม่ได้ — ${e?.message||'Failed to fetch'} (ตรวจ Internet/Firewall/AdBlock และ Access Key)`);
   }
@@ -579,7 +586,7 @@ async function patchJB(mutatorFn, maxRetries=3){
       for(const [label,url,body] of jobs){
         let res;
         try{
-          res=await fetch(url,{method:'PUT',headers:putHeaders,body:JSON.stringify(body)});
+          res=await fetch(viaProxy(url),{method:'PUT',headers:putHeaders,body:JSON.stringify(body)});
         }catch(e){
           throw new Error(`${label} เชื่อมต่อ JSONBin ไม่ได้ — ${e?.message||'Failed to fetch'} (Network/CORS/Firewall)`);
         }
