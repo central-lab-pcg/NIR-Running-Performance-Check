@@ -472,7 +472,13 @@ async function syncSummaryCorrectionsOnly(){
 function hasBinC(){ return JB_ID_C && JB_ID_C !== 'PUT_BIN_C_ID_HERE'; }
 
 async function fetchOneBin(url,label){
-  const res=await fetch(url+'/latest',{cache:'no-store',headers:{'X-Access-Key':JB_AK,'X-Bin-Meta':'false'}});
+  // ใช้ query ?meta=false แทน X-Bin-Meta เพื่อลด CORS preflight headers
+  let res;
+  try{
+    res=await fetch(url+'/latest?meta=false',{cache:'no-store',mode:'cors',headers:{'X-Access-Key':JB_AK}});
+  }catch(e){
+    throw new Error(`${label} เชื่อมต่อ JSONBin ไม่ได้ — ${e?.message||'Failed to fetch'} (ตรวจ Internet/Firewall/AdBlock และ Access Key)`);
+  }
   if(!res.ok){
     let detail='';
     try{const j=await res.json(); detail=j.message||'';}catch(e){}
@@ -575,7 +581,7 @@ async function patchJB(mutatorFn, maxRetries=3){
         try{
           res=await fetch(url,{method:'PUT',headers:putHeaders,body:JSON.stringify(body)});
         }catch(e){
-          throw new Error(`${label} เชื่อมต่อ JSONBin ไม่ได้ (Network/CORS): ${e.message||e}`);
+          throw new Error(`${label} เชื่อมต่อ JSONBin ไม่ได้ — ${e?.message||'Failed to fetch'} (Network/CORS/Firewall)`);
         }
         if(!res.ok){
           let detail='';
