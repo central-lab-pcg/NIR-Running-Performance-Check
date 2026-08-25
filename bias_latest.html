@@ -449,12 +449,20 @@ function normalizeSummaryCorrections(corrections){
 }
 
 let SUMMARY_CORR_SIGNATURE='';
+// เก็บ correction "ของหน้า Bias เอง" (Bin B) ไว้เป็นฐานถาวร ไม่ให้ถูกเขียนทับหายไป
+// ทุกครั้งที่ sync จาก Summary จะเอาของ Summary มา "เสริม" ทับบนฐานนี้เท่านั้น ไม่ใช่แทนที่ทั้งหมด
+let OWN_CORR_BASE={};
 async function syncSummaryCorrectionsOnly(){
-  const latest=normalizeSummaryCorrections(await fetchSummaryCorrections());
+  const raw=await fetchSummaryCorrections();
+  // ป้องกันข้อมูลหายทั้งหน้า: ถ้าดึงจาก Summary ไม่สำเร็จ/ได้ค่าว่างผิดปกติ (เช่น เน็ตสะดุด, rate limit)
+  // ให้ข้ามรอบนี้ไปเลย ไม่เขียนทับ RAW_CORR ด้วยค่าว่าง
+  if(!raw||typeof raw!=='object'||!Object.keys(raw).length) return false;
+  const latest=normalizeSummaryCorrections(raw);
   const sig=JSON.stringify(latest);
   if(sig===SUMMARY_CORR_SIGNATURE) return false;
   SUMMARY_CORR_SIGNATURE=sig;
-  RAW_CORR=latest;
+  // merge: ฐานเดิมของหน้า Bias (Bin B) + ข้อมูลล่าสุดจาก Summary ทับ (ไม่ใช่แทนที่ทั้งก้อน)
+  RAW_CORR=Object.assign({},OWN_CORR_BASE,latest);
   render();
   return true;
 }
@@ -485,6 +493,9 @@ async function fetchMerged(){
   const parts=await Promise.all(requests);
   const summaryCorr=parts.pop(); // ผลลัพธ์ตัวสุดท้ายคือ corrections จาก Summary
   const merged=Object.assign({},...parts);
+  // เก็บ correction "ของหน้า Bias เอง" (ก่อน merge กับ Summary) ไว้เป็นฐาน
+  // ให้ตัว sync ทุก 10 วิ (syncSummaryCorrectionsOnly) ใช้ merge ต่อได้โดยไม่เขียนทับหาย
+  OWN_CORR_BASE=merged.corrections||{};
   merged.corrections=Object.assign({},merged.corrections||{},normalizeSummaryCorrections(summaryCorr||{}));
   return merged;
 }
