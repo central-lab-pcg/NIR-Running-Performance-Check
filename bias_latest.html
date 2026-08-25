@@ -420,6 +420,45 @@ async function fetchSummaryCorrections(){
   }
 }
 
+// แปลงค่า Adjust Bias จาก Summary ให้เป็นตัวเลขเสมอ
+// รองรับทั้ง number และ string เช่น 0.685 / +0.685 / -0.318
+function toBiasNumber(v){
+  if(typeof v==='number' && Number.isFinite(v)) return v;
+  if(typeof v==='string'){
+    const n=parseFloat(v.replace(/,/g,'').trim());
+    return Number.isFinite(n)?n:null;
+  }
+  return null;
+}
+
+// ทำความสะอาด Correction จาก Summary ก่อนนำไปคำนวณ
+function normalizeSummaryCorrections(corrections){
+  const out={};
+  Object.entries(corrections||{}).forEach(([key,v])=>{
+    if(!v) return;
+    const x={...v};
+    if(Array.isArray(v.biasAdj)){
+      x.biasAdj=v.biasAdj.map(p=>{
+        const n=toBiasNumber(p?.val);
+        return n===null?null:{...p,val:n};
+      }).filter(Boolean);
+    }
+    out[key]=x;
+  });
+  return out;
+}
+
+let SUMMARY_CORR_SIGNATURE='';
+async function syncSummaryCorrectionsOnly(){
+  const latest=normalizeSummaryCorrections(await fetchSummaryCorrections());
+  const sig=JSON.stringify(latest);
+  if(sig===SUMMARY_CORR_SIGNATURE) return false;
+  SUMMARY_CORR_SIGNATURE=sig;
+  RAW_CORR=latest;
+  render();
+  return true;
+}
+
 function hasBinC(){ return JB_ID_C && JB_ID_C !== 'PUT_BIN_C_ID_HERE'; }
 
 async function fetchOneBin(url,label){
@@ -446,7 +485,7 @@ async function fetchMerged(){
   const parts=await Promise.all(requests);
   const summaryCorr=parts.pop(); // ผลลัพธ์ตัวสุดท้ายคือ corrections จาก Summary
   const merged=Object.assign({},...parts);
-  merged.corrections=Object.assign({},merged.corrections||{},summaryCorr||{});
+  merged.corrections=Object.assign({},merged.corrections||{},normalizeSummaryCorrections(summaryCorr||{}));
   return merged;
 }
 
@@ -739,6 +778,19 @@ async function loadData(){
   }
 }
 
+// Sync เฉพาะ Correction จาก Summary ทุก 10 วินาที เพื่อให้ Adjust Bias ที่เพิ่งบันทึก
+// ถูกนำมาบวก/ลบใน Bias_latest โดยไม่ต้องรีเฟรชหน้า
+setInterval(()=>{ if(!document.hidden) syncSummaryCorrectionsOnly().catch(()=>{}); },10000);
+window.addEventListener('storage',e=>{
+  if(e.key==='SUMMARY_BIAS_SYNC') syncSummaryCorrectionsOnly().catch(()=>{});
+});
+try{
+  window.__biasSyncChannel=new BroadcastChannel('summary-bias-sync');
+  window.__biasSyncChannel.addEventListener('message',e=>{
+    if(e.data?.type==='SUMMARY_BIAS_SYNC') syncSummaryCorrectionsOnly().catch(()=>{});
+  });
+}catch(e){}
+
 function norm(r,src){
   const isFull=r.date!==undefined;
   return{
@@ -819,7 +871,25 @@ function getAllEvents(){
     // ถ้ารายการนี้เป็นแค่ note ที่พิมพ์เอง (ไม่มี biasAdj) ให้ข้ามไปเลย ไม่ต้องดึงมาแสดงเป็นค่า Bias
     const params={};
     if(Array.isArray(v.biasAdj)&&v.biasAdj.length){
-      v.biasAdj.forEach(({par,val})=>{ if(par&&typeof val==='number') params[par]=val; });
+      // ข้อมูลใหม่: ใช้ biasAdj ที่ Summary บันทึกเป็นโครงสร้างโดยตรง
+      v.biasAdj.forEach(({par,val})=>{
+        const n=toBiasNumber(val);
+        if(par&&n!==null) params[par]=n;
+      });
+    }
+
+    // ── Legacy Correction: ดึงข้อมูลเก่า JUN/JUL จาก Summary ────────────────
+    // Correction รุ่นเก่าบางรายการยังไม่มี field biasAdj แต่มีข้อความ เช่น
+    // "Adjust Bias CP +0.685" อยู่ใน text เท่านั้น จึงต้องอ่านตัวเลขจาก text
+    // เพื่อไม่ให้ข้อมูลเก่าเดือน JUN/JUL หายจาก Bias_latest
+    if(!Object.keys(params).length){
+      const legacyText=String(v.text||'');
+      const re=/Adjust\s+Bias\s+([A-Za-z][A-Za-z0-9_-]*)\s+([+\-]?\d+(?:\.\d+)?)/gi;
+      let m;
+      while((m=re.exec(legacyText))!==null){
+        const n=toBiasNumber(m[2]);
+        if(m[1]&&n!==null) params[m[1]]=n;
+      }
     }
     if(!Object.keys(params).length)return;
     evts.push({date,month:date.slice(0,7),product:prd,label,params,is_install:false,
