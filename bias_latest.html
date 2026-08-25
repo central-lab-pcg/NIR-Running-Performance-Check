@@ -392,7 +392,8 @@ const JB_ID_A = '6a8bfeb1da38895dfe09a3cd';
 const JB_ID_B = '6a8bfecbda38895dfe09a454';
 // สร้าง Bin ชื่อ NIR-BIAS-C แล้วนำ Bin ID มาใส่ตรงนี้
 const JB_ID_C = 'PUT_BIN_C_ID_HERE';
-const JB_MK   = '';
+const JB_MK   = '$2a$10$b9Qo1O9aMwMwNZo6tImEG.RG2P.7dnoKqfv/5SN0lAOz4G6ipFSe.';
+const JB_WRITE_KEY = JB_MK || JB_AK;
 const JB_URL_A = 'https://api.jsonbin.io/v3/b/'+JB_ID_A;
 const JB_URL_B = 'https://api.jsonbin.io/v3/b/'+JB_ID_B;
 const JB_URL_C = 'https://api.jsonbin.io/v3/b/'+JB_ID_C;
@@ -471,7 +472,7 @@ async function syncSummaryCorrectionsOnly(){
 function hasBinC(){ return JB_ID_C && JB_ID_C !== 'PUT_BIN_C_ID_HERE'; }
 
 async function fetchOneBin(url,label){
-  const res=await fetch(url+'/latest',{cache:'no-store',headers:{'X-Access-Key':JB_AK,'X-Bin-Meta':'false'}});
+  const res=await fetch(url+'/latest',{cache:'no-store',headers:{...(JB_WRITE_KEY?{'X-Master-Key':JB_WRITE_KEY}:{'X-Access-Key':JB_AK}),'X-Bin-Meta':'false'}});
   if(!res.ok){
     let detail='';
     try{const j=await res.json(); detail=j.message||'';}catch(e){}
@@ -554,7 +555,7 @@ async function patchJB(mutatorFn, maxRetries=3){
         throw new Error('ยังไม่ได้ตั้งค่า Bin C — กรุณาสร้าง Bin ชื่อ NIR-BIAS-C แล้วใส่ Bin ID ในตัวแปร JB_ID_C');
       }
 
-      const putHeaders={'Content-Type':'application/json','X-Access-Key':JB_AK};
+      const putHeaders={'Content-Type':'application/json',...(JB_WRITE_KEY?{'X-Master-Key':JB_WRITE_KEY}:{'X-Access-Key':JB_AK})};
       const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
       const oldA={}, oldB={}, oldC={};
       for(const k of Object.keys(data1)){
@@ -570,7 +571,12 @@ async function patchJB(mutatorFn, maxRetries=3){
       if(hasBinC() && !same(oldC,partC)) jobs.push(['Bin C',JB_URL_C,partC]);
 
       for(const [label,url,body] of jobs){
-        const res=await fetch(url,{method:'PUT',headers:putHeaders,body:JSON.stringify(body)});
+        let res;
+        try{
+          res=await fetch(url,{method:'PUT',headers:putHeaders,body:JSON.stringify(body)});
+        }catch(e){
+          throw new Error(`${label} เชื่อมต่อ JSONBin ไม่ได้ (Network/CORS): ${e.message||e}`);
+        }
         if(!res.ok){
           let detail='';
           try{const errJson=await res.json(); detail=errJson.message||'';}catch(eParse){}
