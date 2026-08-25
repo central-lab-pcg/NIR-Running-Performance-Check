@@ -792,7 +792,7 @@ async function loadData(){
 
 // Sync เฉพาะ Correction จาก Summary ทุก 10 วินาที เพื่อให้ Adjust Bias ที่เพิ่งบันทึก
 // ถูกนำมาบวก/ลบใน Bias_latest โดยไม่ต้องรีเฟรชหน้า
-setInterval(()=>{ if(!document.hidden) syncSummaryCorrectionsOnly().catch(()=>{}); },10000);
+setInterval(()=>{ if(!document.hidden) syncSummaryCorrectionsOnly().catch(()=>{}); },60000);
 window.addEventListener('storage',e=>{
   if(e.key==='SUMMARY_BIAS_SYNC') syncSummaryCorrectionsOnly().catch(()=>{});
 });
