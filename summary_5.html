@@ -307,9 +307,11 @@ const JSONBIN_URL    = 'https://api.jsonbin.io/v3/b/' + JSONBIN_ID;
 
 // ── CORS Proxy ─────────────────────────────────────────────────────────────
 // JSONBin หยุดส่ง header Access-Control-Allow-Origin กลับมาให้โดเมนนี้ (central-lab-pcg.github.io)
-// แก้ชั่วคราวโดยส่ง request ผ่านตัวกลาง corsproxy.io ซึ่งรองรับโดเมน *.github.io แบบฟรี และเติม CORS header ให้เอง
-// ถ้า JSONBin แก้ปัญหาฝั่งเขาแล้วในอนาคต ลบฟังก์ชันนี้ออกและเปลี่ยน viaProxy(url) กลับเป็น url เฉยๆ ได้เลย
-function viaProxy(url){ return 'https://corsproxy.io/?url='+encodeURIComponent(url); }
+// แก้โดยส่ง request ผ่าน Cloudflare Worker ของเราเอง (ดูไฟล์ jsonbin-proxy-worker.js) แทนบริการ proxy ฟรีของคนนอก
+// เพราะ corsproxy.io ถูกบล็อกระดับ DNS ในบางเครือข่าย (ERR_NAME_NOT_RESOLVED)
+// **ต้องแก้ WORKER_URL ด้านล่างเป็น URL จริงหลัง deploy Worker แล้ว (เช่น https://xxxx.workers.dev) — ใช้ตัวเดียวกับใน bias_latest.html**
+const WORKER_URL = 'https://silent-firefly-262f.imguy2727.workers.dev';
+function viaProxy(url){ return WORKER_URL+'/?url='+encodeURIComponent(url); }
 
 // cache สั้น ๆ (in-memory) กันไม่ให้ยิง request ซ้ำจำนวนมากตอน render ตาราง (เดิมยิง 1 ครั้งต่อแถวสินค้า ไม่มี cache เลย)
 // force=true (ใช้ตอนอ่านก่อนเขียน/verify ใน cSaveShared/cDeleteShared) จะข้าม cache เสมอเพื่อความถูกต้อง

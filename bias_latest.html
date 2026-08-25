@@ -401,9 +401,11 @@ const JB_URL_C = 'https://api.jsonbin.io/v3/b/'+JB_ID_C;
 // ── CORS Proxy ─────────────────────────────────────────────────────────────
 // JSONBin หยุดส่ง header Access-Control-Allow-Origin กลับมาให้โดเมนนี้ (central-lab-pcg.github.io)
 // ทำให้ browser บล็อก fetch ทุกครั้ง (Failed to fetch / CORS policy) ทั้งที่ Bin ID และ Access Key ถูกต้อง
-// แก้ชั่วคราวโดยส่ง request ผ่านตัวกลาง corsproxy.io ซึ่งรองรับโดเมน *.github.io แบบฟรี และเติม CORS header ให้เอง
-// ถ้า JSONBin แก้ปัญหาฝั่งเขาแล้วในอนาคต ลบฟังก์ชันนี้ออกและเปลี่ยน viaProxy(url) กลับเป็น url เฉยๆ ได้เลย
-function viaProxy(url){ return 'https://corsproxy.io/?url='+encodeURIComponent(url); }
+// แก้โดยส่ง request ผ่าน Cloudflare Worker ของเราเอง (ดูไฟล์ jsonbin-proxy-worker.js) แทนบริการ proxy ฟรีของคนนอก
+// เพราะ corsproxy.io ถูกบล็อกระดับ DNS ในบางเครือข่าย (ERR_NAME_NOT_RESOLVED)
+// **ต้องแก้ WORKER_URL ด้านล่างเป็น URL จริงหลัง deploy Worker แล้ว (เช่น https://xxxx.workers.dev)**
+const WORKER_URL = 'https://silent-firefly-262f.imguy2727.workers.dev';
+function viaProxy(url){ return WORKER_URL+'/?url='+encodeURIComponent(url); }
 const BIN_A_KEYS = ['bias_records','manual_records'];
 const BIN_C_KEYS = ['biasApplied'];
 
