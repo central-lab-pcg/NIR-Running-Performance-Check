@@ -316,7 +316,10 @@ function viaProxy(url){ return WORKER_URL+'/?url='+encodeURIComponent(url); }
 // cache สั้น ๆ (in-memory) กันไม่ให้ยิง request ซ้ำจำนวนมากตอน render ตาราง (เดิมยิง 1 ครั้งต่อแถวสินค้า ไม่มี cache เลย)
 // force=true (ใช้ตอนอ่านก่อนเขียน/verify ใน cSaveShared/cDeleteShared) จะข้าม cache เสมอเพื่อความถูกต้อง
 let _corrCache=null; // {data, ts}
-const CORR_CACHE_TTL=4000; // ms
+const CORR_CACHE_TTL=60000; // ms — เดิม 4000 (4 วิ) แทบไม่ช่วยลด request เลย เพิ่มเป็น 60 วิ (1 นาที)
+// เพื่อลดจำนวน request ไป JSONBin ลงมาก เพราะ Free tier มี hard-cap โควตารวม ไม่ใช่รายเดือน
+// การแสดงผลค่า correction ล่าช้าได้สูงสุด 1 นาทีไม่กระทบการใช้งานจริง ส่วนตอนบันทึก (cSaveShared/cDeleteShared)
+// ยังคง force ข้าม cache เหมือนเดิมทุกจุด เพื่อความถูกต้องตอนเขียนข้อมูล ไม่ได้แก้ตรงนั้น
 
 async function corrGetAll(force) {
   const now=Date.now();
@@ -408,7 +411,10 @@ function cKeyLegacy(p, m, eqp, src) {
 }
 
 async function cLoad(p, m, eqp, src, plant) {
-  const all = await corrGetAll(true);
+  // ใช้ cache แทน force=true เดิม — การเปิดดูกราฟ/รายละเอียด ไม่จำเป็นต้องข้อมูลสดทุกครั้ง
+  // ใช้ cache ได้ตามค่า CORR_CACHE_TTL (1 นาที) ช่วยลดจำนวน request ไป JSONBin ลงมาก
+  // ส่วนตอนบันทึกจริง (cSaveShared/cDeleteShared) ยัง force=true เหมือนเดิมทุกจุด ไม่กระทบความถูกต้องตอนเขียนข้อมูล
+  const all = await corrGetAll();
   let d = all[cKey(p, m, eqp, src, plant)] || all[cKeyLegacy(p, m, eqp, src)] || null;
   // ข้อมูลเก่า (key แบบไม่มี Plant) ยังมี "plant" เก็บไว้เป็น metadata — เช็กซ้ำว่าตรงกับ Plant ที่ต้องการจริงหรือไม่
   if(d && plant && d.plant && d.plant!==plant) d=null;

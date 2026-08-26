@@ -608,10 +608,31 @@ async function patchJB(mutatorFn, maxRetries=3){
 
 // ── Type detection จากชื่อ Product ──────────────────────────────────────────
 // เดิมใช้ Set แยกฮาร์ดโค้ด (FG_PRODUCTS/RM_PRODUCTS/...) — ตอนนี้ยึด PRODUCT_GROUPS (แก้ไขได้เองผ่านหน้า ⚙️ จัดการ) เป็นแหล่งเดียว
+//
+// เดิมจับคู่ชื่อ Product แบบ exact-match เป๊ะๆ เท่านั้น ทำให้ชื่อที่พิมพ์ต่างกันเล็กน้อย
+// (เช่น "RB S" กับ "RB,S", "Br, P" กับ "Br,P", หรือสลับลำดับคำอย่าง "RB ext , F" กับ "RB,F,Ext")
+// ไม่ถูกจับว่าเป็น Product เดียวกัน แล้วตกไปอยู่กลุ่ม "Other" ทั้งที่จริงควรอยู่กลุ่ม RM/FG/... ตามปกติ
+// แก้โดยเพิ่มการเทียบแบบ "normalize" (ตัดช่องว่าง/คอมม่า, ตัวพิมพ์เล็กหมด, เรียงตัวอักษรคำใหม่) เป็นชั้นสำรอง
+// ถ้า exact-match ไม่เจอ ก่อนจะปล่อยตกไป Other — ไม่กระทบ exact-match เดิมที่ยังทำงานเป็นค่าเริ่มต้นก่อนเสมอ
+function _pgNormKey(s){
+  return (s||'').toLowerCase().split(/[\s,]+/).filter(Boolean).sort().join(',');
+}
+let _pgNormMapCache=null, _pgNormMapFor=null;
+function _pgNormMap(){
+  if(_pgNormMapFor===PRODUCT_GROUPS) return _pgNormMapCache;
+  const map={};
+  for(const grp of Object.keys(PRODUCT_GROUPS)){
+    (PRODUCT_GROUPS[grp]||[]).forEach(name=>{ map[_pgNormKey(name)]=grp; });
+  }
+  _pgNormMapCache=map; _pgNormMapFor=PRODUCT_GROUPS;
+  return map;
+}
 function guessType(product, type_val){
   for(const grp of Object.keys(PRODUCT_GROUPS)){
     if(PRODUCT_GROUPS[grp].includes(product)) return grp;
   }
+  const normHit=_pgNormMap()[_pgNormKey(product)];
+  if(normHit) return normHit;
   if(type_val&&type_val!=='') return type_val;
   const p=(product||'').toLowerCase();
   if(p.includes('kibble')||p.includes('mix2')||p.includes('pocket')) return 'FG';
@@ -813,7 +834,10 @@ async function loadData(){
 
 // Sync เฉพาะ Correction จาก Summary ทุก 10 วินาที เพื่อให้ Adjust Bias ที่เพิ่งบันทึก
 // ถูกนำมาบวก/ลบใน Bias_latest โดยไม่ต้องรีเฟรชหน้า
-setInterval(()=>{ if(!document.hidden) syncSummaryCorrectionsOnly().catch(()=>{}); },60000);
+// sync correction จาก Summary ทุก 5 นาที (เดิม 60 วิ) — ลดจำนวน request ไป JSONBin ลง 5 เท่า
+// เพราะ request ทุกก้อนกินโควตา Free tier ของ JSONBin (มี hard-cap รวม ไม่ใช่รายเดือน) ถ้า tab เปิดค้างไว้นานๆ จะยิงถี่เกินจำเป็น
+// ค่า correction ไม่ได้เปลี่ยนบ่อยขนาดต้องอัปเดตทุกนาที การรอ 5 นาทีไม่กระทบการใช้งานจริง
+setInterval(()=>{ if(!document.hidden) syncSummaryCorrectionsOnly().catch(()=>{}); },300000);
 window.addEventListener('storage',e=>{
   if(e.key==='SUMMARY_BIAS_SYNC') syncSummaryCorrectionsOnly().catch(()=>{});
 });
