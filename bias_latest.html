@@ -971,9 +971,21 @@ function calcLatest(evts){
     if(evt.type_val) rec.type_val=evt.type_val;
 
     if(evt.is_install){
-      // แก้บั๊ก: เดิมรีเซ็ตค่าสะสม (state) ของ "ทุก Parameter" ของสินค้านี้เป็น 0 ทันทีที่มี Install ใหม่
-      // ทั้งที่ Install รอบนั้นอาจไม่ได้กรอกค่าพารามิเตอร์นั้นไว้เลย ทำให้ยอดสะสมของพารามิเตอร์ที่ไม่เกี่ยวข้องหายไปโดยไม่มีเหตุผล
-      // ตอนนี้รีเซ็ต/ตั้งค่าเฉพาะพารามิเตอร์ที่มีอยู่จริงใน evt.params ของ Install รอบนั้นเท่านั้น พารามิเตอร์อื่นสะสมต่อเนื่องตามปกติ
+      // ── "ติดตั้งสมการใหม่ — Bias รีเซ็ตเป็น 0" ────────────────────────────────
+      // เดิม (คอมเมนต์เก่า) เคยแก้ให้รีเซ็ตเฉพาะ Parameter ที่กรอกค่าไว้ใน Install รอบนั้นเท่านั้น เพื่อไม่ให้ Parameter
+      // อื่นที่ไม่เกี่ยวข้องถูกรีเซ็ตทิ้งไปด้วย — แต่ Install ส่วนใหญ่ไม่ได้กรอกค่า Bias เลย (ดูจากหน้า "ประวัติ Install" ที่ขึ้น
+      // "— (ไม่มีค่า Bias ผูกไว้)") ผลคือไม่มีอะไรถูกรีเซ็ตเลยสักครั้ง ค่า Bias เก่าก่อนหน้า Install ใหม่เลยยังค้างแสดงอยู่
+      // ทั้งที่ checkbox บอกไว้ชัดเจนว่า "รีเซ็ตเป็น 0" แก้กลับให้รีเซ็ตทุก Parameter ที่เคยมีอยู่ก่อนหน้าของสินค้านี้เป็น 0
+      // เสมอเมื่อมี Install ใหม่ ยกเว้น Parameter ที่ Install รอบนั้นกรอกค่ามาเองโดยตรง (จะใช้ค่าที่กรอกแทน 0)
+      const filledParams=new Set(Object.keys(evt.params));
+      Object.keys(rec.params).forEach(p=>{
+        if(filledParams.has(p)) return;
+        const sk=`${lpKey}|${p}`;
+        state[sk]=0;
+        rec.params[p].bias=0; rec.params[p].date=evt.date;
+        rec.params[p].adjuster=evt.adjuster; rec.params[p].reviewer=evt.reviewer||'';
+        rec.params[p].history.push({date:evt.date,bias:0,delta:0,install:true,adjuster:evt.adjuster,_id:evt._id||'',_src:evt._src||'',_corrKey:evt._corrKey||''});
+      });
       Object.entries(evt.params).forEach(([p,delta])=>{ state[`${lpKey}|${p}`]=delta; });
       rec.install={date:evt.date, adjuster:evt.adjuster};
       rec.installHistory.push({date:evt.date,adjuster:evt.adjuster,note:evt.note||'',params:{...evt.params},_id:evt._id||'',_src:evt._src||''});
