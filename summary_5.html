@@ -297,21 +297,12 @@ table.sum tbody tr:hover td.td-corr{background:#fff}
 const DATA_URL="https://central-lab-pcg.github.io/NIR-Running-Performance-Check/data.json";
 const DATA_URL2="https://central-lab-pcg.github.io/NIR-Running-Performance-Check/data2.json";
 
-// ── Shared Correction Storage (JSONBin.io) ────────────────────────────────────
-// แยกเป็น 2 Bin แล้ว — หน้านี้ใช้แค่คีย์ "corrections" ซึ่งย้ายไปอยู่ Bin B (ข้อมูลตั้งค่า/ปรับแก้)
-// Bin A (bias_records/manual_records) อยู่คนละ bin แล้ว ไม่เกี่ยวกับหน้านี้
-const JSONBIN_ID     = '6a87fbe7da38895dfefe931b';
-const JSONBIN_MASTER = '$2a$10$b9Qo1O9aMwMwNZo6tImEG.RG2P.7dnoKqfv/5SN0lAOz4G6ipFSe.';
-const JSONBIN_ACCESS = '$2a$10$iszaw3owKggqOri5kPRk2uy/n8qM4Ijuh4AMJsaDU8gJM1VvrNf8m';
-const JSONBIN_URL    = 'https://api.jsonbin.io/v3/b/' + JSONBIN_ID;
-
-// ── CORS Proxy ─────────────────────────────────────────────────────────────
-// JSONBin หยุดส่ง header Access-Control-Allow-Origin กลับมาให้โดเมนนี้ (central-lab-pcg.github.io)
-// แก้โดยส่ง request ผ่าน Cloudflare Worker ของเราเอง (ดูไฟล์ jsonbin-proxy-worker.js) แทนบริการ proxy ฟรีของคนนอก
-// เพราะ corsproxy.io ถูกบล็อกระดับ DNS ในบางเครือข่าย (ERR_NAME_NOT_RESOLVED)
-// **ต้องแก้ WORKER_URL ด้านล่างเป็น URL จริงหลัง deploy Worker แล้ว (เช่น https://xxxx.workers.dev) — ใช้ตัวเดียวกับใน bias_latest.html**
+// ── Cloudflare KV (แทน JSONBin ถาวร) ────────────────────────────────────────
+// ย้ายจาก JSONBin เพราะโดน rate-limit/บล็อกจากการใช้งานถี่ และแพ็กเกจ Free จำกัดขนาดข้อมูลต่อการอัปเดตไว้ 100KB
+// ข้อมูลเดิมทั้งหมดถูกย้ายเข้า KV แล้วผ่าน /migrate (bin เดียวกับที่ไฟล์นี้เคยใช้ ตอนนี้เก็บภายใต้คีย์ "summary")
 const WORKER_URL = 'https://silent-firefly-262f.imguy2727.workers.dev';
-function viaProxy(url){ return WORKER_URL+'/?url='+encodeURIComponent(url); }
+const KV_SECRET = 'nir-bias-kv-2026-change-me'; // ต้องตรงกับค่าที่ตั้งใน Cloudflare Worker → Settings → Variables and Secrets
+function kvUrl(key){ return WORKER_URL+'/kv/'+key; }
 
 // cache สั้น ๆ (in-memory) กันไม่ให้ยิง request ซ้ำจำนวนมากตอน render ตาราง (เดิมยิง 1 ครั้งต่อแถวสินค้า ไม่มี cache เลย)
 // force=true (ใช้ตอนอ่านก่อนเขียน/verify ใน cSaveShared/cDeleteShared) จะข้าม cache เสมอเพื่อความถูกต้อง
@@ -329,12 +320,9 @@ async function corrGetAll(force) {
   try {
     let res, attempt=0;
     while(true){
-      res = await fetch(viaProxy(JSONBIN_URL + '/latest'), {
+      res = await fetch(kvUrl('summary'), {
         cache: 'no-store',
-        headers: {
-          'X-Master-Key': JSONBIN_MASTER,
-          'X-Bin-Meta': 'false'
-        }
+        headers: { 'X-KV-Secret': KV_SECRET }
       });
       if(res.status===429 && attempt<2){
         attempt++;
@@ -367,9 +355,9 @@ async function corrSaveAll(data) {
     // แก้โดยอ่านข้อมูลเต็มก้อนก่อน แล้วเขียนทับเฉพาะ key "corrections" เท่านั้น ส่วนอื่นคงเดิมไว้ทั้งหมด
     let full = {};
     try {
-      const rFull = await fetch(viaProxy(JSONBIN_URL + '/latest'), {
+      const rFull = await fetch(kvUrl('summary'), {
         cache: 'no-store',
-        headers: { 'X-Master-Key': JSONBIN_MASTER, 'X-Bin-Meta': 'false' }
+        headers: { 'X-KV-Secret': KV_SECRET }
       });
       if (rFull.ok) {
         const jFull = await rFull.json();
@@ -378,12 +366,11 @@ async function corrSaveAll(data) {
     } catch(eFull) {
       console.error('อ่านข้อมูลเต็มก้อนก่อนบันทึกไม่สำเร็จ (จะยังพยายามบันทึกต่อ แต่เสี่ยงข้อมูลอื่นหาย):', eFull);
     }
-    const res = await fetch(viaProxy(JSONBIN_URL), {
+    const res = await fetch(kvUrl('summary'), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_MASTER,
-        'X-Access-Key': JSONBIN_ACCESS
+        'X-KV-Secret': KV_SECRET
       },
       body: JSON.stringify({ ...full, corrections: data })
     });

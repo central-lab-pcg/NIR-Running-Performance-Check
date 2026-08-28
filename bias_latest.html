@@ -398,14 +398,18 @@ const JB_URL_A = 'https://api.jsonbin.io/v3/b/'+JB_ID_A;
 const JB_URL_B = 'https://api.jsonbin.io/v3/b/'+JB_ID_B;
 const JB_URL_C = 'https://api.jsonbin.io/v3/b/'+JB_ID_C;
 
-// ── CORS Proxy ─────────────────────────────────────────────────────────────
-// JSONBin หยุดส่ง header Access-Control-Allow-Origin กลับมาให้โดเมนนี้ (central-lab-pcg.github.io)
-// ทำให้ browser บล็อก fetch ทุกครั้ง (Failed to fetch / CORS policy) ทั้งที่ Bin ID และ Access Key ถูกต้อง
-// แก้โดยส่ง request ผ่าน Cloudflare Worker ของเราเอง (ดูไฟล์ jsonbin-proxy-worker.js) แทนบริการ proxy ฟรีของคนนอก
-// เพราะ corsproxy.io ถูกบล็อกระดับ DNS ในบางเครือข่าย (ERR_NAME_NOT_RESOLVED)
-// **ต้องแก้ WORKER_URL ด้านล่างเป็น URL จริงหลัง deploy Worker แล้ว (เช่น https://xxxx.workers.dev)**
+// ── CORS Proxy (โหมดเดิม เก็บไว้เผื่อใช้อ้างอิง — ไม่ได้ใช้งานแล้วหลังย้ายไป KV ด้านล่าง) ──
 const WORKER_URL = 'https://silent-firefly-262f.imguy2727.workers.dev';
 function viaProxy(url){ return WORKER_URL+'/?url='+encodeURIComponent(url); }
+
+// ── Cloudflare KV (แทน JSONBin ถาวร) ────────────────────────────────────────
+// ย้ายจาก JSONBin มาเพราะ (1) โดน rate-limit/บล็อกชั่วคราวจากการใช้งานถี่ (2) แพ็กเกจ Free จำกัดขนาด
+// อัปเดตต่อครั้งไว้แค่ 100KB ซึ่ง Bin A ใหญ่เกินไปแล้ว (บันทึกไม่ได้อีกต่อไป, error 403)
+// Cloudflare KV ไม่มีข้อจำกัดทั้งสองแบบนี้ และฟรี (ไม่มีค่าใช้จ่ายเพิ่มจาก Worker ที่มีอยู่แล้ว)
+// ข้อมูลเดิมทั้งหมดถูกย้ายเข้า KV แล้วผ่าน /migrate (ครั้งเดียว วันที่ตั้งค่าไฟล์นี้)
+// KV_SECRET ต้องตรงกับค่าที่ตั้งไว้ใน Cloudflare Worker → Settings → Variables and Secrets
+const KV_SECRET = 'nir-bias-kv-2026-change-me';
+function kvUrl(key){ return WORKER_URL+'/kv/'+key; }
 const BIN_A_KEYS = ['bias_records','manual_records'];
 const BIN_C_KEYS = ['biasApplied'];
 
@@ -420,7 +424,7 @@ const SUMMARY_JB_READKEY = '$2a$10$b9Qo1O9aMwMwNZo6tImEG.RG2P.7dnoKqfv/5SN0lAOz4
 
 async function fetchSummaryCorrections(){
   try{
-    const res=await fetch(viaProxy(SUMMARY_JB_URL+'/latest'),{cache:'no-store',headers:{'X-Master-Key':SUMMARY_JB_READKEY,'X-Bin-Meta':'false'}});
+    const res=await fetch(kvUrl('summary'),{cache:'no-store',headers:{'X-KV-Secret':KV_SECRET}});
     if(!res.ok) return {};
     const j=await res.json();
     const rec=j.record||j;
@@ -480,13 +484,12 @@ async function syncSummaryCorrectionsOnly(){
 
 function hasBinC(){ return JB_ID_C && JB_ID_C !== 'PUT_BIN_C_ID_HERE'; }
 
-async function fetchOneBin(url,label){
-  // ใช้ query ?meta=false แทน X-Bin-Meta เพื่อลด CORS preflight headers
+async function fetchOneBin(key,label){
   let res;
   try{
-    res=await fetch(viaProxy(url+'/latest?meta=false'),{cache:'no-store',mode:'cors',headers:{'X-Access-Key':JB_AK}});
+    res=await fetch(kvUrl(key),{cache:'no-store',mode:'cors',headers:{'X-KV-Secret':KV_SECRET}});
   }catch(e){
-    throw new Error(`${label} เชื่อมต่อ JSONBin ไม่ได้ — ${e?.message||'Failed to fetch'} (ตรวจ Internet/Firewall/AdBlock และ Access Key)`);
+    throw new Error(`${label} เชื่อมต่อ KV ไม่ได้ — ${e?.message||'Failed to fetch'} (ตรวจ Internet/Firewall/AdBlock)`);
   }
   if(!res.ok){
     let detail='';
@@ -502,10 +505,10 @@ async function fetchOneBin(url,label){
 // (union กัน — ถ้ามีคีย์ซ้ำ ให้ค่าจากหน้า Summary ทับ เพราะ Summary คือหน้าที่เป็นคนสร้าง/แก้ Adjust Bias จริง)
 async function fetchMerged(){
   const requests=[
-    fetchOneBin(JB_URL_A,'Bin A'),
-    fetchOneBin(JB_URL_B,'Bin B')
+    fetchOneBin('bin_a','Bin A'),
+    fetchOneBin('bin_b','Bin B')
   ];
-  if(hasBinC()) requests.push(fetchOneBin(JB_URL_C,'Bin C'));
+  if(hasBinC()) requests.push(fetchOneBin('bin_c','Bin C'));
   requests.push(fetchSummaryCorrections());
   const parts=await Promise.all(requests);
   const summaryCorr=parts.pop(); // ผลลัพธ์ตัวสุดท้ายคือ corrections จาก Summary
@@ -570,7 +573,7 @@ async function patchJB(mutatorFn, maxRetries=3){
         throw new Error('ยังไม่ได้ตั้งค่า Bin C — กรุณาสร้าง Bin ชื่อ NIR-BIAS-C แล้วใส่ Bin ID ในตัวแปร JB_ID_C');
       }
 
-      const putHeaders={'Content-Type':'application/json','X-Access-Key':JB_AK};
+      const putHeaders={'Content-Type':'application/json','X-KV-Secret':KV_SECRET};
       const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
       const oldA={}, oldB={}, oldC={};
       for(const k of Object.keys(data1)){
@@ -581,16 +584,16 @@ async function patchJB(mutatorFn, maxRetries=3){
 
       // เขียนเฉพาะ Bin ที่เปลี่ยน ลดโอกาสชนกัน และไม่เขียนทับข้อมูลอีกฝั่งโดยไม่จำเป็น
       const jobs=[];
-      if(!same(oldA,partA)) jobs.push(['Bin A',JB_URL_A,partA]);
-      if(!same(oldB,partB)) jobs.push(['Bin B',JB_URL_B,partB]);
-      if(hasBinC() && !same(oldC,partC)) jobs.push(['Bin C',JB_URL_C,partC]);
+      if(!same(oldA,partA)) jobs.push(['Bin A','bin_a',partA]);
+      if(!same(oldB,partB)) jobs.push(['Bin B','bin_b',partB]);
+      if(hasBinC() && !same(oldC,partC)) jobs.push(['Bin C','bin_c',partC]);
 
-      for(const [label,url,body] of jobs){
+      for(const [label,key,body] of jobs){
         let res;
         try{
-          res=await fetch(viaProxy(url),{method:'PUT',headers:putHeaders,body:JSON.stringify(body)});
+          res=await fetch(kvUrl(key),{method:'PUT',headers:putHeaders,body:JSON.stringify(body)});
         }catch(e){
-          throw new Error(`${label} เชื่อมต่อ JSONBin ไม่ได้ — ${e?.message||'Failed to fetch'} (Network/CORS/Firewall)`);
+          throw new Error(`${label} เชื่อมต่อ KV ไม่ได้ — ${e?.message||'Failed to fetch'} (Network/CORS/Firewall)`);
         }
         if(!res.ok){
           let detail='';
