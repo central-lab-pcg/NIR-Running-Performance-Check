@@ -34,7 +34,7 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,
 /* Product Table */
 .section{margin-bottom:24px}
 .section-title{font-size:13px;font-weight:700;color:var(--txt2);padding:8px 14px;background:linear-gradient(135deg,#1e293b,#334155);color:#fff;border-radius:var(--r) var(--r) 0 0;display:flex;align-items:center;gap:8px}
-.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);background:#fff;box-shadow:var(--shadow)}
+.tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:70vh;border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);background:#fff;box-shadow:var(--shadow)}
 table{width:100%;border-collapse:collapse;font-size:11px}
 thead th{background:#f1f5f9;color:var(--txt2);font-weight:700;padding:8px 10px;text-align:center;border-bottom:2px solid var(--border2);border-right:1px solid var(--border);white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:.4px;position:sticky;top:0}
 thead th.th-left{text-align:left}
@@ -116,9 +116,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
   </div>
   <div style="display:flex;gap:8px;align-items:center">
     <button onclick="openRecordModal()" style="background:var(--purple);color:#fff;border:none;padding:7px 16px;border-radius:var(--r);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px">➕ บันทึก Install / Adjust</button>
-    <button class="btn-export" onclick="exportCSV()">⬇ Export CSV</button>
     <button class="btn-export" style="border-color:#bfdbfe;background:var(--blue-bg);color:var(--blue)" onclick="exportBackup(event)" title="ดาวน์โหลดข้อมูลดิบทั้งหมด (JSON) เก็บไว้กันข้อมูลหาย">💾 สำรองข้อมูล</button>
-    <button class="btn-export" style="border-color:#bbf7d0;background:#ecfdf5;color:#047857" onclick="openOfflineSync()" title="นำข้อมูลที่บันทึก Offline ขึ้น JSONBin โดยตรวจข้อมูลซ้ำก่อน">☁️ Sync Offline → Online</button>
     <button class="btn-export" style="border-color:#bfdbfe;background:#eff6ff;color:#2563eb" onclick="openGlobalBiasManager()" title="Adjust / Approve Bias จากจุดเดียว">⚙️ Adjust / Approve Bias</button>
     <button class="btn-export" style="border-color:#e9d5ff;background:#faf5ff;color:#9333ea" onclick="openSettingsModal()" title="เพิ่ม/ลบ Product และ Parameter ได้เอง">⚙️ จัดการ Product/Parameter</button>
   </div>
@@ -265,6 +263,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
       </div>
       <div id="globalBiasSummary" style="font-size:12px;color:#475569"></div>
       <div id="globalBiasTypeChips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      <div id="globalBiasPlantChips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       <div id="globalBiasList" style="display:flex;flex-direction:column;gap:12px"></div>
       <div id="globalBiasActionPanel" style="display:none;border:1px solid #dbeafe;border-radius:10px;padding:12px;background:#f8fbff">
         <div style="font-size:12px;font-weight:700;color:#1e40af;margin-bottom:8px">ข้อมูลการดำเนินการ</div>
@@ -287,8 +286,7 @@ th.th-prod-info{background:#f0fdf4;color:#15803d}
     <div class="ap-ftr" style="justify-content:space-between;gap:8px;flex-wrap:wrap">
       <button class="btn-cancel" onclick="closeGlobalBiasManager()">ปิด</button>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button id="globalBiasApplyBtn" onclick="bulkApplyBiasStage1()" style="background:#2563eb;color:#fff;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-family:var(--font);font-size:12px">⚙️ Adjust + Approve ขั้นที่ 1</button>
-        <button id="globalBiasApproveBtn" onclick="bulkApproveBiasStage2()" style="background:#16a34a;color:#fff;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-family:var(--font);font-size:12px">✔ Approve ขั้นที่ 2</button>
+        <button id="globalBiasApplyBtn" onclick="bulkApplyBiasStage1()" style="background:#2563eb;color:#fff;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-family:var(--font);font-size:12px">⚙️ Adjust + Approve</button>
         <button id="globalBiasUndoBtn" onclick="bulkUndoBiasStage()" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-family:var(--font);font-size:12px">✕ ยกเลิกที่เลือก</button>
       </div>
     </div>
@@ -630,6 +628,12 @@ function _pgNormMap(){
   _pgNormMapCache=map; _pgNormMapFor=PRODUCT_GROUPS;
   return map;
 }
+// ชื่อพารามิเตอร์บางตัวต้องแสดงผลด้วยตัวพิมพ์เล็ก-ใหญ่เฉพาะ (ไม่ตามกฎ uppercase ปกติของหัวตาราง)
+const PARAM_DISPLAY_MAP={'CA':'Ca','AW':'Aw','NACL':'NaCl','PH':'pH'};
+function paramDisplayName(p){
+  return PARAM_DISPLAY_MAP[String(p).toUpperCase()]||p;
+}
+
 function guessType(product, type_val){
   for(const grp of Object.keys(PRODUCT_GROUPS)){
     if(PRODUCT_GROUPS[grp].includes(product)) return grp;
@@ -1073,8 +1077,8 @@ function showHist(key){
         <thead>
           <tr style="background:#f1f5f9">
             <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">วันที่</th>
-            <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">Delta</th>
-            <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">Bias สะสม</th>
+            <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">Bias ประจำเดือน</th>
+            <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">Bias ปัจจุบัน</th>
             <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">ผู้บันทึก</th>
             <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left"></th>
           </tr>
@@ -1228,30 +1232,12 @@ function render(){
                 <th class="th-left" style="min-width:160px;position:sticky;left:0;z-index:5">Product</th>
                 <th class="th-prod-info" style="min-width:90px">Install วันที่</th>
                 <th class="th-prod-info" style="min-width:80px">ผู้ Install</th>
-                <th class="th-prod-info" style="min-width:130px">Approve</th>
-                ${sortedParams.map(p=>`<th style="min-width:80px">${p}</th>`).join('')}
+                ${sortedParams.map(p=>`<th style="min-width:80px;text-transform:none">${paramDisplayName(p)}</th>`).join('')}
               </tr>
             </thead>
             <tbody>`;
 
     rows.forEach(v=>{
-      const apKey=Object.keys(APPROVALS).find(k=>k.startsWith(`${v.label}|${v.product}|`))||'';
-      const apStatus=apKey?APPROVALS[apKey]:null;
-      // key ใหม่ = label|product|yyyymm (ใช้เดือนปัจจุบัน)
-      const newApKey=`${v.label}|${v.product}|latest`;
-      const safeKey=encodeURIComponent(newApKey);
-      const safePrd=encodeURIComponent(v.product);
-      const safeLabel=encodeURIComponent(v.label);
-      const approveBadge=apStatus
-        ?`<div><span class="ap-ok">✅ ${apStatus.approver}</span></div>`
-        :`<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">
-            <span class="ap-wait">⏳ รอ Approve</span>
-            <button class="btn-export" style="font-size:10px;padding:3px 10px;margin-top:2px"
-              onclick="openApprove(decodeURIComponent('${safeKey}'),decodeURIComponent('${safePrd}'),decodeURIComponent('${safeLabel}'))">
-              ✅ Approve
-            </button>
-          </div>`;
-
       const installDate=v.install?v.install.date.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>`${d}/${m}/${y.slice(2)}`):'—';
       const installAdj=v.install?v.install.adjuster||'—':'—';
 
@@ -1268,7 +1254,6 @@ function render(){
         </td>
         <td style="text-align:center;cursor:pointer" onclick="showInstallHist(decodeURIComponent('${encodeURIComponent(`${v.label}|${v.product}`)}'))" title="คลิกดู/ลบประวัติ Install"><span class="install-date">${installDate}</span></td>
         <td style="text-align:center;cursor:pointer" onclick="showInstallHist(decodeURIComponent('${encodeURIComponent(`${v.label}|${v.product}`)}'))" title="คลิกดู/ลบประวัติ Install"><span class="install-who">${installAdj}</span></td>
-        <td style="text-align:center">${approveBadge}</td>
         ${sortedParams.map(p=>{
           const pd=v.params[p];
           if(!pd)return`<td class="v-none">—</td>`;
@@ -1284,21 +1269,18 @@ function render(){
           const applied=BIAS_APPLIED[rawApplyKey];
           const applyKeyEnc=encodeURIComponent(rawApplyKey);
           const appliedDateOnly=applied?applied.appliedAt.split(' ')[0]:'';
-          // legacy: รายการเก่าที่บันทึกก่อนมีระบบ Approve 2 ขั้น (ไม่มี field approvals) ให้ถือว่าผ่านครบแล้ว
-          const isLegacyApplied=applied&&!applied.approvals;
+          // ── ระบบอนุมัติขั้นเดียว ─────────────────────────────────────────────
+          // เดิมต้องมีผู้อนุมัติ 2 คนคนละคนกัน (approvals.length>=2) ถึงจะถือว่าเสร็จสมบูรณ์
+          // ตอนนี้ลดเหลือ 1 คนพอ — มี applied แปลว่าอนุมัติแล้วทันที
           const approvals=applied?(applied.approvals||[]):[];
-          const isFullyApproved=applied&&(isLegacyApplied||approvals.length>=2);
-          const isPending=applied&&!isFullyApproved;
+          const isFullyApproved=!!applied;
+          const isPending=false;
           let statusHtml;
           if(!applied){
-            statusHtml=`<span style="font-size:9px;color:#2563eb;font-weight:700" title="เลือกจากปุ่ม ⚙️ Adjust / Approve Bias ด้านบน">⚙️ รอ Adjust</span>`;
-          }else if(isPending){
-            const names=approvals.map(a=>a.name).join(', ')||'—';
-            statusHtml=`<span style="font-size:9px;color:#d97706;font-weight:700" title="เลือกจากปุ่ม ⚙️ Adjust / Approve Bias ด้านบน">⏳ ${appliedDateOnly} (${approvals.length}/2)</span>
-                ${names!=='—'?`<br><span style="font-size:8px;color:#b45309;font-weight:600">👤 ${names}</span>`:''}`;
+            statusHtml=`<span class="adjust-cell-btn" onclick="event.stopPropagation();openAdjustBiasChoice('${applyKeyEnc}')" style="font-size:9px;color:#2563eb;font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px" title="คลิกเพื่อ Adjust / Approve รายการนี้ทันที">⚙️ รอ Adjust</span>`;
           }else{
             const names=approvals.map(a=>a.name).join(', ')||'—';
-            statusHtml=`<span style="font-size:9px;color:#2563eb;font-weight:700" title="ปรับ Bias ที่เครื่องแล้วเมื่อ ${applied.appliedAt}${applied.reason?(' · เหตุผลแก้ไขล่าสุด: '+applied.reason):''}">✓ ${appliedDateOnly}</span>
+            statusHtml=`<span style="font-size:9px;color:#2563eb;font-weight:700" title="ปรับ Bias ที่เครื่องแล้วเมื่อ ${applied.appliedAt}${applied.reason?(' · เหตุผลแก้ไขล่าสุด: '+applied.reason):''}">✓ Approve ${appliedDateOnly}</span>
                 ${names!=='—'?`<br><span style="font-size:8px;color:#1d4ed8;font-weight:600">👤 ${names}</span>`:''}`;
           }
           return`<td class="${cls}${isFullyApproved?' bias-applied-cell':''}" style="cursor:pointer;transition:background .15s"
@@ -1307,7 +1289,7 @@ function render(){
             onmouseout="this.style.background='${isFullyApproved?'#f0fdf4':''}'"
             title="คลิกดูประวัติ ${cnt} รายการ">
             ${bStr}<br>
-            <span style="font-size:9px;color:var(--txt3);font-weight:400">${dStr}</span>
+            <span style="font-size:8px;color:#000;font-weight:700;background:#fef08a;padding:1px 4px;border-radius:3px">วันที่ปรับ ${dStr}</span>
             ${cnt>1?`<br><span style="font-size:9px;color:var(--blue);font-weight:600">📋 ${cnt}</span>`:''}
             <br>${statusHtml}
           </td>`;
@@ -1979,22 +1961,22 @@ async function saveApprovalStage2(encodedKey,approverName){
   }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
 }
 
-// ── ฟอร์มกรอกชื่อผู้อนุมัติ (ใช้ทั้ง Approve ขั้นที่ 1 และ 2) ────────────────────
-let _pendingApproval=null; // {encodedKey, appliedAt, stage}
+// ── ฟอร์มกรอกชื่อผู้อนุมัติ (ระบบอนุมัติขั้นเดียว) ──────────────────────────────
+let _pendingApproval=null; // {encodedKey, appliedAt}
 
-function openApproverNameModal(encodedKey,appliedAtStr,stage){
-  _pendingApproval={encodedKey,appliedAt:appliedAtStr,stage};
+function openApproverNameModal(encodedKey,appliedAtStr){
+  _pendingApproval={encodedKey,appliedAt:appliedAtStr};
   document.getElementById('approverPopup')?.remove();
   const popup=document.createElement('div');
   popup.id='approverPopup';
   popup.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(3px);z-index:450;display:flex;align-items:center;justify-content:center';
   popup.innerHTML=`<div style="background:#fff;border-radius:14px;width:min(320px,92vw);box-shadow:0 25px 50px rgba(0,0,0,.2);overflow:hidden">
     <div style="background:#1e293b;color:#fff;padding:14px 18px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:space-between">
-      ✅ Approve ขั้นที่ ${stage}/2
+      ✅ Approve
       <button onclick="document.getElementById('approverPopup').remove()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:15px">✕</button>
     </div>
     <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
-      <div style="font-size:12px;color:#475569">กรอกชื่อผู้อนุมัติคนที่ ${stage} เพื่อยืนยันว่านำค่า Bias นี้ไปปรับที่เครื่องแล้ว</div>
+      <div style="font-size:12px;color:#475569">กรอกชื่อผู้อนุมัติเพื่อยืนยันว่านำค่า Bias นี้ไปปรับที่เครื่องแล้ว</div>
       <input type="text" id="approverNameInput" placeholder="ชื่อผู้อนุมัติ" style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box">
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
         <button onclick="document.getElementById('approverPopup').remove()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:7px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">ยกเลิก</button>
@@ -2011,19 +1993,9 @@ async function confirmApproverName(){
   const nameEl=document.getElementById('approverNameInput');
   const name=nameEl?nameEl.value.trim():'';
   if(!name){alert('กรุณากรอกชื่อผู้อนุมัติ');return;}
-  const {encodedKey,appliedAt,stage}=_pendingApproval||{};
-  if(stage===2){
-    const key=decodeURIComponent(encodedKey);
-    const cur=BIAS_APPLIED[key]||{};
-    const firstApprover=(cur.approvals&&cur.approvals[0]&&cur.approvals[0].name)||'';
-    if(firstApprover&&firstApprover.trim().toLowerCase()===name.toLowerCase()){
-      alert('ผู้อนุมัติขั้นที่ 2 ต้องเป็นคนละคนกับผู้อนุมัติขั้นที่ 1 (' + firstApprover + ')');
-      return;
-    }
-  }
+  const {encodedKey,appliedAt}=_pendingApproval||{};
   document.getElementById('approverPopup')?.remove();
-  if(stage===1) await saveApprovalStage1(encodedKey,appliedAt,name);
-  else await saveApprovalStage2(encodedKey,name);
+  await saveApprovalStage1(encodedKey,appliedAt,name);
 }
 
 // ── Global Adjust / Approve Bias: จุดเดียวสำหรับทั้งหน้า ───────────────────────
@@ -2051,16 +2023,16 @@ function openGlobalBiasManager(){
       const rawKey=`${v.label}|${v.product}|${p}|${pd.date}`;
       const applied=BIAS_APPLIED[rawKey];
       const approvals=applied?(applied.approvals||[]):[];
-      const legacy=applied&&!applied.approvals;
-      const fully=applied&&(legacy||approvals.length>=2);
-      if(fully) continue;
       GLOBAL_BIAS_ITEMS.push({key:rawKey,label:v.label,product:v.product,type:typ,param:p,bias:pd.bias,date:pd.date,applied,approvals});
     }
   }
-  const pending=GLOBAL_BIAS_ITEMS.filter(x=>x.applied&&x.approvals.length<2);
+  // ── ระบบอนุมัติขั้นเดียว ─────────────────────────────────────────────────────
+  // "done" = อนุมัติแล้ว (มี applied) — เก็บไว้เป็นบัคเก็ตแยกไว้ในนี้แค่เพื่อให้ยังกด "ยกเลิกที่เลือก" ได้
+  // ถ้ากดผิด/อยากรีเซ็ตกลับไป "รอ Adjust" ไม่ได้มีขั้นตอนอนุมัติซ้อนอีกแล้วเหมือนเดิม
+  const done=GLOBAL_BIAS_ITEMS.filter(x=>x.applied);
   const fresh=GLOBAL_BIAS_ITEMS.filter(x=>!x.applied);
   const list=document.getElementById('globalBiasList');
-  document.getElementById('globalBiasSummary').innerHTML=`พบรายการที่ต้องดำเนินการ <b>${GLOBAL_BIAS_ITEMS.length}</b> รายการ · ยังไม่ Adjust <b style="color:#2563eb">${fresh.length}</b> · รอ Approve ขั้นที่ 2 <b style="color:#d97706">${pending.length}</b>`;
+  document.getElementById('globalBiasSummary').innerHTML=`พบรายการที่ต้องดำเนินการ <b>${GLOBAL_BIAS_ITEMS.length}</b> รายการ · ยังไม่ Adjust <b style="color:#2563eb">${fresh.length}</b> · Approve แล้ว <b style="color:#16a34a">${done.length}</b>`;
   // จัดกลุ่มตามชนิดสินค้า (RM/FG/WF/POC/NIR-Online) เหมือนตารางหลัก
   const GB_TYPE_ORDER=['FG','RM','WF','POC','NIROnline','Other'];
   const GB_TYPE_LABEL={'FG':'🟢 FG — Finished Goods','RM':'🟠 RM — Raw Material','WF':'🔵 WF — Wet Food','POC':'🟣 POC','NIROnline':'🟡 NIR Online','Other':'📋 Other'};
@@ -2088,26 +2060,26 @@ function openGlobalBiasManager(){
         <label style="font-size:10px;font-weight:600;cursor:pointer;color:${col}"><input type="checkbox" onchange="toggleGlobalBiasGroupType('fresh','${globalBiasEsc(typ)}',this.checked)" checked> เลือกกลุ่มนี้</label>
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#f8fafc"><th style="padding:6px;width:30px"></th><th style="text-align:left;padding:6px">Plant</th><th style="text-align:left;padding:6px">Product</th><th style="padding:6px">Parameter</th><th style="padding:6px">Bias</th><th style="padding:6px">วันที่</th></tr></thead><tbody>`;
-      html+=rows.map(x=>`<tr style="border-top:1px solid #e2e8f0"><td style="padding:5px;text-align:center"><input class="global-bias-cb" data-group="fresh" data-type="${globalBiasEsc(x.type)}" data-key="${globalBiasEsc(x.key)}" type="checkbox" checked></td><td style="padding:5px">${globalBiasEsc(x.label)}</td><td style="padding:5px">${globalBiasEsc(x.product)}</td><td style="padding:5px;text-align:center;font-family:monospace;font-weight:700">${globalBiasEsc(x.param)}</td><td style="padding:5px;text-align:center;font-family:monospace;font-weight:700;color:${x.bias>=0?'#16a34a':'#dc2626'}">${x.bias>=0?'+':''}${Number(x.bias).toFixed(3)}</td><td style="padding:5px;text-align:center;font-family:monospace">${globalBiasEsc(x.date)}</td></tr>`).join('');
+      html+=rows.map(x=>`<tr class="gb-row" data-gbplant="${globalBiasEsc(x.label)}" style="border-top:1px solid #e2e8f0"><td style="padding:5px;text-align:center"><input class="global-bias-cb" data-group="fresh" data-type="${globalBiasEsc(x.type)}" data-key="${globalBiasEsc(x.key)}" type="checkbox" checked></td><td style="padding:5px">${globalBiasEsc(x.label)}</td><td style="padding:5px">${globalBiasEsc(x.product)}</td><td style="padding:5px;text-align:center;font-family:monospace;font-weight:700">${globalBiasEsc(x.param)}</td><td style="padding:5px;text-align:center;font-family:monospace;font-weight:700;color:${x.bias>=0?'#16a34a':'#dc2626'}">${x.bias>=0?'+':''}${Number(x.bias).toFixed(3)}</td><td style="padding:5px;text-align:center;font-family:monospace">${globalBiasEsc(x.date)}</td></tr>`).join('');
       html+=`</tbody></table></div>`;
     });
     html+=`</div></div>`;
   }
-  if(pending.length){
-    html+=`<div style="border:1px solid #fde68a;border-radius:9px;overflow:hidden">
-      <div style="padding:8px 10px;background:#fffbeb;display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <b style="font-size:12px;color:#b45309">⏳ รอ Approve ขั้นที่ 2 (${pending.length})</b>
-        <label style="font-size:10px;color:#b45309;cursor:pointer"><input type="checkbox" onchange="toggleGlobalBiasGroup('pending',this.checked)"> เลือกทั้งหมด</label>
+  if(done.length){
+    html+=`<div style="border:1px solid #bbf7d0;border-radius:9px;overflow:hidden">
+      <div style="padding:8px 10px;background:#f0fdf4;display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <b style="font-size:12px;color:#15803d">✅ Approve แล้ว (${done.length}) — ติ๊กแล้วกด "ยกเลิกที่เลือก" เพื่อรีเซ็ตกลับไป "รอ Adjust"</b>
+        <label style="font-size:10px;color:#15803d;cursor:pointer"><input type="checkbox" onchange="toggleGlobalBiasGroup('done',this.checked)"> เลือกทั้งหมด</label>
       </div>
-      <div style="max-height:280px;overflow:auto">`;    gbGroupByType(pending).forEach(([typ,rows])=>{
+      <div style="max-height:280px;overflow:auto">`;    gbGroupByType(done).forEach(([typ,rows])=>{
       const col=GB_TYPE_COLOR[typ]||'#94a3b8';
       html+=`<div class="gb-type-block" data-gbtype="${globalBiasEsc(typ)}">
       <div style="background:${col}18;border-left:4px solid ${col};padding:5px 10px;font-size:11px;font-weight:700;color:${col};display:flex;align-items:center;justify-content:space-between;gap:8px">
         <span>${GB_TYPE_LABEL[typ]||typ} <span style="opacity:.7;font-weight:400">${rows.length} รายการ</span></span>
-        <label style="font-size:10px;font-weight:600;cursor:pointer;color:${col}"><input type="checkbox" onchange="toggleGlobalBiasGroupType('pending','${globalBiasEsc(typ)}',this.checked)"> เลือกกลุ่มนี้</label>
+        <label style="font-size:10px;font-weight:600;cursor:pointer;color:${col}"><input type="checkbox" onchange="toggleGlobalBiasGroupType('done','${globalBiasEsc(typ)}',this.checked)"> เลือกกลุ่มนี้</label>
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#f8fafc"><th style="padding:6px;width:30px"></th><th style="text-align:left;padding:6px">Plant</th><th style="text-align:left;padding:6px">Product</th><th style="padding:6px">Parameter</th><th style="padding:6px">ผู้อนุมัติ</th></tr></thead><tbody>`;
-      html+=rows.map(x=>`<tr style="border-top:1px solid #e2e8f0"><td style="padding:5px;text-align:center"><input class="global-bias-cb" data-group="pending" data-type="${globalBiasEsc(x.type)}" data-key="${globalBiasEsc(x.key)}" type="checkbox"></td><td style="padding:5px">${globalBiasEsc(x.label)}</td><td style="padding:5px">${globalBiasEsc(x.product)}</td><td style="padding:5px;text-align:center;font-family:monospace;font-weight:700">${globalBiasEsc(x.param)}</td><td style="padding:5px">${globalBiasEsc(x.approvals.map(a=>a.name).join(', '))}</td></tr>`).join('');
+      html+=rows.map(x=>`<tr class="gb-row" data-gbplant="${globalBiasEsc(x.label)}" style="border-top:1px solid #e2e8f0"><td style="padding:5px;text-align:center"><input class="global-bias-cb" data-group="done" data-type="${globalBiasEsc(x.type)}" data-key="${globalBiasEsc(x.key)}" type="checkbox"></td><td style="padding:5px">${globalBiasEsc(x.label)}</td><td style="padding:5px">${globalBiasEsc(x.product)}</td><td style="padding:5px;text-align:center;font-family:monospace;font-weight:700">${globalBiasEsc(x.param)}</td><td style="padding:5px">${globalBiasEsc(x.approvals.map(a=>a.name).join(', '))}</td></tr>`).join('');
       html+=`</tbody></table></div>`;
     });
     html+=`</div></div>`;
@@ -2116,7 +2088,7 @@ function openGlobalBiasManager(){
   list.innerHTML=html;
 
   // ── แถบ label เลือกชนิดสินค้าด้านบน (กรองการแสดงผล ไม่กระทบรายการที่เลือกไว้) ──
-  const presentTypes=[...new Set([...fresh,...pending].map(x=>x.type))];
+  const presentTypes=[...new Set([...fresh,...done].map(x=>x.type))];
   const orderedPresent=[...GB_TYPE_ORDER.filter(t=>presentTypes.includes(t)),...presentTypes.filter(t=>!GB_TYPE_ORDER.includes(t))];
   const chipsEl=document.getElementById('globalBiasTypeChips');
   if(orderedPresent.length){
@@ -2132,7 +2104,20 @@ function openGlobalBiasManager(){
     chipsEl.style.display='none';
   }
   gbFilterByType('__all__');
-  const panel=document.getElementById('globalBiasActionPanel'); panel.style.display=(fresh.length||pending.length)?'block':'none';
+  const presentPlants=[...new Set([...fresh,...done].map(x=>x.label))];
+  const orderedPlants=[...LABEL_ORDER.filter(l=>presentPlants.includes(l)),...presentPlants.filter(l=>!LABEL_ORDER.includes(l)).sort()];
+  const plantChipsEl=document.getElementById('globalBiasPlantChips');
+  if(orderedPlants.length){
+    let plantChipsHtml=`<button type="button" class="gb-plant-chip active" data-chip-plant="__all__" onclick="gbFilterByPlant('__all__')" style="border:1.5px solid #94a3b8;background:#94a3b822;color:#475569;border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">ทุก Plant</button>`;
+    plantChipsHtml+=orderedPlants.map(pl=>`<button type="button" class="gb-plant-chip" data-chip-plant="${globalBiasEsc(pl)}" onclick="gbFilterByPlant('${globalBiasEsc(pl)}')" style="border:1.5px solid #64748b;background:#64748b18;color:#475569;border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">${globalBiasEsc(pl)}</button>`).join('');
+    plantChipsEl.innerHTML=plantChipsHtml;
+    plantChipsEl.style.display='flex';
+  }else{
+    plantChipsEl.innerHTML='';
+    plantChipsEl.style.display='none';
+  }
+  gbFilterByPlant('__all__');
+  const panel=document.getElementById('globalBiasActionPanel'); panel.style.display=(fresh.length||done.length)?'block':'none';
   document.getElementById('globalBiasDate').value=fmtDDMMYYYY(new Date());
   bindDateMask('globalBiasDate');
   document.getElementById('globalBiasUser').value='';
@@ -2148,12 +2133,38 @@ function toggleGlobalBiasGroupType(group,type,on){
   document.querySelectorAll(`.global-bias-cb[data-group="${group}"][data-type="${type}"]`).forEach(cb=>cb.checked=on);
 }
 
-function gbFilterByType(typ){
-  document.querySelectorAll('.gb-type-block').forEach(el=>{
-    el.style.display=(typ==='__all__'||el.dataset.gbtype===typ)?'':'none';
+let GB_ACTIVE_TYPE='__all__', GB_ACTIVE_PLANT='__all__';
+
+function gbApplyCombinedFilter(){
+  document.querySelectorAll('.gb-type-block').forEach(block=>{
+    const typeMatch=(GB_ACTIVE_TYPE==='__all__'||block.dataset.gbtype===GB_ACTIVE_TYPE);
+    let anyRowVisible=false;
+    block.querySelectorAll('.gb-row').forEach(row=>{
+      const plantMatch=(GB_ACTIVE_PLANT==='__all__'||row.dataset.gbplant===GB_ACTIVE_PLANT);
+      const visible=typeMatch&&plantMatch;
+      row.style.display=visible?'':'none';
+      if(visible) anyRowVisible=true;
+    });
+    block.style.display=anyRowVisible?'':'none';
   });
+}
+
+function gbFilterByType(typ){
+  GB_ACTIVE_TYPE=typ;
+  gbApplyCombinedFilter();
   document.querySelectorAll('.gb-type-chip').forEach(btn=>{
     const active=btn.dataset.chipType===typ;
+    btn.style.fontWeight=active?'800':'700';
+    btn.style.boxShadow=active?'inset 0 0 0 1.5px currentColor':'none';
+    btn.style.opacity=active?'1':'.75';
+  });
+}
+
+function gbFilterByPlant(pl){
+  GB_ACTIVE_PLANT=pl;
+  gbApplyCombinedFilter();
+  document.querySelectorAll('.gb-plant-chip').forEach(btn=>{
+    const active=btn.dataset.chipPlant===pl;
     btn.style.fontWeight=active?'800':'700';
     btn.style.boxShadow=active?'inset 0 0 0 1.5px currentColor':'none';
     btn.style.opacity=active?'1':'.75';
@@ -2166,23 +2177,14 @@ function getGlobalBiasSelected(group){
 }
 
 async function bulkUndoBiasStage(){
-  const items=getGlobalBiasSelected('pending');
-  if(!items.length){alert('กรุณาเลือกรายการที่ต้องการยกเลิก (ติ๊กในช่อง "รอ Approve ขั้นที่ 2") อย่างน้อย 1 รายการ');return;}
-  if(!confirm(`ยืนยันยกเลิก Adjust/Approve ${items.length} รายการที่เลือก?\n(รายการที่ Approve ครั้งเดียวจะกลับไปเป็น "รอ Adjust" ทั้งหมด)`)) return;
+  const items=getGlobalBiasSelected('done');
+  if(!items.length){alert('กรุณาเลือกรายการที่ต้องการยกเลิก (ติ๊กในช่อง "Approve แล้ว") อย่างน้อย 1 รายการ');return;}
+  if(!confirm(`ยืนยันยกเลิก Adjust/Approve ${items.length} รายการที่เลือก?\n(รายการที่เลือกจะกลับไปเป็น "รอ Adjust" ทั้งหมด)`)) return;
   const btn=document.getElementById('globalBiasUndoBtn'); btn.disabled=true; btn.textContent='⏳ กำลังยกเลิก...';
   try{
     const patched=await patchJB(data=>{
       const biasApplied={...(data.biasApplied||{})};
-      items.forEach(x=>{
-        const cur=biasApplied[x.key];
-        if(!cur)return;
-        const approvals=cur.approvals||[];
-        if(approvals.length<=1){
-          delete biasApplied[x.key];
-        }else{
-          biasApplied[x.key]={...cur,approvals:approvals.slice(0,-1)};
-        }
-      });
+      items.forEach(x=>{ delete biasApplied[x.key]; });
       return {...data,biasApplied};
     });
     BIAS_APPLIED=patched.biasApplied;
@@ -2214,39 +2216,9 @@ async function bulkApplyBiasStage1(){
     BIAS_APPLIED=patched.biasApplied;
     render();
     openGlobalBiasManager();
-    showSaveToast(`✅ Adjust + Approve ขั้นที่ 1 สำเร็จ ${items.length} รายการ`);
+    showSaveToast(`✅ Adjust + Approve สำเร็จ ${items.length} รายการ`);
   }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
-  btn.disabled=false; btn.textContent='⚙️ Adjust + Approve ขั้นที่ 1';
-}
-
-async function bulkApproveBiasStage2(){
-  const items=getGlobalBiasSelected('pending');
-  if(!items.length){alert('กรุณาเลือกรายการที่รอ Approve ขั้นที่ 2 อย่างน้อย 1 รายการ');return;}
-  const user=document.getElementById('globalBiasUser').value.trim();
-  if(!user){alert('กรุณากรอกชื่อผู้อนุมัติขั้นที่ 2');return;}
-  for(const x of items){
-    const first=(x.approvals[0]?.name||'').trim().toLowerCase();
-    if(first && first===user.toLowerCase()){alert(`รายการ ${x.product} / ${x.param}: ผู้อนุมัติขั้นที่ 2 ต้องเป็นคนละคนกับขั้นที่ 1`);return;}
-  }
-  const btn=document.getElementById('globalBiasApproveBtn'); btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...';
-  try{
-    const patched=await patchJB(data=>{
-      const biasApplied={...(data.biasApplied||{})};
-      items.forEach(x=>{
-        const cur=biasApplied[x.key];
-        if(!cur)return;
-        const approvals=[...(cur.approvals||[])];
-        if(approvals.length<2) approvals.push({name:user,approvedAt:nowStr()});
-        biasApplied[x.key]={...cur,approvals};
-      });
-      return {...data,biasApplied};
-    });
-    BIAS_APPLIED=patched.biasApplied;
-    render();
-    openGlobalBiasManager();
-    showSaveToast(`✅ Approve ขั้นที่ 2 สำเร็จ ${items.length} รายการ`);
-  }catch(e){alert('❌ ไม่สำเร็จ: '+e.message);}
-  btn.disabled=false; btn.textContent='✔ Approve ขั้นที่ 2';
+  btn.disabled=false; btn.textContent='⚙️ Adjust + Approve';
 }
 
 // ── เลือก Now / Advanced เมื่อกด Adjust Bias ──────────────────────────────────
@@ -2264,7 +2236,7 @@ function openAdjustBiasChoice(encodedKey){
       <button onclick="closeAdjustBiasChoice()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:15px">✕</button>
     </div>
     <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
-      <div style="font-size:12px;color:#475569">เลือกวันเวลาที่นำค่า Bias นี้ไปปรับที่เครื่อง (ต้องมีผู้อนุมัติ 2 คน)</div>
+      <div style="font-size:12px;color:#475569">เลือกวันเวลาที่นำค่า Bias นี้ไปปรับที่เครื่อง</div>
       <button onclick="confirmAdjustNow()" style="padding:10px;border-radius:8px;border:1.5px solid #93c5fd;background:#eff6ff;color:#2563eb;font-weight:700;cursor:pointer;font-size:13px">⏱️ Now — บันทึกวันเวลาปัจจุบัน</button>
       <button onclick="openAdjustBiasAdvanced()" style="padding:10px;border-radius:8px;border:1.5px solid #ddd6fe;background:#f5f3ff;color:#7c3aed;font-weight:700;cursor:pointer;font-size:13px">🗓️ Advanced — เลือกวันที่เอง</button>
     </div>
@@ -2276,7 +2248,7 @@ function closeAdjustBiasChoice(){document.getElementById('adjChoicePopup')?.remo
 
 function confirmAdjustNow(){
   closeAdjustBiasChoice();
-  openApproverNameModal(_adjKey,nowStr(),1);
+  openApproverNameModal(_adjKey,nowStr());
 }
 
 function openAdjustBiasAdvanced(){
@@ -2317,7 +2289,7 @@ function confirmAdjustAdvanced(){
   if(!parsed){alert('กรุณากรอกวันที่ให้ถูกต้องในรูปแบบ dd/mm/yyyy');return;}
   const appliedAtStr=`${parsed.dd}/${parsed.mm}/${parsed.yyyy}`;
   document.getElementById('adjAdvPopup')?.remove();
-  openApproverNameModal(_adjKey,appliedAtStr,1);
+  openApproverNameModal(_adjKey,appliedAtStr);
 }
 
 // ── แก้ไขวันที่ Applied หลังบันทึกไปแล้ว (ต้องระบุเหตุผล) ──────────────────────
@@ -2444,8 +2416,7 @@ function openEditAppliedModal(encodedKey){
   popup.id='editAppliedPopup';
   popup.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(3px);z-index:400;display:flex;align-items:center;justify-content:center';
   const dateVal=(applied.appliedAt||'').split(' ')[0]||fmtDDMMYYYY(new Date());
-  const approver1Val=(approvals[0]&&approvals[0].name)||'';
-  const approver2Val=(approvals[1]&&approvals[1].name)||'';
+  const approverVal=(approvals[0]&&approvals[0].name)||'';
   popup.innerHTML=`<div style="background:#fff;border-radius:14px;width:min(360px,92vw);box-shadow:0 25px 50px rgba(0,0,0,.2);overflow:hidden;max-height:90vh;overflow-y:auto">
     <div style="background:#1e293b;color:#fff;padding:14px 18px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:space-between">
       ✏️ แก้ไขวันที่ / ผู้อนุมัติ
@@ -2461,19 +2432,15 @@ function openEditAppliedModal(encodedKey){
         </div>
       </div>
       <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px">
-        <div style="font-size:10px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.5px">ผู้อนุมัติ (ต้องมี 2 คน)</div>
+        <div style="font-size:10px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.5px">ผู้อนุมัติ</div>
         <div>
-          <label style="font-size:11px;color:#64748b;display:block;margin-bottom:3px">ผู้อนุมัติคนที่ 1 *</label>
-          <input type="text" id="editApprover1" value="${approver1Val}" placeholder="ชื่อผู้อนุมัติคนที่ 1" style="width:100%;font-size:13px;padding:7px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box">
-        </div>
-        <div>
-          <label style="font-size:11px;color:#64748b;display:block;margin-bottom:3px">ผู้อนุมัติคนที่ 2 *</label>
-          <input type="text" id="editApprover2" value="${approver2Val}" placeholder="ชื่อผู้อนุมัติคนที่ 2" style="width:100%;font-size:13px;padding:7px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box">
+          <label style="font-size:11px;color:#64748b;display:block;margin-bottom:3px">ชื่อผู้อนุมัติ *</label>
+          <input type="text" id="editApprover1" value="${approverVal}" placeholder="ชื่อผู้อนุมัติ" style="width:100%;font-size:13px;padding:7px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box">
         </div>
       </div>
       <div>
         <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">เหตุผลที่แก้ไข *</label>
-        <textarea id="editAppliedReason" rows="2" placeholder="ระบุเหตุผล เช่น กรอกวันที่ผิด / เพิ่มชื่อผู้อนุมัติที่ขาดไป" style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box;resize:vertical"></textarea>
+        <textarea id="editAppliedReason" rows="2" placeholder="ระบุเหตุผล เช่น กรอกวันที่ผิด / แก้ชื่อผู้อนุมัติ" style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;box-sizing:border-box;resize:vertical"></textarea>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
         <button onclick="document.getElementById('editAppliedPopup').remove()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:7px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">ยกเลิก</button>
@@ -2489,12 +2456,10 @@ function openEditAppliedModal(encodedKey){
 async function confirmEditApplied(){
   const dateVal=document.getElementById('editAppliedDate').value;
   const reason=document.getElementById('editAppliedReason').value.trim();
-  const approver1=document.getElementById('editApprover1').value.trim();
-  const approver2=document.getElementById('editApprover2').value.trim();
+  const approver=document.getElementById('editApprover1').value.trim();
   const parsed=parseDDMMYYYY(dateVal);
   if(!parsed){alert('กรุณากรอกวันที่ให้ถูกต้องในรูปแบบ dd/mm/yyyy');return;}
-  if(!approver1||!approver2){alert('กรุณากรอกชื่อผู้อนุมัติให้ครบทั้ง 2 คน');return;}
-  if(approver1.toLowerCase()===approver2.toLowerCase()){alert('ผู้อนุมัติคนที่ 1 และ 2 ต้องเป็นคนละคนกัน');return;}
+  if(!approver){alert('กรุณากรอกชื่อผู้อนุมัติ');return;}
   if(!reason){alert('กรุณาระบุเหตุผลที่แก้ไข');return;}
   const newAppliedAt=`${parsed.dd}/${parsed.mm}/${parsed.yyyy}`;
   document.getElementById('editAppliedPopup')?.remove();
@@ -2505,8 +2470,7 @@ async function confirmEditApplied(){
       const prev=biasApplied[key]||{};
       const prevApprovals=prev.approvals||[];
       const approvals=[
-        {name:approver1,approvedAt:(prevApprovals[0]&&prevApprovals[0].name===approver1)?prevApprovals[0].approvedAt:nowStr()},
-        {name:approver2,approvedAt:(prevApprovals[1]&&prevApprovals[1].name===approver2)?prevApprovals[1].approvedAt:nowStr()}
+        {name:approver,approvedAt:(prevApprovals[0]&&prevApprovals[0].name===approver)?prevApprovals[0].approvedAt:nowStr()}
       ];
       const editLog=[...(prev.editLog||[]),{from:prev.appliedAt||'',reason,at:nowStr()}];
       biasApplied[key]={...prev,appliedAt:newAppliedAt,reason,editLog,approvals};
