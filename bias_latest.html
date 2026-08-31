@@ -18,25 +18,25 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font);background:var(--bg);color:var(--txt);font-size:13px}
 
-.topbar{background:#1e293b;color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.topbar{background:#1e293b;color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:fixed;top:0;left:0;right:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 .topbar-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
 .topbar-sub{font-size:11px;color:#94a3b8;font-family:var(--mono)}
 .nav-link{font-size:12px;color:#94a3b8;text-decoration:none;font-weight:500}
 .nav-link:hover{color:#fff}
 
-.filter-bar{background:#fff;border-bottom:1px solid var(--border);padding:10px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:sticky;top:49px;z-index:90}
+.filter-bar{background:#fff;border-bottom:1px solid var(--border);padding:10px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:fixed;left:0;right:0;top:var(--topbar-h,49px);z-index:90}
 .f-label{font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px}
 select{font-size:12px;padding:6px 28px 6px 10px;border:1px solid var(--border2);border-radius:var(--r);background:#fff;color:var(--txt);font-family:var(--font);cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
 select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.12)}
 
-.content{padding:16px 20px}
+.content{padding:16px 20px;padding-top:calc(var(--bars-h,90px) + 16px)}
 
 /* Product Table */
 .section{margin-bottom:24px}
 .section-title{font-size:13px;font-weight:700;color:var(--txt2);padding:8px 14px;background:linear-gradient(135deg,#1e293b,#334155);color:#fff;border-radius:var(--r) var(--r) 0 0;display:flex;align-items:center;gap:8px}
-.tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:70vh;border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);background:#fff;box-shadow:var(--shadow)}
+.tbl-wrap{border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);background:#fff;box-shadow:var(--shadow)}
 table{width:100%;border-collapse:collapse;font-size:11px}
-thead th{background:#f1f5f9;color:var(--txt2);font-weight:700;padding:8px 10px;text-align:center;border-bottom:2px solid var(--border2);border-right:1px solid var(--border);white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:.4px;position:sticky;top:0}
+.tbl-wrap thead th{background:#f1f5f9;color:var(--txt2);font-weight:700;padding:8px 10px;text-align:center;border-bottom:2px solid var(--border2);border-right:1px solid var(--border);white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:.4px;position:sticky;top:var(--sticky-top,90px);z-index:15}
 thead th.th-left{text-align:left}
 thead th:last-child{border-right:none}
 tbody td{padding:8px 10px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);text-align:center;font-family:var(--mono);font-size:11px}
@@ -616,7 +616,7 @@ async function patchJB(mutatorFn, maxRetries=3){
 // แก้โดยเพิ่มการเทียบแบบ "normalize" (ตัดช่องว่าง/คอมม่า, ตัวพิมพ์เล็กหมด, เรียงตัวอักษรคำใหม่) เป็นชั้นสำรอง
 // ถ้า exact-match ไม่เจอ ก่อนจะปล่อยตกไป Other — ไม่กระทบ exact-match เดิมที่ยังทำงานเป็นค่าเริ่มต้นก่อนเสมอ
 function _pgNormKey(s){
-  return (s||'').toLowerCase().split(/[\s,]+/).filter(Boolean).sort().join(',');
+  return (s||'').toLowerCase().split(/[\s,\-]+/).filter(Boolean).sort().join(',');
 }
 let _pgNormMapCache=null, _pgNormMapFor=null;
 function _pgNormMap(){
@@ -656,6 +656,12 @@ function guessType(product, type_val){
 // (ตอนนี้เก็บ/โหลดจากฐานข้อมูลด้วย — ตอน "แก้ไขชื่อ" Product ในหน้า ⚙️ จัดการ ระบบจะเติมคู่นี้ให้อัตโนมัติ เพื่อให้ข้อมูลเก่าย้ายมารวมกับชื่อใหม่)
 let PRODUCT_ALIASES={
   'aqua food':'Aqua FG&Mix2',
+  'bp-pl':'BP PL',
+  'cas-c,pl':'Casava',
+  'cas-c, pl':'Casava',
+  'cas-c pl':'Casava',
+  'cas c,pl':'Casava',
+  'wb':'Wheat Bran',
 };
 let _CANON_MAP=null;
 function getCanonMap(){
@@ -848,6 +854,37 @@ setInterval(()=>{ if(!document.hidden) syncSummaryCorrectionsOnly().catch(()=>{}
 window.addEventListener('storage',e=>{
   if(e.key==='SUMMARY_BIAS_SYNC') syncSummaryCorrectionsOnly().catch(()=>{});
 });
+
+// ── Freeze หัวตาราง (sticky header) ──────────────────────────────────────────
+// topbar + filter-bar เปลี่ยนเป็น position:fixed (ปักอยู่กับจอเสมอ ไม่ขยับตาม
+// การ scroll แนวนอน/แนวตั้งของหน้า) แล้ววัดความสูงจริงของมันด้วย JS มาเซ็ตเป็น
+// ตัวแปร CSS (--topbar-h, --bars-h) เพื่อ:
+//   1) ดัน filter-bar ให้อยู่ใต้ topbar พอดี
+//   2) ดัน .content ลงมาไม่ให้เนื้อหาโดนแถบด้านบนบัง
+//   3) ให้หัวตาราง (thead th, position:sticky) ไป freeze อยู่ใต้แถบพอดีตอน scroll
+// สำคัญ: ต้องไม่มี element ไหนระหว่าง thead กับหน้าเพจตั้งค่า overflow-x/y
+// เป็นอย่างอื่นนอกจาก visible เพราะ browser จะเปลี่ยน sticky ให้ไป "ติด" กับ
+// container นั้นแทนหน้าเพจจริง (คือสาเหตุที่หัวตารางเมื่อก่อนไปลอยทับกลางตาราง)
+function updateStickyTop(){
+  const tb=document.querySelector('.topbar');
+  const fb=document.querySelector('.filter-bar');
+  const tbH=tb?tb.offsetHeight:0;
+  const fbH=fb?fb.offsetHeight:0;
+  document.documentElement.style.setProperty('--topbar-h', tbH+'px');
+  document.documentElement.style.setProperty('--bars-h', (tbH+fbH)+'px');
+  document.documentElement.style.setProperty('--sticky-top', (tbH+fbH)+'px');
+}
+window.addEventListener('load', updateStickyTop);
+window.addEventListener('resize', updateStickyTop);
+if(window.ResizeObserver){
+  const ro=new ResizeObserver(updateStickyTop);
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const tb=document.querySelector('.topbar'), fb=document.querySelector('.filter-bar');
+    if(tb) ro.observe(tb);
+    if(fb) ro.observe(fb);
+  });
+}
+updateStickyTop();
 try{
   window.__biasSyncChannel=new BroadcastChannel('summary-bias-sync');
   window.__biasSyncChannel.addEventListener('message',e=>{
@@ -1229,7 +1266,7 @@ function render(){
           <table>
             <thead>
               <tr>
-                <th class="th-left" style="min-width:160px;position:sticky;left:0;z-index:5">Product</th>
+                <th class="th-left" style="min-width:160px;position:sticky;left:0;z-index:16">Product</th>
                 <th class="th-prod-info" style="min-width:90px">Install วันที่</th>
                 <th class="th-prod-info" style="min-width:80px">ผู้ Install</th>
                 ${sortedParams.map(p=>`<th style="min-width:80px;text-transform:none">${paramDisplayName(p)}</th>`).join('')}
@@ -1288,8 +1325,8 @@ function render(){
             onmouseover="this.style.background='#f0f9ff'"
             onmouseout="this.style.background='${isFullyApproved?'#f0fdf4':''}'"
             title="คลิกดูประวัติ ${cnt} รายการ">
-            ${bStr}<br>
-            <span style="font-size:8px;color:#000;font-weight:700;background:#fef08a;padding:1px 4px;border-radius:3px">วันที่ปรับ ${dStr}</span>
+            <span style="padding:1px 5px;border-radius:3px;background:${b>0?'#dcfce7':b<0?'#fee2e2':'transparent'}">${bStr}</span><br>
+            <span style="font-size:8px;color:var(--txt3);font-weight:600">Record ${dStr}</span>
             ${cnt>1?`<br><span style="font-size:9px;color:var(--blue);font-weight:600">📋 ${cnt}</span>`:''}
             <br>${statusHtml}
           </td>`;
