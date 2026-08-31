@@ -184,11 +184,14 @@
       var active = isActive(t);
       var ok     = (role === "admin") || (t.id === "home") || (perms[t.id] === true);
       var cls = "sb-a" + (active ? " on" : "") + (!ok ? " lk" : "");
-      return '<div class="' + cls + '" data-idx="' + i + '" data-tip="' + t.label + '">' +
+      // ใช้ <a href="..."> จริง (ไม่ใช่ <div> + onclick) เพื่อให้คลิกขวา "เปิดลิงก์ในแท็บใหม่",
+      // Ctrl/Cmd+คลิก, คลิกกลาง ใช้งานได้ตามปกติของเบราว์เซอร์ — ล็อกไว้ (!ok) จะไม่มี href จริง
+      var href = ok ? (t.url + (t.hash || "")) : "#";
+      return '<a class="' + cls + '" href="' + href + '" data-idx="' + i + '" data-tip="' + t.label + '">' +
              '<span class="sb-ico">' + t.icon + '</span>' +
              '<span class="sb-lbl">' + t.label + '</span>' +
              (!ok ? '<span class="sb-lock">🔒</span>' : '') +
-             '</div>';
+             '</a>';
     }).join("");
 
     sb.innerHTML =
@@ -225,22 +228,24 @@
     });
 
     /* Attach click handlers */
-    sb.querySelectorAll(".sb-a[data-idx]").forEach(function(el) {
+    sb.querySelectorAll("a.sb-a[data-idx]").forEach(function(el) {
       var idx = parseInt(el.getAttribute("data-idx"), 10);
       var t   = TOOLS[idx];
       var ud2 = getUserData();
       var ok  = (ud2.role === "admin") || (t.id === "home") || ((ud2.perms || {})[t.id] === true);
-      el.addEventListener("click", function() {
-        if (!ok) return;
+      el.addEventListener("click", function(e) {
+        if (!ok) { e.preventDefault(); return; }
+        // Ctrl/Cmd/Shift+คลิก หรือคลิกกลาง (e.button===1) ต้องปล่อยให้เบราว์เซอร์เปิดแท็บใหม่ตาม href ปกติ
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return;
         if (isOnSamePage(t.url) && t.view && typeof switchView === "function") {
+          e.preventDefault();
           switchView(t.view);
           history.replaceState(null, "", t.hash || (location.pathname + location.search));
           // Refresh active state
           sb.querySelectorAll(".sb-a").forEach(function(a) { a.classList.remove("on"); });
           el.classList.add("on");
-        } else {
-          location.href = t.url + (t.hash || "");
         }
+        // กรณีอื่น: ปล่อยให้ <a href> navigate ไปหน้าปลายทางตามปกติ ไม่ต้องยิง location.href เอง
       });
     });
   }
