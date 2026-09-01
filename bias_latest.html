@@ -663,6 +663,10 @@ let PRODUCT_ALIASES={
   'cas c,pl':'Casava',
   'wb':'Wheat Bran',
 };
+// สำเนาค่าเริ่มต้นแบบ "อ่านอย่างเดียว" เก็บไว้ตลอดอายุของหน้าเพจ — ใช้ merge กลับเข้าไปทุกจุดที่ดึง
+// product_aliases จากฐานข้อมูล (JSONBin) เพื่อไม่ให้ค่า default พวกนี้หายไปเงียบๆ ถ้าฐานข้อมูลออนไลน์
+// ยังไม่เคยถูกบันทึกคู่นี้ (เช่น ตอน sync/reload ที่ดึงค่าจาก server มาทับของเดิมตรงๆ)
+const DEFAULT_PRODUCT_ALIASES=Object.freeze({...PRODUCT_ALIASES});
 let _CANON_MAP=null;
 function getCanonMap(){
   if(_CANON_MAP)return _CANON_MAP;
@@ -812,7 +816,7 @@ async function saveSettings(){
     const patched=await patchJB(data=>({...data, product_groups:_SET_GROUPS, param_list:_SET_PARAMS, product_aliases:newAliases}));
     PRODUCT_GROUPS=patched.product_groups;
     PARAMS_DEF=patched.param_list;
-    PRODUCT_ALIASES=patched.product_aliases;
+    PRODUCT_ALIASES={...DEFAULT_PRODUCT_ALIASES, ...patched.product_aliases};
     renderProductDropdown();
     render();
     closeSettingsModal();
@@ -833,7 +837,7 @@ async function loadData(){
     // ถ้ามี Product/Parameter ที่ผู้ใช้แก้ไขเองไว้ในฐานข้อมูลแล้ว ให้ใช้ค่านั้นแทนค่า default
     if(data.product_groups && Object.keys(data.product_groups).length) PRODUCT_GROUPS=data.product_groups;
     if(Array.isArray(data.param_list) && data.param_list.length) PARAMS_DEF=data.param_list;
-    if(data.product_aliases) PRODUCT_ALIASES={...PRODUCT_ALIASES, ...data.product_aliases};
+    if(data.product_aliases) PRODUCT_ALIASES={...DEFAULT_PRODUCT_ALIASES, ...data.product_aliases};
     renderProductDropdown();
     if(data.generated_at)document.getElementById('lastUpdated').textContent=data.generated_at;
     document.getElementById('loadingOverlay').style.display='none';
@@ -985,7 +989,7 @@ function getAllEvents(){
     // เพื่อไม่ให้ข้อมูลเก่าเดือน JUN/JUL หายจาก Bias_latest
     if(!Object.keys(params).length){
       const legacyText=String(v.text||'');
-      const re=/Adjust\s+Bias\s+([A-Za-z][A-Za-z0-9_-]*)\s+([+\-]?\d+(?:\.\d+)?)/gi;
+      const re=/Adjust\s+Bias\s+([A-Za-z][A-Za-z0-9_-]*)\s+([+\-]?\d+(?:\.\d+)?)(?!\d*\/\d)/gi;
       let m;
       while((m=re.exec(legacyText))!==null){
         const n=toBiasNumber(m[2]);
@@ -1529,7 +1533,7 @@ async function commitOfflineSync(){
       p.biasApplied=finalPlan.biasApplied.out;
       p.product_groups=finalPlan.productGroups.out;
       p.param_list=finalPlan.paramList.out;
-      p.product_aliases=finalPlan.aliases.out;
+      p.product_aliases={...DEFAULT_PRODUCT_ALIASES, ...finalPlan.aliases.out};
       return p;
     });
     // Reload from the actual server result after the PUT so the screen reflects Online state.
@@ -1539,7 +1543,7 @@ async function commitOfflineSync(){
     RAW_CORR=mapEntries(latest.corrections); APPROVALS=mapEntries(latest.approvals); BIAS_APPLIED=mapEntries(latest.biasApplied);
     if(latest.product_groups) PRODUCT_GROUPS=latest.product_groups;
     if(latest.param_list) PARAMS_DEF=latest.param_list;
-    if(latest.product_aliases) PRODUCT_ALIASES=latest.product_aliases;
+    if(latest.product_aliases) PRODUCT_ALIASES={...DEFAULT_PRODUCT_ALIASES, ...latest.product_aliases};
     renderProductDropdown(); render();
     const total=syncPlanTotal(finalPlan||st.plan||{});
     progress.textContent='';
