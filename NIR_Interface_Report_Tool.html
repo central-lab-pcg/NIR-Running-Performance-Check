@@ -752,20 +752,9 @@ async function doDownload(filename, dataBlob){
 document.getElementById('exportXlsxBtn').addEventListener('click', async function(){
   if(!groups.length){ setStatus('ยังไม่มีข้อมูลรายงาน', false); return; }
 
-  // read current (possibly manually edited) table values back from the DOM
-  const table = document.querySelector('#reportEl table.rt');
-  const trs = Array.from(table.querySelectorAll('tbody tr'));
-
-  // Sheet 1: Result (as printed report)
-  const resultAOA = [];
-  resultAOA.push(['No.','Lab No.','Sample', ...PARAMS.map(p=>p.label+' '+p.unit), 'Remark']);
-  trs.forEach(tr=>{
-    const cells = Array.from(tr.children).map(td=>td.textContent.trim());
-    resultAOA.push(cells);
-  });
-
-  // Sheet 2: Interface (flattened, QC/reference rows excluded, uses averaged/final value per Lab No)
-  const interfaceAOA = [['Lab No.','Seq','Target','Result1','Result2','Result']];
+  // AXONS "NIR Interface" upload expects exactly these 5 columns: Lab No., Seq, Target, Result1, Result2
+  // (one sheet only; QC/reference rows excluded; uses averaged/final value per Lab No)
+  const interfaceAOA = [['Lab No.','Seq','Target','Result1','Result2']];
   groups.forEach(g=>{
     if(g.isQC) return;
     const labNo = g.labNo;
@@ -774,18 +763,13 @@ document.getElementById('exportXlsxBtn').addEventListener('click', async functio
     PARAMS.forEach(p=>{
       const v = g._final ? g._final[p.code] : null;
       if(v===null || v===undefined) return;
-      const rounded = Math.round(v*10000)/10000; // raw value, floating-point-safe
-      interfaceAOA.push([base, seq, p.label, formatValue(p.code, v, g.sampleName, g.isQC), '', rounded]);
+      interfaceAOA.push([base, seq, p.label, formatValue(p.code, v, g.sampleName, g.isQC), '']);
     });
   });
 
   const wb = XLSX.utils.book_new();
-  const ws1 = XLSX.utils.aoa_to_sheet(resultAOA);
-  const ws2 = XLSX.utils.aoa_to_sheet(interfaceAOA);
-  XLSX.utils.book_append_sheet(wb, ws2, 'Interface'); // Interface first (leftmost tab)
-  XLSX.utils.book_append_sheet(wb, ws1, 'Result');
-  wb.Workbook = { Views: [{ RTL: false }] };
-  if(wb.Workbook) wb.Workbook.ActiveSheet = 0;
+  const ws = XLSX.utils.aoa_to_sheet(interfaceAOA);
+  XLSX.utils.book_append_sheet(wb, ws, 'Interface');
 
   const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
   const blob = new Blob([wbout], {type:'application/octet-stream'});
