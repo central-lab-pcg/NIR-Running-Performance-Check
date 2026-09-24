@@ -81,7 +81,7 @@ button:hover:not(:disabled){filter:brightness(1.05);}
   padding:18px 22px 26px; font-family:"Sarabun","Segoe UI",Tahoma,Arial,sans-serif;
   border:1px solid #ccc;
 }
-.rpt-top{position:relative; min-height:46px; font-size:13px;}
+.rpt-top{position:relative; min-height:64px; font-size:13px;}
 .rpt-top .center{font-weight:700; font-size:14px; text-align:center; position:absolute; left:50%; top:0; transform:translateX(-50%); white-space:nowrap;}
 .rpt-top .right{text-align:right; line-height:1.6; position:absolute; top:0; right:0; outline:none;}
 .rpt-title{text-align:center; font-weight:700; font-size:15px; margin:6px 0 2px;}
@@ -478,7 +478,8 @@ function renderReport(){
       <div class="right" contenteditable="true">
         เลขที่เอกสาร &nbsp;F-LAB-17-27<br>
         เริ่มใช้วันที่ &nbsp;24/09/2026<br>
-        แก้ไขครั้งที่ : 04
+        แก้ไขครั้งที่ : 04<br>
+        1/1
       </div>
     </div>
     <div class="rpt-title">บันทึกการทดสอบด้วยเทคนิค NIR</div>
@@ -501,7 +502,10 @@ function renderReport(){
       <div>2. Duplicate for</div>
       <div style="padding-left:80px;">Cat Food : ช่วงค่าการทดสอบ 1.07 - 42.70 &nbsp;&nbsp; Repeatability Limit = ± 0.5 g/100g</div>
       <div style="padding-left:80px;">Dog Food : ช่วงค่าการทดสอบ 2.10 - 34.87 &nbsp;&nbsp; Repeatability Limit = ± 0.5 g/100g</div>
-      <div style="padding-left:80px;">for other &nbsp;: %RPD = |C1 − C2| / ((C1+C2)/2) × 100% &nbsp;&nbsp; ; NIR ≤ 20 (g/100g) → %RPD ≤ 10%</div>
+      <div style="padding-left:80px;">
+        <span>other &nbsp;: %RPD = ((|ครั้งที่ 1 - ครั้งที่ 2|) / ค่าเฉลี่ย) × 100</span>
+        <span style="display:inline-block; vertical-align:top; margin-left:40px;">; NIR ≤ 20 (g/100g) → %RPD ≤ 10%<br>; NIR &gt; 20 (g/100g) → %RPD &lt; 5%</span>
+      </div>
     </div>
     <div class="rpt-sign">
       <div class="col">${sigLineHtml('Tester','sigLineTester')}(<span id="signTester">${esc(nameTester)}</span>)<br>ผู้ทดสอบ<br>วันที่ <span id="sigDateTester">${esc(testDateDisp)}</span></div>
@@ -619,7 +623,7 @@ const PRINT_CSS = `
   *{box-sizing:border-box;}
   body{margin:0; padding:12mm; font-family:"Sarabun","Segoe UI",Tahoma,Arial,sans-serif; color:#111; background:#fff;}
   .report{width:100%;}
-  .rpt-top{position:relative; min-height:46px; font-size:13px;}
+  .rpt-top{position:relative; min-height:64px; font-size:13px;}
   .rpt-top .center{font-weight:700; font-size:14px; text-align:center; position:absolute; left:50%; top:0; transform:translateX(-50%); white-space:nowrap;}
   .rpt-top .right{text-align:right; line-height:1.6; position:absolute; top:0; right:0;}
   .rpt-title{text-align:center; font-weight:700; font-size:15px; margin:6px 0 2px;}
