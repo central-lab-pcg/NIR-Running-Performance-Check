@@ -752,9 +752,14 @@ async function doDownload(filename, dataBlob){
 document.getElementById('exportXlsxBtn').addEventListener('click', async function(){
   if(!groups.length){ setStatus('ยังไม่มีข้อมูลรายงาน', false); return; }
 
-  // AXONS "NIR Interface" upload expects exactly these 5 columns: Lab No., Seq, Target, Result1, Result2
-  // (one sheet only; QC/reference rows excluded; uses averaged/final value per Lab No)
-  const interfaceAOA = [['Lab No.','Seq','Target','Result1','Result2']];
+  // Layout copied from a file AXONS accepts:
+  //   row 1 = title (merged A1:D1), row 2 = header, data from row 3,
+  //   A Lab No. | B Seq | C Target | D Result1 (formatted) | E Result2 (blank) | F Result (raw)
+  //   G (hidden, no header) = sample name.  QC/reference rows excluded; final value per Lab No.
+  const interfaceAOA = [
+    ['บันทึกการทดสอบด้วยเทคนิค NIR'],
+    ['Lab No.','Seq','Target','Result1','Result2','Result']
+  ];
   groups.forEach(g=>{
     if(g.isQC) return;
     const labNo = g.labNo;
@@ -763,12 +768,15 @@ document.getElementById('exportXlsxBtn').addEventListener('click', async functio
     PARAMS.forEach(p=>{
       const v = g._final ? g._final[p.code] : null;
       if(v===null || v===undefined) return;
-      interfaceAOA.push([base, seq, p.label, formatValue(p.code, v, g.sampleName, g.isQC), '']);
+      const rounded = Math.round(v*10000)/10000; // raw value, floating-point-safe
+      interfaceAOA.push([base, seq, p.label, formatValue(p.code, v, g.sampleName, g.isQC), null, rounded, g.sampleName || null]);
     });
   });
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(interfaceAOA);
+  ws['!merges'] = [{s:{r:0,c:0}, e:{r:0,c:3}}];
+  ws['!cols'] = [{wch:17.6},{wch:14.7},{wch:14.7},{wch:14.7},{wch:10},{wch:10},{wch:13, hidden:true}];
   XLSX.utils.book_append_sheet(wb, ws, 'Interface');
 
   const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
