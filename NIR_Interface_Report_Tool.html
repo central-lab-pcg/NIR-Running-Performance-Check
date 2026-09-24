@@ -81,9 +81,9 @@ button:hover:not(:disabled){filter:brightness(1.05);}
   padding:18px 22px 26px; font-family:"Sarabun","Segoe UI",Tahoma,Arial,sans-serif;
   border:1px solid #ccc;
 }
-.rpt-top{display:flex; justify-content:space-between; align-items:flex-start; font-size:13px;}
-.rpt-top .left{font-weight:700; font-size:14px; max-width:520px;}
-.rpt-top .right{text-align:right; line-height:1.6;}
+.rpt-top{position:relative; min-height:46px; font-size:13px;}
+.rpt-top .center{font-weight:700; font-size:14px; text-align:center; position:absolute; left:50%; top:0; transform:translateX(-50%); white-space:nowrap;}
+.rpt-top .right{text-align:right; line-height:1.6; position:absolute; top:0; right:0; outline:none;}
 .rpt-title{text-align:center; font-weight:700; font-size:15px; margin:6px 0 2px;}
 .rpt-meta{display:flex; justify-content:space-between; font-size:12.5px; margin:4px 0 8px;}
 .rpt-meta input[type=text]{border:none; border-bottom:1px dotted #888; background:transparent; font-family:inherit; font-size:12.5px; width:160px;}
@@ -110,6 +110,8 @@ button.addname{padding:0; width:36px; height:36px; font-size:16px; line-height:1
 .rpt-sign .sigline img{max-height:38px; max-width:170px;}
 .rowbtns{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
 table.rt td.namecell{min-width:70px;}
+select.diffmode-sel{font-size:11px; padding:2px 3px; border:1px solid #999; border-radius:4px; background:#fff; color:#111; font-family:inherit;}
+.rpt-notes[contenteditable="true"]:focus, .rpt-top .right[contenteditable="true"]:focus{background:#fff7d6; outline:none;}
 
 @media print{
   body *{visibility:hidden;}
@@ -134,16 +136,6 @@ table.rt td.namecell{min-width:70px;}
       <div class="field">
         <label>Test Date</label>
         <input type="date" id="testDate">
-      </div>
-      <div class="field">
-        <label>เลขที่ NIR (Reference/QC log no.) / สถิติค่าซ้ำ (Duplicate)</label>
-        <div style="display:flex; gap:8px;">
-          <input type="text" id="nirNo" placeholder="เช่น CLN-NC-01" value="CLN-NC-01" style="width:130px;">
-          <select id="diffMode">
-            <option value="diff">%Repeatability Diff (C1−C2)</option>
-            <option value="rpd">%RPD = |C1−C2| / ((C1+C2)/2) × 100%</option>
-          </select>
-        </div>
       </div>
       <div class="field">
         <label>ผู้ทดสอบ</label>
@@ -386,32 +378,59 @@ function formatValue(code, val, sampleName, isQC){
   return sigFig3(val);
 }
 
+// diff-row calculation:
+//  - 'diff' (%Repeatability Diff): |C1-C2| reported with the SAME number of decimal
+//    places as the analyzed values shown in the table (uses formatValue's rule)
+//  - 'rpd'  (%RPD): result to 2 decimals, number only (no % sign)
+function decimalsOfFormatted(str){
+  const m = String(str).match(/\.(\d+)/);
+  return m ? m[1].length : 0;
+}
+function diffCellValue(code, a, b, isQC, mode, sampleName){
+  if(isQC && QC_BLANK_CODES.includes(code)) return '-';
+  if(a===null || b===null) return '-';
+  if(mode==='rpd'){
+    const denom = (a+b)/2;
+    if(denom===0) return '-';
+    const rpd = Math.abs(a-b)/Math.abs(denom)*100;
+    return rpd.toFixed(2);
+  }
+  // decimals = the larger decimal count of the two analyzed values as displayed
+  const da = decimalsOfFormatted(formatValue(code, a, sampleName, isQC));
+  const db = decimalsOfFormatted(formatValue(code, b, sampleName, isQC));
+  const d = Math.max(da, db);
+  let out = (a-b).toFixed(d);
+  if(Number(out)===0) out = (0).toFixed(d); // avoid "-0.00"
+  return out;
+}
+
+// called from the in-table dropdown on a diff row to switch that row's mode
+// without rebuilding the whole report (keeps other manual edits intact)
+function onDiffModeChange(sel, gi){
+  const g = groups[gi];
+  if(!g || g.rows.length<2) return;
+  g.diffMode = sel.value;
+  const tr = sel.closest('tr');
+  if(!tr) return;
+  const r1 = g.rows[0], pair = g.rows[1];
+  const cells = tr.querySelectorAll('td[contenteditable="true"]');
+  PARAMS.forEach((p,i)=>{
+    if(cells[i]) cells[i].textContent = diffCellValue(p.code, r1.values[p.code], pair.values[p.code], g.isQC, g.diffMode, g.sampleName);
+  });
+}
+
 // ---------- render ----------
 function renderReport(){
   const holder = document.getElementById('reportHolder');
   const testDate = document.getElementById('testDate').value || '';
   const testDateDisp = testDate ? testDate.split('-').reverse().join('/') : '';
-  const nirNo = document.getElementById('nirNo').value || '';
   const nameTester = document.getElementById('nameTester').value || '';
   const nameReviewer = document.getElementById('nameReviewer').value || '';
   const nameApprover = document.getElementById('nameApprover').value || '';
-  const diffMode = document.getElementById('diffMode').value; // 'diff' or 'rpd'
-
-  function diffCellValue(code, a, b, isQC){
-    if(isQC && QC_BLANK_CODES.includes(code)) return '-';
-    if(a===null || b===null) return '-';
-    if(diffMode==='rpd'){
-      const denom = (a+b)/2;
-      if(denom===0) return '-';
-      const rpd = Math.abs(a-b)/Math.abs(denom)*100;
-      return rpd.toFixed(2)+'%';
-    }
-    return formatValue(code, a-b, null, isQC);
-  }
 
   let bodyRows = '';
   let no = 0;
-  groups.forEach(g=>{
+  groups.forEach((g, gi)=>{
     no++;
     const r1 = g.rows[0];
     const pair = g.rows.length>=2 ? g.rows[1] : null;
@@ -434,12 +453,16 @@ function renderReport(){
         else if(a!==null || b!==null){ avg[p.code]=(a!==null?a:b); }
         else { avg[p.code]=null; }
       });
-      const diffLabel = diffMode==='rpd' ? '%RPD' : '%Repeatability Diff';
       bodyRows += `<tr class="avgrow"><td>-</td><td>-</td><td class="left">AVG</td>`
         + PARAMS.map(p=>`<td contenteditable="true">${formatValue(p.code, avg[p.code], g.sampleName, g.isQC)}</td>`).join('')
         + `<td contenteditable="true"></td></tr>`;
-      bodyRows += `<tr class="diffrow"><td>-</td><td>-</td><td class="left">${diffLabel}</td>`
-        + PARAMS.map(p=>`<td contenteditable="true">${diffCellValue(p.code, r1.values[p.code], pair.values[p.code], g.isQC)}</td>`).join('')
+      if(g.diffMode===undefined) g.diffMode = 'diff';
+      const diffModeSel = `<select class="diffmode-sel" onchange="onDiffModeChange(this, ${gi})">`
+        + `<option value="diff"${g.diffMode==='diff'?' selected':''}>%Repeatability Diff</option>`
+        + `<option value="rpd"${g.diffMode==='rpd'?' selected':''}>%RPD</option>`
+        + `</select>`;
+      bodyRows += `<tr class="diffrow" data-gidx="${gi}"><td>-</td><td>-</td><td class="left">${diffModeSel}</td>`
+        + PARAMS.map(p=>`<td contenteditable="true">${diffCellValue(p.code, r1.values[p.code], pair.values[p.code], g.isQC, g.diffMode, g.sampleName)}</td>`).join('')
         + `<td contenteditable="true"></td></tr>`;
 
       g._final = avg;
@@ -451,11 +474,11 @@ function renderReport(){
   const html = `
   <div class="report" id="reportEl">
     <div class="rpt-top">
-      <div class="left">ห้องปฏิบัติการทดสอบ บริษัท เพอร์เฟค คอมพาเนียน กรุ๊ป จำกัด</div>
-      <div class="right">
+      <div class="center">ห้องปฏิบัติการทดสอบ บริษัท เพอร์เฟค คอมพาเนียน กรุ๊ป จำกัด</div>
+      <div class="right" contenteditable="true">
         เลขที่เอกสาร &nbsp;F-LAB-17-27<br>
-        เริ่มใช้วันที่ &nbsp;01/08/2026<br>
-        แก้ไขครั้งที่ : 03
+        เริ่มใช้วันที่ &nbsp;24/09/2026<br>
+        แก้ไขครั้งที่ : 04
       </div>
     </div>
     <div class="rpt-title">บันทึกการทดสอบด้วยเทคนิค NIR</div>
@@ -473,11 +496,12 @@ function renderReport(){
       </thead>
       <tbody>${bodyRows}</tbody>
     </table>
-    <div class="rpt-notes">
-      1. NIR No. …… <input type="text" id="nirNoDisp" value="${esc(nirNo)}"> ……………………………<br>
-      2. Duplicate&nbsp; for Cat Food : ช่วงค่าการทดสอบ 1.07 - 42.70 &nbsp;&nbsp; Repeatability Limit = ± 0.5 g/100g<br>
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Dog Food : &nbsp;&nbsp; ช่วงค่าการทดสอบ 2.10 - 34.87 &nbsp;&nbsp; Repeatability Limit = ± 0.5 g/100g<br>
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; for other : &nbsp;%RPD = |C1 − C2| / ((C1+C2)/2) × 100% &nbsp;&nbsp; ; NIR ≤ 20 (g/100g) → %RPD ≤ 10%
+    <div class="rpt-notes" contenteditable="true">
+      <div>1. NIR No. &nbsp;.......CLN-NC-01....................</div>
+      <div>2. Duplicate for</div>
+      <div style="padding-left:80px;">Cat Food : ช่วงค่าการทดสอบ 1.07 - 42.70 &nbsp;&nbsp; Repeatability Limit = ± 0.5 g/100g</div>
+      <div style="padding-left:80px;">Dog Food : ช่วงค่าการทดสอบ 2.10 - 34.87 &nbsp;&nbsp; Repeatability Limit = ± 0.5 g/100g</div>
+      <div style="padding-left:80px;">for other &nbsp;: %RPD = |C1 − C2| / ((C1+C2)/2) × 100% &nbsp;&nbsp; ; NIR ≤ 20 (g/100g) → %RPD ≤ 10%</div>
     </div>
     <div class="rpt-sign">
       <div class="col">${sigLineHtml('Tester','sigLineTester')}(<span id="signTester">${esc(nameTester)}</span>)<br>ผู้ทดสอบ<br>วันที่ <span id="sigDateTester">${esc(testDateDisp)}</span></div>
@@ -561,12 +585,11 @@ document.querySelectorAll('.addname').forEach(btn=>{
 });
 const NAME_TO_ROLE = { nameTester:'Tester', nameReviewer:'Reviewer', nameApprover:'Approver' };
 const LIVE_FIELD_MAP = {
-  nirNo: ()=>{ const n=document.getElementById('nirNoDisp'); if(n) n.value = document.getElementById('nirNo').value; },
   nameTester: ()=>{ const s=document.getElementById('signTester'); if(s) s.textContent = document.getElementById('nameTester').value; },
   nameReviewer: ()=>{ const s=document.getElementById('signReviewer'); if(s) s.textContent = document.getElementById('nameReviewer').value; },
   nameApprover: ()=>{ const s=document.getElementById('signApprover'); if(s) s.textContent = document.getElementById('nameApprover').value; }
 };
-['testDate','nirNo','nameTester','nameReviewer','nameApprover'].forEach(id=>{
+['testDate','nameTester','nameReviewer','nameApprover'].forEach(id=>{
   document.getElementById(id).addEventListener('change', function(){
     if(NAME_TO_ROLE[id]){
       // switching to a different person: drop any old hand-drawn ink for this slot
@@ -592,19 +615,13 @@ const LIVE_FIELD_MAP = {
   });
 });
 
-document.getElementById('diffMode').addEventListener('change', function(){
-  if(document.getElementById('reportPanel').style.display==='block' && groups.length){
-    renderReport();
-  }
-});
-
 const PRINT_CSS = `
   *{box-sizing:border-box;}
   body{margin:0; padding:12mm; font-family:"Sarabun","Segoe UI",Tahoma,Arial,sans-serif; color:#111; background:#fff;}
   .report{width:100%;}
-  .rpt-top{display:flex; justify-content:space-between; align-items:flex-start; font-size:13px;}
-  .rpt-top .left{font-weight:700; font-size:14px; max-width:520px;}
-  .rpt-top .right{text-align:right; line-height:1.6;}
+  .rpt-top{position:relative; min-height:46px; font-size:13px;}
+  .rpt-top .center{font-weight:700; font-size:14px; text-align:center; position:absolute; left:50%; top:0; transform:translateX(-50%); white-space:nowrap;}
+  .rpt-top .right{text-align:right; line-height:1.6; position:absolute; top:0; right:0;}
   .rpt-title{text-align:center; font-weight:700; font-size:15px; margin:6px 0 2px;}
   .rpt-meta{display:flex; justify-content:space-between; font-size:12.5px; margin:4px 0 8px;}
   .rpt-meta input[type=text]{border:none; background:transparent; font-family:inherit; font-size:12.5px;}
@@ -636,6 +653,18 @@ document.getElementById('printBtn').addEventListener('click', function(){
   // read back any manual edits made directly in the on-page contenteditable cells
   const clone = reportEl.cloneNode(true);
   clone.querySelectorAll('[contenteditable]').forEach(el=>el.removeAttribute('contenteditable'));
+
+  // cloneNode() resets <select> to its original HTML `selected` attribute, so the PDF
+  // always showed the first option. Replace each dropdown with plain text of the
+  // option that is actually selected on screen.
+  const liveSels = reportEl.querySelectorAll('select.diffmode-sel');
+  clone.querySelectorAll('select.diffmode-sel').forEach((sel, i)=>{
+    const live = liveSels[i];
+    const opt = live && live.options[live.selectedIndex];
+    const span = document.createElement('span');
+    span.textContent = opt ? opt.textContent : sel.options[sel.selectedIndex].textContent;
+    sel.replaceWith(span);
+  });
 
   // render an offscreen copy styled like the print version so the captured
   // image matches the report exactly, then scale it to fit a single page
@@ -673,8 +702,10 @@ document.getElementById('printBtn').addEventListener('click', function(){
     const y = (pageH - finalH) / 2;
     pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', x, y, finalW, finalH);
     const fname = 'NIR_Report_' + new Date().toISOString().slice(0,10) + '.pdf';
-    pdf.save(fname); // saves immediately, single page, no print dialog
-    setStatus('บันทึกไฟล์ PDF สำเร็จ (หน้าเดียว): ' + fname, true);
+    // pdf.save() is blocked inside a published page, so hand the file to the
+    // viewer through the same download path the Excel export uses
+    const pdfBlob = new Blob([pdf.output('arraybuffer')], {type:'application/pdf'});
+    return doDownload(fname, pdfBlob);
   }).catch(function(err){
     if(wrapper.parentNode) document.body.removeChild(wrapper);
     setStatus('เกิดข้อผิดพลาดในการสร้าง PDF: ' + err, false);
