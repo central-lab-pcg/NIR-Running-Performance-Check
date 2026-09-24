@@ -255,6 +255,15 @@ const TOOLS = [
     tag: "new", tagLabel: "New"
   },
   {
+    id: "report",
+    name: "NIR Interface Report Tool",
+    desc: "กรอกผลทดสอบและพิมพ์รายงาน NIR พร้อมลายเซ็นผู้เกี่ยวข้อง",
+    color: "#e8f7f5", iconColor: "#0f9488",
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>`,
+    url: "https://central-lab-pcg.github.io/NIR-Running-Performance-Check/NIR_Interface_Report_Tool.html",
+    tag: "new", tagLabel: "New"
+  },
+  {
     id: "constituent",
     name: "Best Constituent Finder",
     desc: "ค้นหา model ที่ดีที่สุดของแต่ละ constituent โดยอัตโนมัติ",
@@ -267,8 +276,8 @@ const TOOLS = [
 
 const TAG_CLASS = { active: "tag-active", new: "tag-new", soon: "tag-soon", locked: "tag-locked" };
 
-const ALL_PERMS = { running: true, summary: true, constituent: true, bias: true };
-const DEFAULT_PERMS = { running: true, summary: true, constituent: true, bias: true };
+const ALL_PERMS = { running: true, summary: true, constituent: true, bias: true, report: true };
+const DEFAULT_PERMS = { running: true, summary: true, constituent: true, bias: true, report: true };
 
 // Role definitions — เพิ่ม role ใหม่ได้ที่นี่
 const ROLES = {
