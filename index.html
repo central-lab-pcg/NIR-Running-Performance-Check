@@ -264,6 +264,15 @@ const TOOLS = [
     tag: "new", tagLabel: "New"
   },
   {
+    id: "xchart",
+    name: "X-Chart (Control Chart)",
+    desc: "พล็อตกราฟควบคุมคุณภาพ (X-Chart) ของ QC Control Sample แยกตามแต่ละ Parameter",
+    color: "#fef2f2", iconColor: "#b91c1c",
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 3 5-8"/></svg>`,
+    url: "https://central-lab-pcg.github.io/NIR-Running-Performance-Check/NIR_XChart_Sync.html",
+    tag: "new", tagLabel: "New"
+  },
+  {
     id: "constituent",
     name: "Best Constituent Finder",
     desc: "ค้นหา model ที่ดีที่สุดของแต่ละ constituent โดยอัตโนมัติ",
@@ -276,8 +285,8 @@ const TOOLS = [
 
 const TAG_CLASS = { active: "tag-active", new: "tag-new", soon: "tag-soon", locked: "tag-locked" };
 
-const ALL_PERMS = { running: true, summary: true, constituent: true, bias: true, report: true };
-const DEFAULT_PERMS = { running: true, summary: true, constituent: true, bias: true, report: true };
+const ALL_PERMS = { running: true, summary: true, constituent: true, bias: true, report: true, xchart: true };
+const DEFAULT_PERMS = { running: true, summary: true, constituent: true, bias: true, report: true, xchart: true };
 
 // Role definitions — เพิ่ม role ใหม่ได้ที่นี่
 const ROLES = {
