@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NIR X-Chart Tool (Sync)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#ffffff; --border:#d7dae0; --text:#1c2230; --muted:#6b7280;
+  --accent:#2563eb; --accent-dark:#1d4ed8; --shade:#eceff3;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15171c; --panel:#1d2027; --border:#333844; --text:#e7e9ee; --muted:#9aa1ad;
+    --accent:#5b8def; --accent-dark:#4a75cc; --shade:#262a33;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15171c; --panel:#1d2027; --border:#333844; --text:#e7e9ee; --muted:#9aa1ad;
+  --accent:#5b8def; --accent-dark:#4a75cc; --shade:#262a33;
+}
+html{scroll-padding-top: env(safe-area-inset-top, 0px);}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:"Sarabun","Segoe UI",Tahoma,Arial,sans-serif; font-size:14px;
+}
+.wrap{max-width:1400px; margin:0 auto; padding:20px 16px 60px;}
+h1{font-size:19px; margin:4px 0 2px;}
+.sub{color:var(--muted); font-size:13px; margin-bottom:16px;}
+.panel{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:18px;}
+.panel h2{font-size:15px; margin:0 0 10px;}
+.row{display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;}
+.field{display:flex; flex-direction:column; gap:4px;}
+.field label{font-size:12px; color:var(--muted);}
+input[type=text], input[type=number], select{
+  border:1px solid var(--border); border-radius:8px; padding:8px 10px;
+  background:var(--bg); color:var(--text); font-family:inherit; font-size:13px;
+}
+button{
+  font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;
+  border-radius:8px; border:1px solid var(--border); background:var(--panel); color:var(--text);
+  padding:9px 16px;
+}
+button.primary{background:var(--accent); border-color:var(--accent-dark); color:#fff;}
+button.primary:hover{background:var(--accent-dark);}
+button.small{padding:4px 9px; font-size:12px;}
+button:hover:not(:disabled){filter:brightness(1.05);}
+.status{font-size:12.5px; margin-top:8px; padding:8px 10px; border-radius:8px; display:none;}
+.status.ok{display:block; background:#16803317; color:#16803350; border:1px solid #16803340;}
+.status.err{display:block; background:#dc262617; color:#b91c1c; border:1px solid #dc262640;}
+
+/* ---- printable chart sheet ---- */
+#chartHolder{overflow-x:auto;}
+.sheet{
+  background:#fff; color:#111; width:1500px; max-width:none; margin:0 auto;
+  padding:16px 20px 22px; font-family:"Sarabun","Segoe UI",Tahoma,Arial,sans-serif;
+  border:1px solid #ccc;
+}
+.sh-top{position:relative; min-height:60px; font-size:12.5px;}
+.sh-top .center{font-weight:700; font-size:13.5px; text-align:center; position:absolute; left:50%; top:0; transform:translateX(-50%); white-space:nowrap;}
+.sh-top .right{text-align:right; line-height:1.55; position:absolute; top:0; right:0; outline:none;}
+.sh-top .right[contenteditable="true"]:focus{background:#fff7d6;}
+.sh-title{text-align:center; font-weight:700; font-size:16px; margin:4px 0 8px;}
+.sh-meta{display:flex; flex-wrap:wrap; gap:6px 28px; font-size:12.5px; margin:4px 0 10px; border-top:1px solid #ccc; border-bottom:1px solid #ccc; padding:6px 0;}
+.sh-meta span{white-space:nowrap;}
+.sh-meta b{font-weight:700;}
+.sh-meta input[type=text], .sh-meta input[type=number]{
+  border:none; border-bottom:1px dotted #888; background:transparent; font-family:inherit;
+  font-size:12.5px; padding:0 2px; color:#111;
+}
+table.dt{border-collapse:collapse; width:100%; font-size:11px; margin-top:4px;}
+table.dt th, table.dt td{border:1px solid #333; padding:3px 4px; text-align:center; min-width:26px;}
+table.dt th.rowlabel, table.dt td.rowlabel{text-align:left; font-weight:700; min-width:110px; white-space:nowrap; background:#f2f2f2;}
+table.dt td[contenteditable="true"]{outline:none;}
+table.dt td[contenteditable="true"]:focus{background:#fff7d6;}
+td.pass{color:#146c2e;}
+td.fail{color:#b91c1c; font-weight:700;}
+.chartwrap{margin-top:14px;}
+svg text{font-family:"Sarabun","Segoe UI",Tahoma,Arial,sans-serif;}
+.legend{display:flex; gap:18px; font-size:11.5px; margin-top:4px; flex-wrap:wrap;}
+.legend span{display:inline-flex; align-items:center; gap:5px;}
+.legend i{width:16px; height:0; border-top:2px solid; display:inline-block;}
+@media print{
+  body *{visibility:hidden;}
+  #chartHolder, #chartHolder *{visibility:visible;}
+  #chartHolder{position:absolute; left:0; top:0; width:auto; overflow:visible;}
+  .sheet{border:none; width:auto;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>NIR X-Chart (Control Chart) Tool</h1>
+  <div class="sub">Plot กราฟควบคุมคุณภาพ (X-Chart) ของ Control Sample (QC) แยกตามแต่ละ Parameter</div>
+
+  <div class="panel">
+    <h2>ตั้งค่า Chart</h2>
+    <div class="row">
+      <div class="field"><label>Parameter</label><input type="text" id="fParam" value="Moisture"></div>
+      <div class="field"><label>เลือกพารามิเตอร์ที่ตั้งไว้ล่วงหน้า</label><select id="presetSelect" style="min-width:220px;"></select></div>
+      <div class="field"><label>Control Sample (QC) No.</label><input type="text" id="fQcNo" value="NIR 02/25"></div>
+      <div class="field"><label>MONTH</label><input type="text" id="fMonth" value="SEP 2026"></div>
+      <div class="field"><label>เริ่มใช้วันที่</label><input type="text" id="fUseDate" value="01/05/2025"></div>
+      <div class="field"><label>เลขที่เอกสาร</label><input type="text" id="fDocNo" value="F-LAB-20-11"></div>
+      <div class="field"><label>แก้ไขครั้งที่</label><input type="text" id="fRev" value="06"></div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <div class="field"><label>X̄ (Center Line)</label><input type="number" step="any" id="fMean" value="7.76"></div>
+      <div class="field"><label>X + 3SD</label><input type="number" step="any" id="fP3" value="7.94"></div>
+      <div class="field"><label>X + 2SD</label><input type="number" step="any" id="fP2" value="7.88"></div>
+      <div class="field"><label>X - 2SD</label><input type="number" step="any" id="fM2" value="7.63"></div>
+      <div class="field"><label>X - 3SD</label><input type="number" step="any" id="fM3" value="7.57"></div>
+      <div class="field"><label>จำนวนวัน (คอลัมน์)</label><input type="number" min="1" max="31" id="fDays" value="24" style="width:80px;"></div>
+    </div>
+    <div class="hint" style="font-size:12px; color:var(--muted); margin-top:8px;">
+      หมายเหตุ: เกณฑ์ ±2SD / ±3SD ด้านบนยังเป็นค่าเริ่มต้น พิมพ์ทับเป็นค่าจริงของแต่ละ Parameter ได้เลย ระบบจะตัดสิน Pass/Fail จากค่าที่กรอกไว้ตรงนี้ (เกินขอบ 3SD = Fail)
+    </div>
+    <div class="row" style="margin-top:12px;">
+      <button class="primary" id="btnBuild">สร้าง / อัปเดต Chart</button>
+      <button id="btnAddCol">+ เพิ่มวัน</button>
+      <button id="btnRemoveCol">- ลบวันสุดท้าย</button>
+      <button id="btnPrint">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <button id="btnSaveDb" class="primary" style="background:#146c2e; border-color:#0f5323;">☁️ บันทึก (ซิงก์ขึ้นระบบกลาง)</button>
+      <button id="btnRefresh">🔄 ดึงข้อมูลล่าสุด</button>
+      <button id="btnPasteFromReport">📋 วางข้อมูลจาก Report Tool</button>
+      <button id="btnAddPresets" class="primary" style="background:#7c3aed; border-color:#5b21b6;">➕ เพิ่มพารามิเตอร์ตามเกณฑ์ที่ตั้งไว้</button>
+      <button id="btnExportXlsx">📤 สำรองเป็นไฟล์ (.xlsx)</button>
+      <button class="filebtn" style="position:relative; overflow:hidden;">📥 นำเข้าจากไฟล์สำรอง (.xlsx)
+        <input type="file" id="importXlsxInput" accept=".xlsx,.xls" style="position:absolute; inset:0; opacity:0; cursor:pointer;">
+      </button>
+    </div>
+    <div class="row" style="margin-top:10px; align-items:center;">
+      <div class="field" style="min-width:280px;">
+        <label>QC ที่มีข้อมูลอยู่แล้ว</label>
+        <select id="qcSelect"><option value="">— เลือก QC / Parameter —</option></select>
+      </div>
+    </div>
+    <div id="pasteBox" style="display:none; margin-top:10px;">
+      <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">วางข้อความที่คัดลอกจากปุ่ม "ส่งค่า QC ไปที่ X-Chart" ของ Report Tool ที่นี่ (Ctrl+V) แล้วกดยืนยัน</label>
+      <textarea id="pasteBoxArea" style="width:100%; min-height:70px; font-family:monospace; font-size:11px;"></textarea>
+      <div style="margin-top:6px;"><button class="primary" id="pasteBoxSubmit">ยืนยันข้อมูลที่วาง</button></div>
+    </div>
+    <div class="hint" style="font-size:12px; color:var(--muted); margin-top:6px; line-height:1.5;">
+      ไฟล์นี้ซิงก์ผ่านระบบกลาง (Cloudflare Worker) เดียวกับเครื่องมือ Bias — ต้องเปิดไฟล์นี้ตรงๆ (ดับเบิลคลิก หรือโฮสต์เอง) ไม่ใช่ผ่านลิงก์ claude.ai/artifact ถึงจะเชื่อมต่อได้
+    </div>
+    <div class="status ok" id="statusBox"></div>
+  </div>
+
+  <div class="panel" id="chartHolder">
+    <div class="sheet" id="sheetEl"><!-- built by JS --></div>
+  </div>
+</div>
+
+<script>
+let dates = [];   // array of {date:'1', value: number|null}
+let built = false;
+
+function initDates(n){
+  dates = [];
+  for(let i=1;i<=n;i++) dates.push({date:String(i), value:null});
+}
+initDates(parseInt(document.getElementById('fDays').value,10) || 24);
+
+function esc(s){ return String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function getLimits(){
+  return {
+    mean: parseFloat(document.getElementById('fMean').value),
+    p3: parseFloat(document.getElementById('fP3').value),
+    p2: parseFloat(document.getElementById('fP2').value),
+    m2: parseFloat(document.getElementById('fM2').value),
+    m3: parseFloat(document.getElementById('fM3').value)
+  };
+}
+
+function statusOf(v, lim){
+  if(v===null || v===undefined || isNaN(v)) return '';
+  if(v > lim.p3 || v < lim.m3) return 'Fail';
+  return 'Pass';
+}
+
+function buildChartSVG(lim){
+  const w = 1440, h = 420, padL = 60, padR = 20, padT = 16, padB = 10;
+  const n = dates.length;
+  const plotW = w - padL - padR;
+  const stepX = n>1 ? plotW/(n-1) : plotW;
+
+  // y-range: pad a bit beyond the 3SD lines and beyond actual data
+  const vals = dates.map(d=>d.value).filter(v=>v!==null && !isNaN(v));
+  let yMin = Math.min(lim.m3, ...(vals.length?vals:[lim.m3]));
+  let yMax = Math.max(lim.p3, ...(vals.length?vals:[lim.p3]));
+  const span = (yMax - yMin) || 1;
+  yMin -= span*0.15; yMax += span*0.15;
+  const plotH = h - padT - padB;
+  const yToPx = v => padT + (yMax - v) / (yMax - yMin) * plotH;
+  const xToPx = i => padL + i*stepX;
+
+  const refLine = (v, color, dash, label) => {
+    const y = yToPx(v);
+    return `<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="${color}" stroke-width="1.4" ${dash?`stroke-dasharray="${dash}"`:''}/>
+      <text x="${padL-6}" y="${y+4}" text-anchor="end" font-size="11" fill="#333">${esc(label)}</text>`;
+  };
+
+  let refs = '';
+  refs += refLine(lim.p3, '#c0392b', '', lim.p3.toFixed(2));
+  refs += refLine(lim.p2, '#d4ac0d', '4,3', lim.p2.toFixed(2));
+  refs += refLine(lim.mean, '#1c2230', '', lim.mean.toFixed(2));
+  refs += refLine(lim.m2, '#d4ac0d', '4,3', lim.m2.toFixed(2));
+  refs += refLine(lim.m3, '#c0392b', '', lim.m3.toFixed(2));
+
+  // gridlines (vertical, one per column)
+  let grid = '';
+  for(let i=0;i<n;i++){
+    const x = xToPx(i);
+    grid += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${h-padB}" stroke="#e5e5e5" stroke-width="1"/>`;
+  }
+
+  // data polyline + points + value labels
+  let points = [];
+  dates.forEach((d,i)=>{
+    if(d.value!==null && !isNaN(d.value)) points.push([xToPx(i), yToPx(d.value), d.value]);
+  });
+  let poly = '';
+  if(points.length>1){
+    poly = `<polyline points="${points.map(p=>p[0]+','+p[1]).join(' ')}" fill="none" stroke="#2f3fae" stroke-width="1.6"/>`;
+  }
+  let dots = points.map(p=>{
+    const out = (p[2] > lim.p3 || p[2] < lim.m3);
+    return `<circle cx="${p[0]}" cy="${p[1]}" r="3.2" fill="${out?'#c0392b':'#2f3fae'}"/>
+      <text x="${p[0]}" y="${p[1]-7}" text-anchor="middle" font-size="10" fill="#333">${p[2]}</text>`;
+  }).join('');
+
+  // x-axis date labels
+  let xlabels = dates.map((d,i)=>`<text x="${xToPx(i)}" y="${h-padB+13}" text-anchor="middle" font-size="10" fill="#333">${esc(d.date)}</text>`).join('');
+
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="max-width:${w}px; display:block; margin:0 auto;">
+    <rect x="0" y="0" width="${w}" height="${h}" fill="#fff"/>
+    ${grid}
+    ${refs}
+    ${poly}
+    ${dots}
+    ${xlabels}
+  </svg>`;
+}
+
+function buildSheet(){
+  const lim = getLimits();
+  const param = document.getElementById('fParam').value;
+  const qcNo = document.getElementById('fQcNo').value;
+  const month = document.getElementById('fMonth').value;
+  const useDate = document.getElementById('fUseDate').value;
+  const docNo = document.getElementById('fDocNo').value;
+  const rev = document.getElementById('fRev').value;
+
+  const dateCells = dates.map((d,i)=>`<td contenteditable="true" data-idx="${i}" data-field="date">${esc(d.date)}</td>`).join('');
+  const valCells = dates.map((d,i)=>`<td contenteditable="true" data-idx="${i}" data-field="value">${d.value===null?'':d.value}</td>`).join('');
+  const statCells = dates.map(d=>{
+    const st = statusOf(d.value, lim);
+    const cls = st==='Fail' ? 'fail' : (st==='Pass' ? 'pass' : '');
+    return `<td class="${cls}">${st}</td>`;
+  }).join('');
+
+  const sheet = document.getElementById('sheetEl');
+  sheet.innerHTML = `
+    <div class="sh-top">
+      <div class="center">ห้องปฏิบัติการทดสอบ บริษัท เพอร์เฟค คอมพาเนียน กรุ๊ป จำกัด</div>
+      <div class="right" contenteditable="true">
+        เลขที่เอกสาร &nbsp;${esc(docNo)}<br>
+        เริ่มใช้วันที่ &nbsp;${esc(useDate)}<br>
+        แก้ไขครั้งที่ : ${esc(rev)}<br>
+        1/1
+      </div>
+    </div>
+    <div class="sh-title">X - CHART</div>
+    <div class="sh-meta">
+      <span>แบบฟอร์ม : เผยแพร่ผลควบคุมคุณภาพ (Control Chart)</span>
+      <span>PARAMETER : <b>${esc(param)}</b></span>
+      <span>Control Sample (QC) No. : <b>${esc(qcNo)}</b></span>
+      <span>MONTH : <b>${esc(month)}</b></span>
+    </div>
+    <div class="sh-meta">
+      <span>X + 3SD : <b>${lim.p3}</b></span>
+      <span>X + 2SD : <b>${lim.p2}</b></span>
+      <span>X&#772; : <b>${lim.mean}</b></span>
+      <span>X - 2SD : <b>${lim.m2}</b></span>
+      <span>X - 3SD : <b>${lim.m3}</b></span>
+    </div>
+    <table class="dt">
+      <tr><td class="rowlabel">DATE</td>${dateCells}</tr>
+      <tr><td class="rowlabel">SAMPLE MEASUREMENT</td>${valCells}</tr>
+      <tr><td class="rowlabel">STATUS</td>${statCells}</tr>
+    </table>
+    <div class="chartwrap">${buildChartSVG(lim)}</div>
+    <div class="legend">
+      <span><i style="border-color:#c0392b;"></i> ±3SD (Action limit)</span>
+      <span><i style="border-color:#d4ac0d; border-top-style:dashed;"></i> ±2SD (Warning limit)</span>
+      <span><i style="border-color:#1c2230;"></i> X&#772; (Center line)</span>
+      <span><i style="border-color:#c0392b; border-top-style:none; background:#c0392b; height:2px; width:16px;"></i> จุดข้อมูลเกิน ±3SD</span>
+    </div>
+  `;
+
+  // re-attach edit listeners
+  sheet.querySelectorAll('table.dt td[contenteditable]').forEach(td=>{
+    td.addEventListener('blur', onCellEdit);
+    td.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } });
+  });
+
+  built = true;
+  showStatus('อัปเดต Chart แล้ว', true);
+}
+
+function onCellEdit(e){
+  const td = e.target;
+  const idx = parseInt(td.dataset.idx,10);
+  const field = td.dataset.field;
+  const raw = td.textContent.trim();
+  if(field==='date'){
+    dates[idx].date = raw;
+  } else {
+    const v = raw==='' ? null : parseFloat(raw);
+    dates[idx].value = (v===null || isNaN(v)) ? null : v;
+  }
+  buildSheet();
+}
+
+function showStatus(msg, ok){
+  const box = document.getElementById('statusBox');
+  box.textContent = msg;
+  box.className = 'status ' + (ok ? 'ok' : 'err');
+}
+
+document.getElementById('btnBuild').addEventListener('click', buildSheet);
+
+document.getElementById('btnAddCol').addEventListener('click', ()=>{
+  dates.push({date:String(dates.length+1), value:null});
+  document.getElementById('fDays').value = dates.length;
+  buildSheet();
+});
+
+document.getElementById('btnRemoveCol').addEventListener('click', ()=>{
+  if(dates.length>1) dates.pop();
+  document.getElementById('fDays').value = dates.length;
+  buildSheet();
+});
+
+document.getElementById('fDays').addEventListener('change', ()=>{
+  const n = Math.max(1, Math.min(31, parseInt(document.getElementById('fDays').value,10) || 24));
+  initDates(n);
+  buildSheet();
+});
+
+document.getElementById('btnPrint').addEventListener('click', ()=>{
+  window.print();
+});
+
+// ── ซิงก์ผ่าน Cloudflare Worker + KV เดียวกับที่ใช้ในเครื่องมือ Bias ──────────────
+// ไฟล์นี้ต้องเปิดโดยตรง (ดับเบิลคลิก หรือโฮสต์เอง) ไม่ใช่ผ่านลิงก์ claude.ai/artifact
+// เพราะหน้าที่เผยแพร่ผ่าน Claude Artifact จะถูกบล็อกไม่ให้เชื่อมต่อโดเมนภายนอกแบบนี้
+const WORKER_URL = 'https://silent-firefly-262f.imguy2727.workers.dev';
+const KV_SECRET  = 'nir-bias-kv-2026-change-me'; // ต้องตรงกับค่าที่ตั้งไว้ใน Cloudflare Worker
+const KV_KEY     = 'nir_xchart_store'; // คีย์ใหม่ แยกจากข้อมูล Bias เดิมโดยสิ้นเชิง
+function kvUrl(key){ return WORKER_URL + '/kv/' + key; }
+
+const LS_CACHE_KEY = 'nir_xchart_cache_v1'; // แคชไว้ในเครื่องเผื่อออฟไลน์/เชื่อมต่อไม่ได้ชั่วคราว
+
+function sanitizeId(s){
+  return String(s||'').trim().replace(/[^a-zA-Z0-9_\-.~:@+]+/g,'_').slice(0,120) || 'x';
+}
+function docIdFor(qcNo, param){ return sanitizeId(qcNo) + '__' + sanitizeId(param); }
+
+async function kvGetAll(){
+  const res = await fetch(kvUrl(KV_KEY), {cache:'no-store', mode:'cors', headers:{'X-KV-Secret':KV_SECRET}});
+  if(res.status===404) return {};
+  if(!res.ok){
+    let detail=''; try{ const j=await res.json(); detail=j.message||''; }catch(e){}
+    throw new Error(`HTTP ${res.status}${detail?' — '+detail:''}`);
+  }
+  const j = await res.json();
+  return j.record || j || {};
+}
+async function kvPutAll(obj){
+  const res = await fetch(kvUrl(KV_KEY), {
+    method:'PUT',
+    headers:{'Content-Type':'application/json','X-KV-Secret':KV_SECRET},
+    body: JSON.stringify(obj)
+  });
+  if(!res.ok){
+    let detail=''; try{ const j=await res.json(); detail=j.message||''; }catch(e){}
+    throw new Error(`HTTP ${res.status}${detail?' — '+detail:''}`);
+  }
+}
+
+async function storeReadAll(){
+  try{
+    const all = await kvGetAll();
+    try{ localStorage.setItem(LS_CACHE_KEY, JSON.stringify(all)); }catch(e){}
+    return all;
+  }catch(e){
+    showStatus('เชื่อมระบบกลางไม่ได้ (' + e.message + ') — แสดงข้อมูลที่แคชไว้ล่าสุดในเครื่องนี้แทน', false);
+    try{ return JSON.parse(localStorage.getItem(LS_CACHE_KEY) || '{}'); }catch(e2){ return {}; }
+  }
+}
+async function storeReadOne(id){
+  const all = await storeReadAll();
+  return all[id] || null;
+}
+async function storeWriteOne(id, body){
+  const all = await kvGetAll();
+  all[id] = body;
+  await kvPutAll(all);
+  try{ localStorage.setItem(LS_CACHE_KEY, JSON.stringify(all)); }catch(e){}
+}
+function mergePoints(existingPoints, newPoints){
+  const map = new Map((existingPoints||[]).map(p=>[String(p.date), p.value]));
+  (newPoints||[]).forEach(p=>map.set(String(p.date), p.value));
+  return Array.from(map, ([date,value])=>({date,value})).sort((a,b)=> String(a.date).localeCompare(String(b.date)));
+}
+
+// ── พารามิเตอร์ที่ตั้งค่าไว้ล่วงหน้า (เกณฑ์ตามที่แจ้ง) ─────────────────────────
+const PRESETS = [
+  {param:'Moisture',        mean:7.76,  p3:7.94,  p2:7.88,  m2:7.63,  m3:7.57},
+  {param:'Crude Protein',   mean:32.45, p3:33.06, p2:32.86, m2:32.05, m3:31.84},
+  {param:'Acid Hydrolysis', mean:10.30, p3:10.90, p2:10.70, m2:9.89,  m3:9.69},
+  {param:'Fiber',           mean:2.29,  p3:2.66,  p2:2.54,  m2:2.05,  m3:1.93},
+  {param:'Ash',             mean:6.3,   p3:7.3,   p2:7.0,   m2:5.6,   m3:5.3}
+];
+
+function populatePresetSelect(){
+  const sel = document.getElementById('presetSelect');
+  sel.innerHTML = '<option value="">— เลือกพารามิเตอร์ที่ตั้งไว้ล่วงหน้า —</option>';
+  PRESETS.forEach((pr,i)=>{
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = pr.param;
+    sel.appendChild(opt);
+  });
+}
+document.getElementById('presetSelect').addEventListener('change', (e)=>{
+  const i = e.target.value;
+  if(i==='') return;
+  const pr = PRESETS[i];
+  document.getElementById('fParam').value = pr.param;
+  document.getElementById('fMean').value = pr.mean;
+  document.getElementById('fP3').value = pr.p3;
+  document.getElementById('fP2').value = pr.p2;
+  document.getElementById('fM2').value = pr.m2;
+  document.getElementById('fM3').value = pr.m3;
+  buildSheet();
+});
+
+document.getElementById('btnAddPresets').addEventListener('click', async ()=>{
+  const qcNo = document.getElementById('fQcNo').value || 'NIR 02/25';
+  try{
+    const all = await kvGetAll();
+    PRESETS.forEach(pr=>{
+      const id = docIdFor(qcNo, pr.param);
+      const existing = all[id] || {};
+      all[id] = {
+        qcNo, param: pr.param,
+        month: existing.month || document.getElementById('fMonth').value,
+        useDate: existing.useDate || document.getElementById('fUseDate').value,
+        docNo: existing.docNo || document.getElementById('fDocNo').value,
+        rev: existing.rev || document.getElementById('fRev').value,
+        limits: {mean:pr.mean, p3:pr.p3, p2:pr.p2, m2:pr.m2, m3:pr.m3},
+        points: existing.points || [],
+        updatedAt: new Date().toISOString()
+      };
+    });
+    await kvPutAll(all);
+    try{ localStorage.setItem(LS_CACHE_KEY, JSON.stringify(all)); }catch(e){}
+    await refreshQcList();
+    showStatus(`เพิ่ม/อัปเดตเกณฑ์ ${PRESETS.length} พารามิเตอร์เข้าระบบกลางแล้ว สำหรับ QC No. ${qcNo} (ไม่กระทบจุดข้อมูลเดิมที่เคยมี)`, true);
+  }catch(err){
+    showStatus('เพิ่มไม่สำเร็จ: ' + err.message, false);
+  }
+});
+
+function applyDoc(id, data){
+  if(data.param) document.getElementById('fParam').value = data.param;
+  if(data.qcNo) document.getElementById('fQcNo').value = data.qcNo;
+  if(data.month) document.getElementById('fMonth').value = data.month;
+  if(data.useDate) document.getElementById('fUseDate').value = data.useDate;
+  if(data.docNo) document.getElementById('fDocNo').value = data.docNo;
+  if(data.rev) document.getElementById('fRev').value = data.rev;
+  if(data.limits){
+    const l = data.limits;
+    if(l.mean!=null) document.getElementById('fMean').value = l.mean;
+    if(l.p3!=null) document.getElementById('fP3').value = l.p3;
+    if(l.p2!=null) document.getElementById('fP2').value = l.p2;
+    if(l.m2!=null) document.getElementById('fM2').value = l.m2;
+    if(l.m3!=null) document.getElementById('fM3').value = l.m3;
+  }
+  if(Array.isArray(data.points) && data.points.length){
+    dates = data.points.map(p=>({date:String(p.date), value:(p.value===null||p.value===undefined)?null:Number(p.value)}));
+    document.getElementById('fDays').value = dates.length;
+  }
+  buildSheet();
+}
+
+async function refreshQcList(){
+  const sel = document.getElementById('qcSelect');
+  const all = await storeReadAll();
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— เลือก QC / Parameter —</option>';
+  Object.keys(all).forEach(id=>{
+    const v = all[id];
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = `${v.qcNo || id} — ${v.param || ''}`;
+    sel.appendChild(opt);
+  });
+  if(cur) sel.value = cur;
+}
+
+document.getElementById('qcSelect').addEventListener('change', async (e)=>{
+  const id = e.target.value;
+  if(!id) return;
+  const data = await storeReadOne(id);
+  if(data) applyDoc(id, data);
+});
+
+document.getElementById('btnSaveDb').addEventListener('click', async ()=>{
+  const lim = getLimits();
+  const id = docIdFor(document.getElementById('fQcNo').value, document.getElementById('fParam').value);
+  const body = {
+    qcNo: document.getElementById('fQcNo').value,
+    param: document.getElementById('fParam').value,
+    month: document.getElementById('fMonth').value,
+    useDate: document.getElementById('fUseDate').value,
+    docNo: document.getElementById('fDocNo').value,
+    rev: document.getElementById('fRev').value,
+    limits: lim,
+    points: dates,
+    updatedAt: new Date().toISOString()
+  };
+  try{
+    await storeWriteOne(id, body);
+    await refreshQcList();
+    document.getElementById('qcSelect').value = id;
+    showStatus('ซิงก์ขึ้นระบบกลางแล้ว ทุกคนที่เปิดไฟล์นี้ (เชื่อมต่ออินเทอร์เน็ต) จะเห็นข้อมูลเดียวกัน', true);
+  }catch(err){
+    showStatus('บันทึกไม่สำเร็จ: ' + err.message, false);
+  }
+});
+
+document.getElementById('btnRefresh').addEventListener('click', async ()=>{
+  await refreshQcList();
+  const id = document.getElementById('qcSelect').value;
+  if(id){ const data = await storeReadOne(id); if(data) applyDoc(id, data); }
+  showStatus('ดึงข้อมูลล่าสุดจากระบบกลางแล้ว', true);
+});
+
+// ── รับข้อมูลจากปุ่ม "ส่งค่า QC ไปที่ X-Chart" ของ Report Tool ─────────────────
+// Report Tool (หน้า Artifact) เชื่อม Worker เองไม่ได้ (ถูกบล็อกโดเมนภายนอก) จึง "คัดลอก"
+// ข้อมูลใส่คลิปบอร์ดแทน มาวางที่นี่แล้วไฟล์นี้ (เปิดตรง ไม่ผ่าน Artifact) จะซิงก์ขึ้น Worker ให้เอง
+async function pasteFromReportTool(){
+  let text = '';
+  try{ text = await navigator.clipboard.readText(); }
+  catch(e){ showStatus('อ่านคลิปบอร์ดไม่ได้ (เบราว์เซอร์ไม่อนุญาต) — วางด้วย Ctrl+V ในช่องที่ปรากฏแทน', false); promptPasteBox(); return; }
+  await ingestPayloadText(text);
+}
+function promptPasteBox(){
+  const box = document.getElementById('pasteBox');
+  box.style.display = 'block';
+  box.querySelector('textarea').focus();
+}
+async function ingestPayloadText(text){
+  text = (text||'').trim();
+  if(!text) return;
+  let payload;
+  try{
+    const norm = text.replace(/-/g,'+').replace(/_/g,'/');
+    payload = JSON.parse(decodeURIComponent(escape(atob(norm))));
+  }catch(e){ showStatus('ข้อมูลที่วางมาอ่านไม่ได้ ตรวจว่าคัดลอกมาครบหรือไม่', false); return; }
+  if(!payload || !Array.isArray(payload.points) || !payload.points.length){ showStatus('ไม่พบค่า QC ในข้อมูลที่วางมา', false); return; }
+
+  const groups = {};
+  payload.points.forEach(p=>{
+    const id = docIdFor(p.qcNo, p.param);
+    if(!groups[id]) groups[id] = {qcNo:p.qcNo, param:p.param, pts:[]};
+    groups[id].pts.push({date:p.date, value:p.value});
+  });
+
+  try{
+    const all = await kvGetAll();
+    let firstId = null;
+    Object.keys(groups).forEach(id=>{
+      const g = groups[id];
+      const existing = all[id] || {};
+      all[id] = {
+        qcNo: g.qcNo, param: g.param,
+        month: existing.month || document.getElementById('fMonth').value,
+        useDate: payload.useDate || existing.useDate || document.getElementById('fUseDate').value,
+        docNo: payload.docNo || existing.docNo || document.getElementById('fDocNo').value,
+        rev: payload.rev || existing.rev || document.getElementById('fRev').value,
+        limits: existing.limits || null,
+        points: mergePoints(existing.points, g.pts),
+        updatedAt: new Date().toISOString()
+      };
+      if(!firstId) firstId = id;
+    });
+    await kvPutAll(all);
+    try{ localStorage.setItem(LS_CACHE_KEY, JSON.stringify(all)); }catch(e){}
+    await refreshQcList();
+    if(firstId){ document.getElementById('qcSelect').value = firstId; applyDoc(firstId, all[firstId]); }
+    document.getElementById('pasteBox').style.display = 'none';
+    showStatus(`รับค่า QC จาก Report Tool แล้ว (${payload.points.length} ค่า) ซิงก์ขึ้นระบบกลางเรียบร้อย — เกณฑ์ ±SD ยังต้องกรอกเพิ่มแล้วกด "บันทึก"`, true);
+  }catch(err){
+    showStatus('ซิงก์ไม่สำเร็จ: ' + err.message, false);
+  }
+}
+document.getElementById('btnPasteFromReport').addEventListener('click', pasteFromReportTool);
+document.getElementById('pasteBoxSubmit').addEventListener('click', ()=>{
+  ingestPayloadText(document.getElementById('pasteBoxArea').value);
+});
+
+// ยังรองรับ ?data=... ใน URL เผื่อไฟล์นี้ถูกโฮสต์ไว้ที่อยู่คงที่เอง
+(async function ingestFromUrlIfAny(){
+  const params = new URLSearchParams(location.search);
+  const b64 = params.get('data');
+  if(!b64) return;
+  history.replaceState(null, '', location.pathname);
+  await ingestPayloadText(b64);
+})();
+
+(async function initStore(){
+  populatePresetSelect();
+  await refreshQcList();
+})();
+
+buildSheet();
+</script>
+</body>
+</html>
