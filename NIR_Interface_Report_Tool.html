@@ -125,7 +125,31 @@ select.diffmode-sel{font-size:11px; padding:2px 3px; border:1px solid #999; bord
 <body>
 <div class="wrap" id="app">
 
-  <h1>NIR Interface Report Tool</h1>
+  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+    <h1>NIR Interface Report Tool</h1>
+    <button id="controlChartBtn" class="primary" style="background:#7c3aed; border-color:#5b21b6; white-space:nowrap;">📊 Control Chart</button>
+  </div>
+
+  <div id="ccModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:50; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:#fff; color:#1c2230; border-radius:12px; max-width:520px; width:100%; padding:20px 22px; box-shadow:0 10px 30px rgba(0,0,0,.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <h2 style="margin:0; font-size:16px;">📊 ไปที่ Control Chart (X-Chart)</h2>
+        <button id="ccModalClose" style="border:none; background:none; font-size:18px; cursor:pointer; padding:2px 6px;">✕</button>
+      </div>
+      <div style="font-size:13px; line-height:1.7; color:#374151;">
+        หน้านี้เปิดไฟล์ X-Chart ให้อัตโนมัติไม่ได้ (เบราว์เซอร์บล็อกการเปิดไฟล์ในเครื่องจากหน้าเว็บ) ทำตามขั้นตอนนี้แทน:
+        <ol style="padding-left:18px; margin:8px 0;">
+          <li>กดปุ่มด้านล่าง "📋 คัดลอกค่า QC จากรายงานนี้" (ถ้ามีรายงานที่มีแถว QC อยู่แล้ว)</li>
+          <li>เปิดไฟล์ <b>NIR_XChart_Sync.html</b> ที่เก็บไว้ในเครื่อง (ดับเบิลคลิกเปิดตรงๆ)</li>
+          <li>ในไฟล์นั้น กดปุ่ม "📋 วางข้อมูลจาก Report Tool" — จะซิงก์ค่าขึ้นระบบกลางให้ทันที</li>
+        </ol>
+      </div>
+      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="primary" id="ccModalCopyBtn">📋 คัดลอกค่า QC จากรายงานนี้</button>
+      </div>
+      <div class="status ok" id="ccModalStatus" style="margin-top:10px;"></div>
+    </div>
+  </div>
 
   <div class="panel">
     <h2>1) นำเข้าข้อมูล</h2>
@@ -205,6 +229,7 @@ select.diffmode-sel{font-size:11px; padding:2px 3px; border:1px solid #999; bord
     <div class="rowbtns">
       <button class="primary" id="printBtn">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
       <button id="exportXlsxBtn">📊 บันทึกเป็น Excel (Interface)</button>
+      <button id="sendQcBtn">📈 ส่งค่า QC ไปที่ X-Chart</button>
       <button id="addRowBtn">+ เพิ่มแถวว่าง</button>
     </div>
     <div id="reportHolder"></div>
@@ -748,6 +773,63 @@ async function doDownload(filename, dataBlob){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 4000);
 }
+
+// ---------- copy QC readings for the standalone X-Chart Sync tool ----------
+// This page (Claude Artifact) is blocked from reaching external hosts, so it cannot push
+// straight to the Worker/KV that the X-Chart Sync tool syncs through, and it can't open a
+// local file on the user's machine either (browsers block that from an https page).
+// Instead: copy the encoded payload to the clipboard; open NIR_XChart_Sync.html directly
+// (double-click the file, not a link) and use its "วางข้อมูลจาก Report Tool" button to
+// paste it in — that file CAN reach the Worker and will sync it for everyone.
+async function copyQcPayloadToClipboard(){
+  if(!groups.length){ return {ok:false, msg:'ยังไม่มีข้อมูลรายงาน'}; }
+  const testDate = document.getElementById('testDate').value || '';
+  const docNo = 'F-LAB-17-27', useDate = '24/09/2026', rev = '04'; // report header (informational only)
+  const pts = [];
+  groups.forEach(g=>{
+    if(!g.isQC || !g._final) return;
+    PARAMS.forEach(p=>{
+      const v = g._final[p.code];
+      if(v===null || v===undefined) return;
+      pts.push({ qcNo: g.sampleName || g.labNo, param: p.label, date: testDate || '', value: v });
+    });
+  });
+  if(!pts.length){ return {ok:false, msg:'ไม่พบแถว QC (CheckSample) ที่มีค่าในรายงานนี้'}; }
+  const payload = { docNo, useDate, rev, points: pts };
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  try{
+    await navigator.clipboard.writeText(b64);
+    return {ok:true, count: pts.length};
+  }catch(e){
+    window.prompt('คัดลอกข้อความนี้ แล้วไปวางที่ปุ่ม "วางข้อมูลจาก Report Tool" ใน NIR_XChart_Sync.html', b64);
+    return {ok:true, count: pts.length};
+  }
+}
+
+document.getElementById('sendQcBtn').addEventListener('click', async function(){
+  const r = await copyQcPayloadToClipboard();
+  if(!r.ok){ setStatus(r.msg, false); return; }
+  setStatus(`คัดลอกค่า QC ${r.count} รายการแล้ว — เปิดไฟล์ NIR_XChart_Sync.html แล้วกด "วางข้อมูลจาก Report Tool"`, true);
+});
+
+// ---------- top "Control Chart" button: instructions modal + same copy action ----------
+const ccOverlay = document.getElementById('ccModalOverlay');
+document.getElementById('controlChartBtn').addEventListener('click', ()=>{
+  document.getElementById('ccModalStatus').className = 'status';
+  document.getElementById('ccModalStatus').textContent = '';
+  ccOverlay.style.display = 'flex';
+});
+document.getElementById('ccModalClose').addEventListener('click', ()=>{ ccOverlay.style.display = 'none'; });
+ccOverlay.addEventListener('click', (e)=>{ if(e.target===ccOverlay) ccOverlay.style.display='none'; });
+document.getElementById('ccModalCopyBtn').addEventListener('click', async ()=>{
+  const r = await copyQcPayloadToClipboard();
+  const box = document.getElementById('ccModalStatus');
+  box.className = 'status ' + (r.ok ? 'ok' : 'err');
+  box.textContent = r.ok
+    ? `คัดลอกค่า QC ${r.count} รายการแล้ว — ไปเปิดไฟล์ NIR_XChart_Sync.html แล้ววางได้เลย`
+    : r.msg;
+});
 
 document.getElementById('exportXlsxBtn').addEventListener('click', async function(){
   if(!groups.length){ setStatus('ยังไม่มีข้อมูลรายงาน', false); return; }
