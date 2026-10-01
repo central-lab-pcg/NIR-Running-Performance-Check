@@ -147,6 +147,11 @@ select.diffmode-sel{font-size:11px; padding:2px 3px; border:1px solid #999; bord
       <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
         <button class="primary" id="ccModalCopyBtn">📋 คัดลอกค่า QC จากรายงานนี้</button>
       </div>
+      <div id="ccManualBox" style="display:none; margin-top:10px;">
+        <div style="font-size:12.5px; color:#b91c1c; margin-bottom:4px;">คัดลอกอัตโนมัติไม่สำเร็จ (เบราว์เซอร์บล็อก) — กดเลือกข้อความทั้งหมดด้านล่างนี้ แล้วกด Ctrl+C (หรือคลิกขวา → Copy) ด้วยตัวเองแทน</div>
+        <textarea id="ccManualTextarea" readonly style="width:100%; min-height:60px; font-family:monospace; font-size:11px;" onclick="this.select()"></textarea>
+        <div style="margin-top:6px;"><button id="ccSelectAllBtn">เลือกข้อความทั้งหมด</button></div>
+      </div>
       <div class="status ok" id="ccModalStatus" style="margin-top:10px;"></div>
     </div>
   </div>
@@ -798,37 +803,79 @@ async function copyQcPayloadToClipboard(){
   const payload = { docNo, useDate, rev, points: pts };
   const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))))
     .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  // Claude Artifact pages run in a sandboxed iframe that commonly blocks the programmatic
+  // Clipboard API (navigator.clipboard.writeText) even though it resolves/rejects inconsistently
+  // across browsers. Verify it actually landed before claiming success; if not, fall back to a
+  // real on-screen textarea the user selects and copies manually (Ctrl+C) — that's a genuine
+  // user-initiated browser copy, which is NOT subject to the same API restriction.
   try{
     await navigator.clipboard.writeText(b64);
-    return {ok:true, count: pts.length};
+    const check = await navigator.clipboard.readText().catch(()=>null);
+    if(check === b64){
+      return {ok:true, count: pts.length, manual:false};
+    }
+    throw new Error('verify-failed');
   }catch(e){
-    window.prompt('คัดลอกข้อความนี้ แล้วไปวางที่ปุ่ม "วางข้อมูลจาก Report Tool" ใน NIR_XChart_Sync.html', b64);
-    return {ok:true, count: pts.length};
+    return {ok:false, manual:true, b64, count: pts.length};
   }
 }
 
+function showManualCopyBox(b64){
+  const box = document.getElementById('ccManualBox');
+  const ta = document.getElementById('ccManualTextarea');
+  ta.value = b64;
+  box.style.display = 'block';
+  ta.focus(); ta.select();
+}
+document.getElementById('ccSelectAllBtn').addEventListener('click', ()=>{
+  const ta = document.getElementById('ccManualTextarea');
+  ta.focus(); ta.select();
+});
+
 document.getElementById('sendQcBtn').addEventListener('click', async function(){
   const r = await copyQcPayloadToClipboard();
+  if(r.manual){
+    showManualCopyBox(r.b64);
+    setStatus(`คัดลอกอัตโนมัติไม่สำเร็จ — เลือกข้อความในช่องด้านล่างแล้ว Ctrl+C ด้วยตัวเอง แล้วไปวางที่ NIR_XChart_Sync.html`, false);
+    return;
+  }
   if(!r.ok){ setStatus(r.msg, false); return; }
   setStatus(`คัดลอกค่า QC ${r.count} รายการแล้ว — เปิดไฟล์ NIR_XChart_Sync.html แล้วกด "วางข้อมูลจาก Report Tool"`, true);
 });
 
-// ---------- top "Control Chart" button: instructions modal + same copy action ----------
-const ccOverlay = document.getElementById('ccModalOverlay');
-document.getElementById('controlChartBtn').addEventListener('click', ()=>{
-  document.getElementById('ccModalStatus').className = 'status';
-  document.getElementById('ccModalStatus').textContent = '';
-  ccOverlay.style.display = 'flex';
+// ---------- top "Control Chart" button: now a real hosted link (GitHub Pages) ----------
+// NIR_XChart_Sync.html is hosted in the same repo/site as the other portal tools, so this
+// page CAN open it directly - no more copy/paste modal needed. Best-effort copy the current
+// report's QC values to the clipboard first (X-Chart Sync's "วางข้อมูลจาก Report Tool" button
+// can use it), then open the tool in a new tab either way.
+const XCHART_URL = 'https://central-lab-pcg.github.io/NIR-Running-Performance-Check/NIR_XChart_Sync.html';
+document.getElementById('controlChartBtn').addEventListener('click', async ()=>{
+  const r = await copyQcPayloadToClipboard();
+  window.open(XCHART_URL, '_blank');
+  if(r.manual){
+    document.getElementById('ccModalStatus').className = 'status';
+    document.getElementById('ccModalStatus').textContent = '';
+    document.getElementById('ccModalOverlay').style.display = 'flex';
+    showManualCopyBox(r.b64);
+    setStatus('เปิด Control Chart แล้ว — แต่คัดลอกอัตโนมัติไม่สำเร็จ เลือกข้อความในหน้าต่างที่เปิดขึ้นแล้ว Ctrl+C ด้วยตัวเอง', false);
+  } else if(r.ok){
+    setStatus(`คัดลอกค่า QC ${r.count} รายการแล้ว และเปิด Control Chart ในแท็บใหม่`, true);
+  }
+  // r.ok===false (no report data yet) — just open the tool, nothing to copy
 });
-document.getElementById('ccModalClose').addEventListener('click', ()=>{ ccOverlay.style.display = 'none'; });
-ccOverlay.addEventListener('click', (e)=>{ if(e.target===ccOverlay) ccOverlay.style.display='none'; });
-document.getElementById('ccModalCopyBtn').addEventListener('click', async ()=>{
+document.getElementById('ccModalClose')?.addEventListener('click', ()=>{ document.getElementById('ccModalOverlay').style.display = 'none'; });
+document.getElementById('ccModalCopyBtn')?.addEventListener('click', async ()=>{
   const r = await copyQcPayloadToClipboard();
   const box = document.getElementById('ccModalStatus');
+  if(r.manual){
+    showManualCopyBox(r.b64);
+    box.className = 'status err';
+    box.textContent = 'คัดลอกอัตโนมัติไม่สำเร็จ — เลือกข้อความด้านล่างแล้ว Ctrl+C ด้วยตัวเอง';
+    return;
+  }
+  document.getElementById('ccManualBox').style.display = 'none';
   box.className = 'status ' + (r.ok ? 'ok' : 'err');
-  box.textContent = r.ok
-    ? `คัดลอกค่า QC ${r.count} รายการแล้ว — ไปเปิดไฟล์ NIR_XChart_Sync.html แล้ววางได้เลย`
-    : r.msg;
+  box.textContent = r.ok ? `คัดลอกค่า QC ${r.count} รายการแล้ว` : r.msg;
 });
 
 document.getElementById('exportXlsxBtn').addEventListener('click', async function(){

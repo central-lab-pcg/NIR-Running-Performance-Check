@@ -105,7 +105,7 @@ svg text{font-family:"Sarabun","Segoe UI",Tahoma,Arial,sans-serif;}
       <div class="field"><label>Parameter</label><input type="text" id="fParam" value="Moisture"></div>
       <div class="field"><label>เลือกพารามิเตอร์ที่ตั้งไว้ล่วงหน้า</label><select id="presetSelect" style="min-width:220px;"></select></div>
       <div class="field"><label>Control Sample (QC) No.</label><input type="text" id="fQcNo" value="NIR 02/25"></div>
-      <div class="field"><label>MONTH</label><input type="text" id="fMonth" value="SEP 2026"></div>
+      <div class="field"><label>MONTH</label><input type="month" id="fMonthKey"></div>
       <div class="field"><label>เริ่มใช้วันที่</label><input type="text" id="fUseDate" value="01/05/2025"></div>
       <div class="field"><label>เลขที่เอกสาร</label><input type="text" id="fDocNo" value="F-LAB-20-11"></div>
       <div class="field"><label>แก้ไขครั้งที่</label><input type="text" id="fRev" value="06"></div>
@@ -127,20 +127,30 @@ svg text{font-family:"Sarabun","Segoe UI",Tahoma,Arial,sans-serif;}
       <button id="btnRemoveCol">- ลบวันสุดท้าย</button>
       <button id="btnPrint">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
     </div>
-    <div class="row" style="margin-top:10px;">
-      <button id="btnSaveDb" class="primary" style="background:#146c2e; border-color:#0f5323;">☁️ บันทึก (ซิงก์ขึ้นระบบกลาง)</button>
-      <button id="btnRefresh">🔄 ดึงข้อมูลล่าสุด</button>
-      <button id="btnPasteFromReport">📋 วางข้อมูลจาก Report Tool</button>
-      <button id="btnAddPresets" class="primary" style="background:#7c3aed; border-color:#5b21b6;">➕ เพิ่มพารามิเตอร์ตามเกณฑ์ที่ตั้งไว้</button>
-      <button id="btnExportXlsx">📤 สำรองเป็นไฟล์ (.xlsx)</button>
-      <button class="filebtn" style="position:relative; overflow:hidden;">📥 นำเข้าจากไฟล์สำรอง (.xlsx)
-        <input type="file" id="importXlsxInput" accept=".xlsx,.xls" style="position:absolute; inset:0; opacity:0; cursor:pointer;">
-      </button>
+    <div class="row" style="margin-top:10px; position:relative;">
+      <button id="btnMoreOptions">⋯ More Options</button>
+      <div id="moreOptionsPanel" style="display:none; position:absolute; top:100%; left:0; margin-top:6px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px; box-shadow:0 8px 24px rgba(0,0,0,.15); z-index:10; min-width:280px;">
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <button id="btnSaveDb" class="primary" style="background:#146c2e; border-color:#0f5323; width:100%;">☁️ บันทึก (ซิงก์ขึ้นระบบกลาง)</button>
+          <button id="btnRefresh" style="width:100%;">🔄 ดึงข้อมูลล่าสุด</button>
+          <button id="btnPasteFromReport" style="width:100%;">📋 วางข้อมูลจาก Report Tool</button>
+          <hr style="width:100%; border:none; border-top:1px solid var(--border); margin:2px 0;">
+          <button id="btnAddPresets" class="primary" style="background:#7c3aed; border-color:#5b21b6; width:100%;">➕ เพิ่มพารามิเตอร์ตามเกณฑ์ที่ตั้งไว้</button>
+          <button id="btnExportXlsx" style="width:100%;">📤 สำรองเป็นไฟล์ (.xlsx)</button>
+          <button class="filebtn" style="position:relative; overflow:hidden; width:100%;">📥 นำเข้าจากไฟล์สำรอง (.xlsx)
+            <input type="file" id="importXlsxInput" accept=".xlsx,.xls" style="position:absolute; inset:0; opacity:0; cursor:pointer;">
+          </button>
+        </div>
+      </div>
     </div>
     <div class="row" style="margin-top:10px; align-items:center;">
       <div class="field" style="min-width:280px;">
-        <label>QC ที่มีข้อมูลอยู่แล้ว</label>
+        <label>QC / Parameter ที่มีข้อมูลอยู่แล้ว</label>
         <select id="qcSelect"><option value="">— เลือก QC / Parameter —</option></select>
+      </div>
+      <div class="field" style="min-width:200px;">
+        <label>ดูย้อนหลังเดือน</label>
+        <select id="monthSelect"><option value="">— เลือกเดือน —</option></select>
       </div>
     </div>
     <div id="pasteBox" style="display:none; margin-top:10px;">
@@ -149,7 +159,8 @@ svg text{font-family:"Sarabun","Segoe UI",Tahoma,Arial,sans-serif;}
       <div style="margin-top:6px;"><button class="primary" id="pasteBoxSubmit">ยืนยันข้อมูลที่วาง</button></div>
     </div>
     <div class="hint" style="font-size:12px; color:var(--muted); margin-top:6px; line-height:1.5;">
-      ไฟล์นี้ซิงก์ผ่านระบบกลาง (Cloudflare Worker) เดียวกับเครื่องมือ Bias — ต้องเปิดไฟล์นี้ตรงๆ (ดับเบิลคลิก หรือโฮสต์เอง) ไม่ใช่ผ่านลิงก์ claude.ai/artifact ถึงจะเชื่อมต่อได้
+      ไฟล์นี้ซิงก์ผ่านระบบกลาง (Cloudflare Worker) เดียวกับเครื่องมือ Bias — ต้องเปิดไฟล์นี้ตรงๆ (ดับเบิลคลิก หรือโฮสต์เอง) ไม่ใช่ผ่านลิงก์ claude.ai/artifact ถึงจะเชื่อมต่อได้<br>
+      ข้อมูลเก็บแยกเป็นรายเดือนต่อ QC/Parameter อัตโนมัติ (ตามวันที่ทดสอบ) — เลือก "QC / Parameter" แล้วเลือก "ดูย้อนหลังเดือน" เพื่อดูข้อมูลเดือนก่อนๆ ได้
     </div>
     <div class="status ok" id="statusBox"></div>
   </div>
@@ -255,7 +266,7 @@ function buildSheet(){
   const lim = getLimits();
   const param = document.getElementById('fParam').value;
   const qcNo = document.getElementById('fQcNo').value;
-  const month = document.getElementById('fMonth').value;
+  const month = monthKeyToLabel(document.getElementById('fMonthKey').value);
   const useDate = document.getElementById('fUseDate').value;
   const docNo = document.getElementById('fDocNo').value;
   const rev = document.getElementById('fRev').value;
@@ -370,11 +381,39 @@ const KV_KEY     = 'nir_xchart_store'; // คีย์ใหม่ แยกจ�
 function kvUrl(key){ return WORKER_URL + '/kv/' + key; }
 
 const LS_CACHE_KEY = 'nir_xchart_cache_v1'; // แคชไว้ในเครื่องเผื่อออฟไลน์/เชื่อมต่อไม่ได้ชั่วคราว
+const LAST_VIEW_KEY = 'nir_xchart_last_view_v1'; // จำ QC/Parameter/เดือนล่าสุดที่เปิดดู ไว้ใช้ครั้งถัดไป
+function saveLastView(){
+  try{
+    localStorage.setItem(LAST_VIEW_KEY, JSON.stringify({
+      qcNo: document.getElementById('fQcNo').value,
+      param: document.getElementById('fParam').value,
+      monthKey: document.getElementById('fMonthKey').value
+    }));
+  }catch(e){}
+}
+function loadLastView(){
+  try{ return JSON.parse(localStorage.getItem(LAST_VIEW_KEY) || 'null'); }catch(e){ return null; }
+}
 
 function sanitizeId(s){
   return String(s||'').trim().replace(/[^a-zA-Z0-9_\-.~:@+]+/g,'_').slice(0,120) || 'x';
 }
-function docIdFor(qcNo, param){ return sanitizeId(qcNo) + '__' + sanitizeId(param); }
+function docIdFor(qcNo, param, monthKey){ return sanitizeId(qcNo) + '__' + sanitizeId(param) + '__' + sanitizeId(monthKey||''); }
+function monthKeyNow(){ return new Date().toISOString().slice(0,7); }
+function monthKeyToLabel(key){
+  if(!key || !/^\d{4}-\d{2}$/.test(key)) return '';
+  const d = new Date(key + '-01T00:00:00');
+  return d.toLocaleDateString('en-US', {month:'short', year:'numeric'}).toUpperCase();
+}
+function monthKeyFromDate(dateStr){
+  if(!dateStr) return null;
+  const s = String(dateStr);
+  let m = s.match(/^(\d{4})-(\d{2})-\d{2}/); // ISO: yyyy-mm-dd
+  if(m) return `${m[1]}-${m[2]}`;
+  m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); // dd/mm/yyyy
+  if(m) return `${m[3]}-${m[2]}`;
+  return null;
+}
 
 async function kvGetAll(){
   const res = await fetch(kvUrl(KV_KEY), {cache:'no-store', mode:'cors', headers:{'X-KV-Secret':KV_SECRET}});
@@ -458,14 +497,14 @@ document.getElementById('presetSelect').addEventListener('change', (e)=>{
 
 document.getElementById('btnAddPresets').addEventListener('click', async ()=>{
   const qcNo = document.getElementById('fQcNo').value || 'NIR 02/25';
+  const monthKey = document.getElementById('fMonthKey').value || monthKeyNow();
   try{
     const all = await kvGetAll();
     PRESETS.forEach(pr=>{
-      const id = docIdFor(qcNo, pr.param);
+      const id = docIdFor(qcNo, pr.param, monthKey);
       const existing = all[id] || {};
       all[id] = {
-        qcNo, param: pr.param,
-        month: existing.month || document.getElementById('fMonth').value,
+        qcNo, param: pr.param, monthKey,
         useDate: existing.useDate || document.getElementById('fUseDate').value,
         docNo: existing.docNo || document.getElementById('fDocNo').value,
         rev: existing.rev || document.getElementById('fRev').value,
@@ -477,7 +516,7 @@ document.getElementById('btnAddPresets').addEventListener('click', async ()=>{
     await kvPutAll(all);
     try{ localStorage.setItem(LS_CACHE_KEY, JSON.stringify(all)); }catch(e){}
     await refreshQcList();
-    showStatus(`เพิ่ม/อัปเดตเกณฑ์ ${PRESETS.length} พารามิเตอร์เข้าระบบกลางแล้ว สำหรับ QC No. ${qcNo} (ไม่กระทบจุดข้อมูลเดิมที่เคยมี)`, true);
+    showStatus(`เพิ่ม/อัปเดตเกณฑ์ ${PRESETS.length} พารามิเตอร์เข้าระบบกลางแล้ว สำหรับ QC No. ${qcNo} เดือน ${monthKeyToLabel(monthKey)} (ไม่กระทบจุดข้อมูลเดิมที่เคยมี)`, true);
   }catch(err){
     showStatus('เพิ่มไม่สำเร็จ: ' + err.message, false);
   }
@@ -486,7 +525,7 @@ document.getElementById('btnAddPresets').addEventListener('click', async ()=>{
 function applyDoc(id, data){
   if(data.param) document.getElementById('fParam').value = data.param;
   if(data.qcNo) document.getElementById('fQcNo').value = data.qcNo;
-  if(data.month) document.getElementById('fMonth').value = data.month;
+  if(data.monthKey) document.getElementById('fMonthKey').value = data.monthKey;
   if(data.useDate) document.getElementById('fUseDate').value = data.useDate;
   if(data.docNo) document.getElementById('fDocNo').value = data.docNo;
   if(data.rev) document.getElementById('fRev').value = data.rev;
@@ -498,42 +537,105 @@ function applyDoc(id, data){
     if(l.m2!=null) document.getElementById('fM2').value = l.m2;
     if(l.m3!=null) document.getElementById('fM3').value = l.m3;
   }
-  if(Array.isArray(data.points) && data.points.length){
-    dates = data.points.map(p=>({date:String(p.date), value:(p.value===null||p.value===undefined)?null:Number(p.value)}));
-    document.getElementById('fDays').value = dates.length;
-  }
+  dates = (Array.isArray(data.points) ? data.points : []).map(p=>({date:String(p.date), value:(p.value===null||p.value===undefined)?null:Number(p.value)}));
+  document.getElementById('fDays').value = Math.max(dates.length, 1);
+  if(!dates.length) initDates(parseInt(document.getElementById('fDays').value,10) || 24);
   buildSheet();
+  saveLastView();
+}
+
+// ── รายการ QC/Parameter (คอมโบ) + รายการเดือนของคอมโบที่เลือก ────────────────
+async function listCombos(){
+  const all = await storeReadAll();
+  const combos = {}; // comboId -> {qcNo, param, months: [{id, monthKey}]}
+  Object.keys(all).forEach(id=>{
+    const v = all[id];
+    const comboId = sanitizeId(v.qcNo) + '__' + sanitizeId(v.param);
+    if(!combos[comboId]) combos[comboId] = {qcNo:v.qcNo, param:v.param, months:[]};
+    combos[comboId].months.push({id, monthKey: v.monthKey || ''});
+  });
+  Object.values(combos).forEach(c=> c.months.sort((a,b)=> b.monthKey.localeCompare(a.monthKey)));
+  return combos;
 }
 
 async function refreshQcList(){
   const sel = document.getElementById('qcSelect');
-  const all = await storeReadAll();
-  const cur = sel.value;
+  const curCombo = sel.value;
+  const combos = await listCombos();
   sel.innerHTML = '<option value="">— เลือก QC / Parameter —</option>';
-  Object.keys(all).forEach(id=>{
-    const v = all[id];
+  Object.keys(combos).forEach(comboId=>{
+    const c = combos[comboId];
     const opt = document.createElement('option');
-    opt.value = id;
-    opt.textContent = `${v.qcNo || id} — ${v.param || ''}`;
+    opt.value = comboId;
+    opt.textContent = `${c.qcNo || comboId} — ${c.param || ''}`;
     sel.appendChild(opt);
   });
-  if(cur) sel.value = cur;
+  if(curCombo && combos[curCombo]) sel.value = curCombo;
+  await populateMonthSelect(combos);
 }
 
-document.getElementById('qcSelect').addEventListener('change', async (e)=>{
+async function populateMonthSelect(combos){
+  const qcSel = document.getElementById('qcSelect');
+  const moSel = document.getElementById('monthSelect');
+  const comboId = qcSel.value;
+  moSel.innerHTML = '<option value="">— เลือกเดือน —</option>';
+  if(!comboId || !combos[comboId]){ return; }
+  combos[comboId].months.forEach(m=>{
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = monthKeyToLabel(m.monthKey) || '(ไม่ระบุเดือน)';
+    moSel.appendChild(opt);
+  });
+}
+
+document.getElementById('qcSelect').addEventListener('change', async ()=>{
+  const combos = await listCombos();
+  await populateMonthSelect(combos);
+  const moSel = document.getElementById('monthSelect');
+  if(moSel.options.length > 1){
+    moSel.selectedIndex = 1; // most recent month (months are sorted desc)
+    moSel.dispatchEvent(new Event('change'));
+  }
+});
+
+document.getElementById('monthSelect').addEventListener('change', async (e)=>{
   const id = e.target.value;
   if(!id) return;
   const data = await storeReadOne(id);
   if(data) applyDoc(id, data);
 });
 
+// changing the MONTH field directly (not just the "ดูย้อนหลังเดือน" dropdown) also
+// loads that month's saved chart for the current QC/Parameter — or starts a blank
+// sheet (keeping current limits) if nothing's been saved for that month yet.
+document.getElementById('fMonthKey').addEventListener('change', async ()=>{
+  const qcNo = document.getElementById('fQcNo').value;
+  const param = document.getElementById('fParam').value;
+  const monthKey = document.getElementById('fMonthKey').value;
+  if(!qcNo || !param || !monthKey) return;
+  const id = docIdFor(qcNo, param, monthKey);
+  const data = await storeReadOne(id);
+  const moSel = document.getElementById('monthSelect');
+  if(data){
+    applyDoc(id, data);
+    if([...moSel.options].some(o=>o.value===id)) moSel.value = id;
+  } else {
+    initDates(parseInt(document.getElementById('fDays').value,10) || 24);
+    buildSheet();
+    moSel.value = '';
+    saveLastView();
+    showStatus(`ยังไม่มีข้อมูลบันทึกไว้สำหรับเดือน ${monthKeyToLabel(monthKey)} — เริ่มกรอกข้อมูลใหม่ได้เลย (กด "บันทึก" เพื่อเก็บ)`, true);
+  }
+});
+
 document.getElementById('btnSaveDb').addEventListener('click', async ()=>{
   const lim = getLimits();
-  const id = docIdFor(document.getElementById('fQcNo').value, document.getElementById('fParam').value);
+  const qcNo = document.getElementById('fQcNo').value;
+  const param = document.getElementById('fParam').value;
+  const monthKey = document.getElementById('fMonthKey').value || monthKeyNow();
+  const id = docIdFor(qcNo, param, monthKey);
   const body = {
-    qcNo: document.getElementById('fQcNo').value,
-    param: document.getElementById('fParam').value,
-    month: document.getElementById('fMonth').value,
+    qcNo, param, monthKey,
     useDate: document.getElementById('fUseDate').value,
     docNo: document.getElementById('fDocNo').value,
     rev: document.getElementById('fRev').value,
@@ -544,48 +646,98 @@ document.getElementById('btnSaveDb').addEventListener('click', async ()=>{
   try{
     await storeWriteOne(id, body);
     await refreshQcList();
-    document.getElementById('qcSelect').value = id;
-    showStatus('ซิงก์ขึ้นระบบกลางแล้ว ทุกคนที่เปิดไฟล์นี้ (เชื่อมต่ออินเทอร์เน็ต) จะเห็นข้อมูลเดียวกัน', true);
+    const comboId = sanitizeId(qcNo) + '__' + sanitizeId(param);
+    document.getElementById('qcSelect').value = comboId;
+    const combos = await listCombos();
+    await populateMonthSelect(combos);
+    document.getElementById('monthSelect').value = id;
+    saveLastView();
+    showStatus(dbNs ? `บันทึกขึ้นระบบกลางแล้ว (เดือน ${monthKeyToLabel(monthKey)}) ทุกคนที่เปิดหน้านี้จะเห็นข้อมูลเดียวกัน`
+                     : `บันทึกในเครื่องนี้แล้ว (เดือน ${monthKeyToLabel(monthKey)}) ถ้าต้องแชร์ให้คนอื่น ใช้ปุ่ม "ส่งออกไฟล์รวม" แล้วส่งไฟล์ไปให้`, true);
   }catch(err){
     showStatus('บันทึกไม่สำเร็จ: ' + err.message, false);
   }
 });
 
-document.getElementById('btnRefresh').addEventListener('click', async ()=>{
-  await refreshQcList();
-  const id = document.getElementById('qcSelect').value;
-  if(id){ const data = await storeReadOne(id); if(data) applyDoc(id, data); }
-  showStatus('ดึงข้อมูลล่าสุดจากระบบกลางแล้ว', true);
+// ---- Excel import/export of the WHOLE store (all QC/parameters/months) ----
+// This is the shared-storage stand-in when the db capability isn't available:
+// export the file, put it on a shared drive; teammates import it to catch up,
+// then re-export after adding their own points.
+document.getElementById('btnExportXlsx').addEventListener('click', async ()=>{
+  const all = await storeReadAll();
+  const rows = [['QC No.','Parameter','Month','Date','Value','Mean','+3SD','+2SD','-2SD','-3SD','เลขที่เอกสาร','เริ่มใช้วันที่','แก้ไขครั้งที่']];
+  Object.values(all).forEach(v=>{
+    const l = v.limits || {};
+    (v.points||[]).forEach(p=>{
+      rows.push([v.qcNo||'', v.param||'', v.monthKey||'', p.date, p.value, l.mean??'', l.p3??'', l.p2??'', l.m2??'', l.m3??'', v.docNo||'', v.useDate||'', v.rev||'']);
+    });
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'XChart');
+  XLSX.writeFile(wb, 'NIR_XChart_master.xlsx');
+  showStatus('ส่งออกไฟล์รวมแล้ว เก็บไฟล์นี้ไว้ที่ไดรฟ์ที่ทีมเข้าถึงได้ร่วมกัน', true);
 });
 
-// ── รับข้อมูลจากปุ่ม "ส่งค่า QC ไปที่ X-Chart" ของ Report Tool ─────────────────
-// Report Tool (หน้า Artifact) เชื่อม Worker เองไม่ได้ (ถูกบล็อกโดเมนภายนอก) จึง "คัดลอก"
-// ข้อมูลใส่คลิปบอร์ดแทน มาวางที่นี่แล้วไฟล์นี้ (เปิดตรง ไม่ผ่าน Artifact) จะซิงก์ขึ้น Worker ให้เอง
-async function pasteFromReportTool(){
-  let text = '';
-  try{ text = await navigator.clipboard.readText(); }
-  catch(e){ showStatus('อ่านคลิปบอร์ดไม่ได้ (เบราว์เซอร์ไม่อนุญาต) — วางด้วย Ctrl+V ในช่องที่ปรากฏแทน', false); promptPasteBox(); return; }
-  await ingestPayloadText(text);
-}
-function promptPasteBox(){
-  const box = document.getElementById('pasteBox');
-  box.style.display = 'block';
-  box.querySelector('textarea').focus();
-}
-async function ingestPayloadText(text){
-  text = (text||'').trim();
-  if(!text) return;
-  let payload;
+document.getElementById('importXlsxInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
   try{
-    const norm = text.replace(/-/g,'+').replace(/_/g,'/');
-    payload = JSON.parse(decodeURIComponent(escape(atob(norm))));
-  }catch(e){ showStatus('ข้อมูลที่วางมาอ่านไม่ได้ ตรวจว่าคัดลอกมาครบหรือไม่', false); return; }
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+    const all = await storeReadAll();
+    let count = 0;
+    for(let r=1; r<rows.length; r++){
+      const row = rows[r];
+      if(!row || row[0]==null || row[1]==null) continue;
+      const [qcNo, param, monthCol, date, value, mean, p3, p2, m2, m3, docNo, useDate, rev] = row;
+      const monthKey = monthCol || monthKeyFromDate(date) || monthKeyNow();
+      const id = docIdFor(qcNo, param, monthKey);
+      const existing = all[id] || {qcNo, param, monthKey, points:[], limits:null};
+      existing.points = mergePoints(existing.points, [{date, value}]);
+      if(mean!=null || p3!=null || p2!=null || m2!=null || m3!=null){
+        existing.limits = {mean, p3, p2, m2, m3};
+      }
+      existing.qcNo = qcNo; existing.param = param; existing.monthKey = monthKey;
+      if(docNo) existing.docNo = docNo;
+      if(useDate) existing.useDate = useDate;
+      if(rev) existing.rev = rev;
+      all[id] = existing;
+      count++;
+    }
+    lsWriteAll(all); // always cache locally too
+    if(dbNs){
+      for(const id of Object.keys(all)) await storeWriteOne(id, all[id]);
+    }
+    await refreshQcList();
+    showStatus(`นำเข้าแล้ว ${count} แถว จากไฟล์ ${file.name}`, true);
+  }catch(err){
+    showStatus('อ่านไฟล์ไม่สำเร็จ: ' + err.message, false);
+  }
+  e.target.value = '';
+});
+
+// merge incoming points (from the Report Tool's "ส่งค่า QC" button) into the store
+// — each point is filed under the month its own test date falls in, so history across
+// months builds up automatically without any extra manual step.
+async function ingestFromUrl(){
+  const params = new URLSearchParams(location.search);
+  const b64 = params.get('data');
+  if(!b64) return;
+  history.replaceState(null, '', location.pathname);
+  await ingestPayloadText(b64);
+}
+
+async function ingestPayloadTextCommon(payload){
   if(!payload || !Array.isArray(payload.points) || !payload.points.length){ showStatus('ไม่พบค่า QC ในข้อมูลที่วางมา', false); return; }
 
   const groups = {};
   payload.points.forEach(p=>{
-    const id = docIdFor(p.qcNo, p.param);
-    if(!groups[id]) groups[id] = {qcNo:p.qcNo, param:p.param, pts:[]};
+    const monthKey = monthKeyFromDate(p.date) || document.getElementById('fMonthKey').value || monthKeyNow();
+    const id = docIdFor(p.qcNo, p.param, monthKey);
+    if(!groups[id]) groups[id] = {qcNo:p.qcNo, param:p.param, monthKey, pts:[]};
     groups[id].pts.push({date:p.date, value:p.value});
   });
 
@@ -596,8 +748,7 @@ async function ingestPayloadText(text){
       const g = groups[id];
       const existing = all[id] || {};
       all[id] = {
-        qcNo: g.qcNo, param: g.param,
-        month: existing.month || document.getElementById('fMonth').value,
+        qcNo: g.qcNo, param: g.param, monthKey: g.monthKey,
         useDate: payload.useDate || existing.useDate || document.getElementById('fUseDate').value,
         docNo: payload.docNo || existing.docNo || document.getElementById('fDocNo').value,
         rev: payload.rev || existing.rev || document.getElementById('fRev').value,
@@ -610,31 +761,102 @@ async function ingestPayloadText(text){
     await kvPutAll(all);
     try{ localStorage.setItem(LS_CACHE_KEY, JSON.stringify(all)); }catch(e){}
     await refreshQcList();
-    if(firstId){ document.getElementById('qcSelect').value = firstId; applyDoc(firstId, all[firstId]); }
+    if(firstId){
+      const comboId = sanitizeId(all[firstId].qcNo) + '__' + sanitizeId(all[firstId].param);
+      document.getElementById('qcSelect').value = comboId;
+      const combos = await listCombos();
+      await populateMonthSelect(combos);
+      document.getElementById('monthSelect').value = firstId;
+      applyDoc(firstId, all[firstId]);
+    }
     document.getElementById('pasteBox').style.display = 'none';
-    showStatus(`รับค่า QC จาก Report Tool แล้ว (${payload.points.length} ค่า) ซิงก์ขึ้นระบบกลางเรียบร้อย — เกณฑ์ ±SD ยังต้องกรอกเพิ่มแล้วกด "บันทึก"`, true);
+    const monthsTouched = [...new Set(Object.values(groups).map(g=>monthKeyToLabel(g.monthKey)))].join(', ');
+    showStatus(`รับค่า QC จาก Report Tool แล้ว (${payload.points.length} ค่า, เดือน ${monthsTouched}) ซิงก์ขึ้นระบบกลางเรียบร้อย — เกณฑ์ ±SD ยังต้องกรอกเพิ่มแล้วกด "บันทึก"`, true);
   }catch(err){
     showStatus('ซิงก์ไม่สำเร็จ: ' + err.message, false);
   }
+}
+
+async function ingestPayloadText(text){
+  text = (text||'').trim();
+  if(!text){
+    showStatus('คลิปบอร์ดว่างเปล่า — เบราว์เซอร์อาจบล็อกการคัดลอกอัตโนมัติจากหน้า Report Tool ให้กลับไปที่ Report Tool แล้วคัดลอกด้วยมือ (เลือกข้อความทั้งหมดแล้ว Ctrl+C) จากนั้นวางในช่องด้านล่างนี้แทน', false);
+    promptPasteBox();
+    return;
+  }
+  let payload;
+  try{
+    const norm = text.replace(/-/g,'+').replace(/_/g,'/');
+    payload = JSON.parse(decodeURIComponent(escape(atob(norm))));
+  }catch(e){ showStatus('ข้อมูลที่วางมาอ่านไม่ได้ ตรวจว่าคัดลอกมาครบหรือไม่', false); return; }
+  await ingestPayloadTextCommon(payload);
+}
+
+async function pasteFromReportTool(){
+  let text = '';
+  try{ text = await navigator.clipboard.readText(); }
+  catch(e){ showStatus('อ่านคลิปบอร์ดไม่ได้ (เบราว์เซอร์ไม่อนุญาต) — วางด้วย Ctrl+V ในช่องที่ปรากฏแทน', false); promptPasteBox(); return; }
+  await ingestPayloadText(text);
+}
+function promptPasteBox(){
+  const box = document.getElementById('pasteBox');
+  box.style.display = 'block';
+  box.querySelector('textarea').focus();
 }
 document.getElementById('btnPasteFromReport').addEventListener('click', pasteFromReportTool);
 document.getElementById('pasteBoxSubmit').addEventListener('click', ()=>{
   ingestPayloadText(document.getElementById('pasteBoxArea').value);
 });
 
-// ยังรองรับ ?data=... ใน URL เผื่อไฟล์นี้ถูกโฮสต์ไว้ที่อยู่คงที่เอง
-(async function ingestFromUrlIfAny(){
-  const params = new URLSearchParams(location.search);
-  const b64 = params.get('data');
-  if(!b64) return;
-  history.replaceState(null, '', location.pathname);
-  await ingestPayloadText(b64);
-})();
+document.getElementById('btnRefresh').addEventListener('click', async ()=>{
+  await refreshQcList();
+  const id = document.getElementById('monthSelect').value;
+  if(id){ const data = await storeReadOne(id); if(data) applyDoc(id, data); }
+  showStatus('ดึงข้อมูลล่าสุดจากระบบกลางแล้ว', true);
+});
+
+// ---- "More Options" dropdown (presets / xlsx backup, used rarely — kept out of the way) ----
+const moreBtn = document.getElementById('btnMoreOptions');
+const morePanel = document.getElementById('moreOptionsPanel');
+moreBtn.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  morePanel.style.display = morePanel.style.display === 'none' ? 'block' : 'none';
+});
+document.addEventListener('click', (e)=>{
+  if(morePanel.style.display !== 'none' && !morePanel.contains(e.target) && e.target !== moreBtn){
+    morePanel.style.display = 'none';
+  }
+});
+morePanel.addEventListener('click', (e)=>{
+  // close after choosing an action, except clicks on the file input itself (needs to stay open while picking)
+  if(e.target.tagName === 'BUTTON') morePanel.style.display = 'none';
+});
 
 (async function initStore(){
+  const last = loadLastView();
+  if(last && last.monthKey){
+    // restore whatever QC/Parameter/Month the person had open last time, rather than
+    // always jumping to the current month
+    document.getElementById('fQcNo').value = last.qcNo || document.getElementById('fQcNo').value;
+    document.getElementById('fParam').value = last.param || document.getElementById('fParam').value;
+    document.getElementById('fMonthKey').value = last.monthKey;
+  } else if(!document.getElementById('fMonthKey').value){
+    document.getElementById('fMonthKey').value = monthKeyNow();
+  }
   populatePresetSelect();
   await refreshQcList();
+  if(last && last.monthKey){
+    const id = docIdFor(last.qcNo, last.param, last.monthKey);
+    const data = await storeReadOne(id);
+    if(data){
+      applyDoc(id, data);
+      const moSel = document.getElementById('monthSelect');
+      if([...moSel.options].some(o=>o.value===id)) moSel.value = id;
+    }
+  }
+  await ingestFromUrl();
 })();
+
 
 buildSheet();
 </script>
