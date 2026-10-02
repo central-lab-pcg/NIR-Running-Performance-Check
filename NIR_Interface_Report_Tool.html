@@ -362,8 +362,10 @@ function toNum(v){
   const s = String(v).trim();
   if(s==='') return null;
   const n = Number(s);
-  return isFinite(n) ? n : null;
+  if(isFinite(n)) return n;
+  return s; // ข้อความ (เช่น Outlier, <0.1) เก็บไว้แสดงตามผลที่ได้
 }
+function isTxt(v){ return typeof v === 'string'; }
 
 function buildGroups(rows){
   const order = [];
@@ -395,10 +397,12 @@ const QC_BLANK_CODES = ['Ca','P','NaCl','Aw'];
 function formatValue(code, val, sampleName, isQC){
   if(isQC){
     if(QC_BLANK_CODES.includes(code)) return '-';
+    if(isTxt(val)) return esc(val);
     if(val===null || val===undefined || !isFinite(val)) return '-';
     if(code==='ASH') return val.toFixed(1);
     return val.toFixed(2);
   }
+  if(isTxt(val)) return esc(val);
   if(val===null || val===undefined || !isFinite(val)) return '-';
   const nm = (sampleName||'').trim().toUpperCase();
   if(code==='M' && nm==='YC') return val.toFixed(1);
@@ -418,7 +422,7 @@ function decimalsOfFormatted(str){
 }
 function diffCellValue(code, a, b, isQC, mode, sampleName){
   if(isQC && QC_BLANK_CODES.includes(code)) return '-';
-  if(a===null || b===null) return '-';
+  if(a===null || b===null || isTxt(a) || isTxt(b)) return '-';
   if(mode==='rpd'){
     const denom = (a+b)/2;
     if(denom===0) return '-';
@@ -479,7 +483,9 @@ function renderReport(){
       const avg = {};
       PARAMS.forEach(p=>{
         const a=r1.values[p.code], b=pair.values[p.code];
-        if(a!==null && b!==null){ avg[p.code]=(a+b)/2; }
+        if(isTxt(a)){ avg[p.code]=a; }
+        else if(isTxt(b)){ avg[p.code]=b; }
+        else if(a!==null && b!==null){ avg[p.code]=(a+b)/2; }
         else if(a!==null || b!==null){ avg[p.code]=(a!==null?a:b); }
         else { avg[p.code]=null; }
       });
@@ -795,7 +801,7 @@ async function copyQcPayloadToClipboard(){
     if(!g.isQC || !g._final) return;
     PARAMS.forEach(p=>{
       const v = g._final[p.code];
-      if(v===null || v===undefined) return;
+      if(v===null || v===undefined || isTxt(v)) return;
       pts.push({ qcNo: g.sampleName || g.labNo, param: p.label, date: testDate || '', value: v });
     });
   });
@@ -897,8 +903,8 @@ document.getElementById('exportXlsxBtn').addEventListener('click', async functio
     PARAMS.forEach(p=>{
       const v = g._final ? g._final[p.code] : null;
       if(v===null || v===undefined) return;
-      const rounded = Math.round(v*10000)/10000; // raw value, floating-point-safe
-      interfaceAOA.push([base, seq, p.label, formatValue(p.code, v, g.sampleName, g.isQC), null, rounded, g.sampleName || null]);
+      const rounded = isTxt(v) ? v : Math.round(v*10000)/10000; // raw value, floating-point-safe
+      interfaceAOA.push([base, seq, p.label, isTxt(v) ? v : formatValue(p.code, v, g.sampleName, g.isQC), null, rounded, g.sampleName || null]);
     });
   });
 
