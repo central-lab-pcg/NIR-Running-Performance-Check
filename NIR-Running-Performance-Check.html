@@ -510,6 +510,7 @@ const PARAMS_DEF = [
   {key:'BHT',        label:'BHT'},
   {key:'pH',         label:'pH'},
   {key:'Fat-C',      label:'Fat-C'},
+  {key:'FFA',        label:'FFA'},
 ];
 
 const PARAM_DECIMALS = {'ASH':1,'Ca':3,'P':3};
@@ -594,6 +595,7 @@ const WIDE_PARAM_MAP = [
   { par:'BHT',    wc:'BHT-WC',        nir:'BHT-NIR',        diff:'BHT Diff , WC-NIR6',         u2:'BHT2SEP',            l2:'BHT-2SEPeqa2',        u3:'BHT3SEPeqa',          l3:'BHT-3SEPeqa3'         },
   { par:'pH',     wc:'pH-WC',         nir:'pH-NIR',         diff:'pH Diff , WC-NIR6',          u2:'pH2SEP',             l2:'pH-2SEPeqa2',         u3:'pH3SEPeqa',           l3:'pH-3SEPeqa3'          },
   { par:'Fat-C',  wc:'Fat-C-WC',      nir:'Fat-C-NIR',      diff:'Fat-C Diff , WC-NIR5',       u2:'Fat-C2SEP',          l2:'Fat-C-2SEPeqa3',      u3:'Fat-C 3SEPeqa2',      l3:'Fat-C-3SEPeqa2'       },
+  { par:'FFA',    wc:'FFA-WC',        nir:'FFA-NIR',        diff:'FFA Diff , WC-NIR56',        u2:'FFA2SEP2',           l2:'FFA-2SEPeqa34',       u3:'FFA 3SEPeqa23',       l3:'FFA-3SEPeqa25'        },
 ];
 
 // Normalize Product names (case-insensitive merge)
@@ -1049,6 +1051,7 @@ const PARAM_ICONS={
   'BHT':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M8 2 L13 5 L13 11 L8 14 L3 11 L3 5 Z" fill="#7c5cfc" opacity=".75"/><path d="M8 5 L10.5 6.5 L10.5 9.5 L8 11 L5.5 9.5 L5.5 6.5 Z" fill="#fff" opacity=".25"/><circle cx="8" cy="8" r="1.5" fill="#fff" opacity=".8"/></svg>`,
   'pH':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><defs><linearGradient id="phg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#e53535"/><stop offset="50%" stop-color="#15a552"/><stop offset="100%" stop-color="#3b6ef5"/></linearGradient></defs><rect x="2" y="6" width="12" height="5" rx="2.5" fill="url(#phg)" opacity=".85"/><rect x="7" y="5" width="2" height="7" rx="1" fill="#1a1d2e" opacity=".5"/></svg>`,
   'Fat-C':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="6" cy="9" r="4" fill="#e8930a" opacity=".7"/><circle cx="10.5" cy="7.5" r="3" fill="#e53535" opacity=".6"/><circle cx="9" cy="11" r="2" fill="#e8930a" opacity=".5"/><circle cx="6" cy="9" r="1.5" fill="#fff" opacity=".35"/></svg>`,
+  'FFA':`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M8 2 Q12.5 7.5 12.5 10 A4.5 4.5 0 0 1 3.5 10 Q3.5 7.5 8 2Z" fill="#e8930a" opacity=".75"/><circle cx="6.3" cy="10" r="1.2" fill="#fff" opacity=".4"/></svg>`,
 };
 function buildParamTabs(availParams){
   const el=document.getElementById('paramTabs');el.innerHTML='';
@@ -1271,6 +1274,7 @@ const RAW_PARAMS_WIDE = [
   {key:'BHT',   label:'BHT'},
   {key:'pH',    label:'pH'},
   {'key':'Fat-C','label':'Fat-C'},
+  {'key':'FFA','label':'FFA'},
 ];
 
 // คอลัมน์จะถือว่า "มีข้อมูล" ก็ต่อเมื่อมีอย่างน้อย 1 แถวที่มีค่า WC หรือ NIR จริง (ไม่ใช่แค่มีแถว param อยู่)
