@@ -525,7 +525,7 @@ function updateBinCStatus(){
 const LABEL_ORDER = ['169 LAB-DS2500','169 QC-DS2500','169 QC-DS3','Rayong','Indo DS2500','Indo DS3F','Myanmar','Wet Food','POC'];
 // PARAMS_DEF / PRODUCT_GROUPS เป็นค่าเริ่มต้น (default) — ถ้ามีข้อมูลที่ผู้ใช้แก้ไขเองผ่านหน้า "⚙️ จัดการ Product/Parameter"
 // เก็บไว้ในฐานข้อมูลแล้ว (data.param_list / data.product_groups) ค่าจาก loadData() จะ "ทับ" ค่า default พวกนี้แทน
-let PARAMS_DEF  = ['M','CP','EE','AH','FIB','ASH','Ca','P','Aw','NaCl','PD','TVBN','Sand','Starch','BHT','pH','Fat-C'];
+let PARAMS_DEF  = ['M','CP','EE','AH','FIB','ASH','Ca','P','Aw','NaCl','PD','TVBN','Sand','Starch','BHT','pH','Fat-C','FFA'];
 // PRODUCT_GROUPS: key = ตัวโค้ด Type ภายใน (ต้องตรงกับ TYPE_ORDER/TYPE_LABEL/TYPE_COLOR), value = รายชื่อ Product ในกลุ่มนั้น
 // ใช้เป็นแหล่งข้อมูลเดียว (single source of truth) ทั้งสำหรับ dropdown Product ในฟอร์มกรอกข้อมูล และการจัดกลุ่ม Type ในตารางหลัก (guessType)
 let PRODUCT_GROUPS = {
