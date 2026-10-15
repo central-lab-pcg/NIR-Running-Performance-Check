@@ -530,7 +530,7 @@ let PARAMS_DEF  = ['M','CP','EE','AH','FIB','ASH','Ca','P','Aw','NaCl','PD','TVB
 // ใช้เป็นแหล่งข้อมูลเดียว (single source of truth) ทั้งสำหรับ dropdown Product ในฟอร์มกรอกข้อมูล และการจัดกลุ่ม Type ในตารางหลัก (guessType)
 let PRODUCT_GROUPS = {
   FG: ['Dog Kibble','Cat Kibble','Bird Kibble','Horse Kibble','Rodent Kibble','Dog Mix2','Cat Mix2','Bird Mix2','Horse Mix2','Rodent Mix2','Aqua FG&Mix2','Cat Mix2 and Pocket'],
-  RM: ['FM','HFEM','AP1','SHM','MBM','SBM, SBC','SBH','CGM','CKO','BP PL','Br,P','RB S','RB ext , F','YC','FFS','Wheat Gain','Wheat Bran','Wheat Product','SB.G','Casava','Chicken oil','Wheat flour'],
+  RM: ['FM','HFEM','AP1','SHM','MBM','SBM, SBC','SBH','CGM','CKO','BP PL','Br,P','RB S','RB ext , F','YC','FFS','Wheat Gain','WB','Wheat Product','SB,G','CAS-C,PL','Chicken oil','Wheat flour'],
   NIROnline: ['FG-Online','Mix1'],
   WF: ['Paste,Gravy,Jelly,Soup,Stick','Stick + Miniroll','Goat Milk','Wet Food','WFCP 18+'],
   POC: ['MF01','FP01','FP02 04 05 + Mix P','Egg PU','Egg LU','FPB01','CP01 03 04','CK LIV, Lamb Liver','PEC+LH+SDF','PE C06','PED+LH02','HPB03 04','FEC01 03 05','FED04 07 08'],
@@ -634,7 +634,26 @@ function paramDisplayName(p){
   return PARAM_DISPLAY_MAP[String(p).toUpperCase()]||p;
 }
 
+// ── บังคับให้ 3 ชื่อนี้อยู่หมวด RM เสมอ (กันกรณีข้อมูลใน DB เป็นของเก่า/ไม่มีชื่อเหล่านี้ แล้วตกไป Other) ──
+const FORCE_RM_NAMES=['CAS-C,PL','WB','SB,G'];
+const FORCE_RM_OLD=['casava','cassava','wheat bran','sb.g','sb.g.','sb, g','sb g'];
+function normalizeProductGroups(){
+  if(!PRODUCT_GROUPS||typeof PRODUCT_GROUPS!=='object')return;
+  const oldSet=new Set(FORCE_RM_OLD), newSet=new Set(FORCE_RM_NAMES.map(x=>x.toLowerCase()));
+  Object.keys(PRODUCT_GROUPS).forEach(g=>{
+    PRODUCT_GROUPS[g]=(PRODUCT_GROUPS[g]||[]).filter(n=>{
+      const k=String(n).trim().toLowerCase().replace(/\s+/g,' ');
+      if(oldSet.has(k))return false;
+      if(g!=='RM'&&newSet.has(k))return false;
+      return true;
+    });
+  });
+  if(!PRODUCT_GROUPS.RM)PRODUCT_GROUPS.RM=[];
+  FORCE_RM_NAMES.forEach(n=>{ if(!PRODUCT_GROUPS.RM.includes(n))PRODUCT_GROUPS.RM.push(n); });
+  _pgNormMapFor=null;
+}
 function guessType(product, type_val){
+  { const c=canonicalizeProduct(product); if(FORCE_RM_NAMES.includes(c)) return 'RM'; }
   for(const grp of Object.keys(PRODUCT_GROUPS)){
     if(PRODUCT_GROUPS[grp].includes(product)) return grp;
   }
@@ -657,11 +676,19 @@ function guessType(product, type_val){
 let PRODUCT_ALIASES={
   'aqua food':'Aqua FG&Mix2',
   'bp-pl':'BP PL',
-  'cas-c,pl':'Casava',
-  'cas-c, pl':'Casava',
-  'cas-c pl':'Casava',
-  'cas c,pl':'Casava',
-  'wb':'Wheat Bran',
+  'casava':'CAS-C,PL',
+  'cassava':'CAS-C,PL',
+  'cas-c,pl':'CAS-C,PL',
+  'cas-c, pl':'CAS-C,PL',
+  'cas-c pl':'CAS-C,PL',
+  'cas c,pl':'CAS-C,PL',
+  'wheat bran':'WB',
+  'wb':'WB',
+  'sb.g':'SB,G',
+  'sb.g.':'SB,G',
+  'sb, g':'SB,G',
+  'sb g':'SB,G',
+  'sb,g':'SB,G',
 };
 // สำเนาค่าเริ่มต้นแบบ "อ่านอย่างเดียว" เก็บไว้ตลอดอายุของหน้าเพจ — ใช้ merge กลับเข้าไปทุกจุดที่ดึง
 // product_aliases จากฐานข้อมูล (JSONBin) เพื่อไม่ให้ค่า default พวกนี้หายไปเงียบๆ ถ้าฐานข้อมูลออนไลน์
@@ -698,6 +725,7 @@ function canonicalizeProduct(name){
 
 // ── สร้าง options ของ dropdown Product จาก PRODUCT_GROUPS (เรียกใหม่ทุกครั้งที่ PRODUCT_GROUPS เปลี่ยน) ──
 function renderProductDropdown(){
+  normalizeProductGroups();
   const sel=document.getElementById('recProduct');
   if(!sel)return;
   const curVal=sel.value;
