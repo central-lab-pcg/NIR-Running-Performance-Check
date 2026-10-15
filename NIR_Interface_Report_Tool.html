@@ -111,6 +111,7 @@ button.addname{padding:0; width:36px; height:36px; font-size:16px; line-height:1
 .rowbtns{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
 table.rt td.namecell{min-width:70px;}
 select.diffmode-sel{font-size:11px; padding:2px 3px; border:1px solid #999; border-radius:4px; background:#fff; color:#111; font-family:inherit;}
+.rpt-sign .sigdate:focus{background:#fff7d6; outline:none;}
 .rpt-notes[contenteditable="true"]:focus, .rpt-top .right[contenteditable="true"]:focus{background:#fff7d6; outline:none;}
 
 @media print{
@@ -544,9 +545,9 @@ function renderReport(){
       </div>
     </div>
     <div class="rpt-sign">
-      <div class="col">${sigLineHtml('Tester','sigLineTester')}(<span id="signTester">${esc(nameTester)}</span>)<br>ผู้ทดสอบ<br>วันที่ <span id="sigDateTester">${esc(testDateDisp)}</span></div>
-      <div class="col">${sigLineHtml('Reviewer','sigLineReviewer')}(<span id="signReviewer">${esc(nameReviewer)}</span>)<br>ผู้ทวนสอบ<br>วันที่ <span id="sigDateReviewer">${esc(testDateDisp)}</span></div>
-      <div class="col">${sigLineHtml('Approver','sigLineApprover')}(<span id="signApprover">${esc(nameApprover)}</span>)<br>ผู้บันทึกผล<br>วันที่ <span id="sigDateApprover">${esc(testDateDisp)}</span></div>
+      <div class="col">${sigLineHtml('Tester','sigLineTester')}(<span id="signTester">${esc(nameTester)}</span>)<br>ผู้ทดสอบ<br>วันที่ <span id="sigDateTester" class="sigdate" contenteditable="true" spellcheck="false">${esc(testDateDisp)}</span></div>
+      <div class="col">${sigLineHtml('Reviewer','sigLineReviewer')}(<span id="signReviewer">${esc(nameReviewer)}</span>)<br>ผู้ทวนสอบ<br>วันที่ <span id="sigDateReviewer" class="sigdate" contenteditable="true" spellcheck="false">${esc(testDateDisp)}</span></div>
+      <div class="col">${sigLineHtml('Approver','sigLineApprover')}(<span id="signApprover">${esc(nameApprover)}</span>)<br>ผู้บันทึกผล<br>วันที่ <span id="sigDateApprover" class="sigdate" contenteditable="true" spellcheck="false">${esc(testDateDisp)}</span></div>
     </div>
   </div>`;
   holder.innerHTML = html;
@@ -622,6 +623,9 @@ document.querySelectorAll('.addname').forEach(btn=>{
     sel.value = trimmed;
     sel.dispatchEvent(new Event('change'));
   });
+});
+document.addEventListener('keydown', function(e){
+  if(e.key==='Enter' && e.target && e.target.classList && e.target.classList.contains('sigdate')){ e.preventDefault(); e.target.blur(); }
 });
 const NAME_TO_ROLE = { nameTester:'Tester', nameReviewer:'Reviewer', nameApprover:'Approver' };
 const LIVE_FIELD_MAP = {
