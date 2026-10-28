@@ -1351,6 +1351,7 @@ html.fb .nb-switch button { border-radius: 11px; }
 
 </div>
 <script>
+function safeRefreshBiasAdj(n){n=n||0;if(typeof refreshBiasAdjBadges==="function")return refreshBiasAdjBadges();if(n<60)setTimeout(()=>safeRefreshBiasAdj(n+1),250);}
 const DATA_URL="https://central-lab-pcg.github.io/NIR-Running-Performance-Check/data.json";
 const DATA_URL2="https://central-lab-pcg.github.io/NIR-Running-Performance-Check/data2.json";
 
@@ -2236,7 +2237,7 @@ function render(){
   renderConclude();
   renderPreAlertBanner(preAlerts);
   // Show bias-adjusted badges async
-  setTimeout(refreshBiasAdjBadges, 500);
+  setTimeout(safeRefreshBiasAdj, 500);
 
   // โหลด correction แบบ async หลัง render เสร็จ
   (async()=>{
@@ -2976,7 +2977,7 @@ function renderConclude(){
   panel.innerHTML=html;
 }
 
-loadData();
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>loadData());else loadData();
 
 // ── detail panel ─────────────────────────────────────────────────────────────
 let _dpLocked=null; // locked badge element
@@ -3210,7 +3211,7 @@ async function doSave2(id){
        </div>
        <div class="corr-actions"><button class="btn-edit" onclick="startE2('${id}')">✏️ แก้ไข</button></div>`;
     cancelE(id);
-    setTimeout(refreshBiasAdjBadges, 300);
+    setTimeout(safeRefreshBiasAdj, 300);
   }catch(e){
     alert('บันทึกไม่สำเร็จ: '+e.message);
     if(btn){btn.textContent='💾 Save';btn.disabled=false;}
@@ -3228,7 +3229,7 @@ async function doDelete2(id){
   try{
     await cDeleteShared(prd,mon,eqp,src,fpla);
     await updateCorrCell(prd,mon,eqp,src,fpla,el);
-    setTimeout(refreshBiasAdjBadges, 300);
+    setTimeout(safeRefreshBiasAdj, 300);
   }catch(e){
     alert('ลบไม่สำเร็จ: '+e.message);
     if(delBtn){delBtn.textContent='🗑️ ลบ';delBtn.disabled=false;}
