@@ -1,0 +1,2312 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<script>var NIR_TOOL_ID = "import"; /* สิทธิ์ "NIR Data Import" ในหน้า Portal */</script>
+<script src="nir_auth.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NIR Data Import</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* ถ้ามีข้อผิดพลาด ให้แสดงบนหน้าเว็บ (ไม่เงียบ) */
+window.addEventListener('error', function (e) {
+  var box = document.getElementById('nirErrBox');
+  if (!box) { box = document.createElement('div'); box.id = 'nirErrBox';
+    box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:#fff1f1;color:#b42318;border-bottom:2px solid #f3c4c4;padding:10px 16px;font:13px sans-serif';
+    (document.body || document.documentElement).appendChild(box); }
+  box.textContent = '⚠️ หน้าเว็บทำงานผิดพลาด: ' + (e.message || e) + ' — ถ้าเปิดไฟล์จาก zip ให้แตก zip ก่อน หรือเปิดจากลิงก์บนเว็บ';
+});
+</script>
+<script>
+/* ===== nir_data.js (รวมไว้ในไฟล์นี้ ไม่ต้องอัปโหลดแยก) ===== */
+/* =====================================================================
+ * nir_data.js — แกนกลางข้อมูล NIR (ใช้ร่วมกันทั้ง Dashboard และหน้า Import)
+ *
+ * โครงสร้างข้อมูลใหม่บน GitHub:
+ *   sep.json            ← ตาราง SEP (EQA) ทั้งหมด + กฎว่า Product/Plant ไหนใช้ SEP ไหน ตั้งแต่วันไหน
+ *   data/index.json     ← รายชื่อไฟล์ข้อมูลรายเดือน
+ *   data/2026-10.json   ← ข้อมูลเดือนนั้น เก็บแค่ค่า WC/NIR + รหัส SEP (ไม่เก็บค่า SEP ซ้ำในทุกแถว)
+ * ===================================================================== */
+(function (global) {
+  'use strict';
+
+  const NIR = {};
+
+  // ── ตั้งค่า repo ─────────────────────────────────────────────────────────
+  NIR.REPO = { owner: 'central-lab-pcg', repo: 'NIR-Running-Performance-Check', branch: 'main' };
+  NIR.BASE_URL = 'https://central-lab-pcg.github.io/NIR-Running-Performance-Check/';
+
+  // ── พารามิเตอร์ + ชื่อคอลัมน์ใน Excel เดิม (ใช้ตอนแปลงข้อมูลเก่า) ──────────────
+  NIR.PARAMS = [
+    { key: 'M',          label: 'Moisture',   wc: 'M-WC',          nir: 'M-NIR',          u2: 'M2SEPeqa' },
+    { key: 'CP',         label: 'CP',         wc: 'CP-WC',         nir: 'CP-NIR',         u2: 'CP2SEPeqa' },
+    { key: 'EE',         label: 'EE',         wc: 'EE-WC',         nir: 'EE-NIR',         u2: 'EE2SEP' },
+    { key: 'AH',         label: 'AH',         wc: 'AH-WC',         nir: 'AH-NIR',         u2: 'AH2SEPeqa' },
+    { key: 'FIB',        label: 'Fiber',      wc: 'FIB-WC',        nir: 'FIB-NIR',        u2: 'Fib 2SEPeqa' },
+    { key: 'ASH',        label: 'Ash',        wc: 'ASH-WC',        nir: 'ASH-NIR',        u2: 'Ash 2SEPeqa' },
+    { key: 'Ca',         label: 'Ca',         wc: 'Ca-WC',         nir: 'Ca-NIR',         u2: 'Ca2SEPeqa' },
+    { key: 'P',          label: 'P',          wc: 'P-WC',          nir: 'P-NIR',          u2: 'P2SEPeqa' },
+    { key: 'Aw',         label: 'Aw',         wc: 'Aw-WC',         nir: 'Aw-NIR',         u2: 'Aw2SEPeqa' },
+    { key: 'NaCl',       label: 'NaCl',       wc: 'NaCl-WC',       nir: 'NaCl-NIR',       u2: 'NaCl2SEPeqa' },
+    { key: 'PD',         label: 'PD',         wc: 'PD-WC',         nir: 'PD-NIR',         u2: 'PD2SEP' },
+    { key: 'TVBN',       label: 'TVBN',       wc: 'TVBN-WC',       nir: 'TVBN-NIR',       u2: 'TVBN2SEP' },
+    { key: 'Sand',       label: 'Sand',       wc: 'Sand-WC5',      nir: 'Sand-NIR6',      u2: 'Sand2SEP' },
+    { key: 'Starch',     label: 'Starch',     wc: 'Starch-WC5',    nir: 'Starch-NIR',     u2: 'Starch2SEP' },
+    { key: 'CP-QCP',     label: 'CP-QCP',     wc: 'CP-QCP-WC',     nir: 'CP-QCP-NIR',     u2: 'CP-QCP2SEP' },
+    { key: 'Starch-QCP', label: 'Starch-QCP', wc: 'Starch-QCP-WC', nir: 'Starch-QCP-NIR', u2: 'Starch-QCP2SEP' },
+    { key: 'BHT',        label: 'BHT',        wc: 'BHT-WC',        nir: 'BHT-NIR',        u2: 'BHT2SEP' },
+    { key: 'pH',         label: 'pH',         wc: 'pH-WC',         nir: 'pH-NIR',         u2: 'pH2SEP' },
+    { key: 'Fat-C',      label: 'Fat-C',      wc: 'Fat-C-WC',      nir: 'Fat-C-NIR',      u2: 'Fat-C2SEP' },
+    { key: 'FFA',        label: 'FFA',        wc: 'FFA-WC',        nir: 'FFA-NIR',        u2: 'FFA2SEP2' },
+  ];
+  NIR.PARAM_KEYS = NIR.PARAMS.map(p => p.key);
+
+  // ── ตัวช่วยทั่วไป ───────────────────────────────────────────────────────
+  NIR.num = function (v) {
+    if (v === null || v === undefined) return null;
+    if (typeof v === 'number') return isFinite(v) ? v : null;
+    const s = String(v).trim().replace(/,/g, '');
+    if (s === '' || s === '-' || s.startsWith('#')) return null;   // #VALUE!, #REF!, #N/A
+    const n = Number(s);
+    return isFinite(n) ? n : null;
+  };
+  const r6 = x => Math.round(x * 1e6) / 1e6;
+
+  NIR.normProduct = function (s) {
+    if (!s) return '';
+    const t = String(s).trim();
+    const tl = t.toLowerCase();
+    if (tl === 'sbm' || tl === 'sbm,' || tl === 'sbm2') return 'SBM';
+    if (tl === 'sbc') return 'SBM, SBC';
+    if (/^sbm[,\s]/.test(tl) && tl.includes('sbc')) return 'SBM, SBC';
+    if (tl === 'sb h' || tl === 'sbh' || tl === 'sb-h') return 'SBH';
+    if (tl === 'cgm') return 'CGM';
+    if (tl === 'fm' || tl === 'fm2') return 'FM';
+    return t;
+  };
+  NIR.normSEP = function (s) {
+    if (!s) return '';
+    const t = String(s).trim();
+    const tl = t.toLowerCase();
+    if (tl === 'af2' || tl === 'af-2') return 'AF2';
+    if (tl === 'dom2' || tl === 'dom-2') return 'DOM2';
+    return t;
+  };
+
+  // วันที่: เก็บเป็น 'YYYY-MM-DD'
+  NIR.excelSerialToISO = function (serial) {
+    const s = parseInt(serial, 10);
+    if (isNaN(s)) return '';
+    return new Date((s - 25569) * 86400000).toISOString().slice(0, 10);
+  };
+  NIR.isoToMonthSerial = function (iso) {   // วันแรกของเดือน → Excel serial (Dashboard ใช้จัดกลุ่มเดือน)
+    const y = +iso.slice(0, 4), m = +iso.slice(5, 7);
+    return String(Math.round(Date.UTC(y, m - 1, 1) / 86400000) + 25569);
+  };
+  NIR.todayISO = function () {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  };
+
+  // ── แถวแบบใหม่ (slim) ────────────────────────────────────────────────────
+  // { no, d, pla, typ, eqp, src, sep, prd, smp, det?, lab?, v:{ M:[wc,nir], CP:[wc,nir], ... } }
+
+  NIR.wideKey = function (r) {
+    return [r['No_x002e_'] || r['No.'] || '', r['Month'] || '', r['SEP'] || '', r['Sample'] || '',
+            r['Product'] || '', r['Plant'] || '', r['Equipment'] || ''].join('|');
+  };
+
+  NIR.wideToSlim = function (r) {
+    const v = {};
+    NIR.PARAMS.forEach(p => {
+      const wc = NIR.num(r[p.wc]), nir = NIR.num(r[p.nir]);
+      if (wc !== null || nir !== null) v[p.key] = [wc, nir];
+    });
+    const row = {
+      no: NIR.num(r['No_x002e_'] || r['No.']) ?? '',
+      d: NIR.excelSerialToISO(r['Month']),
+      pla: (r['Plant'] || '').trim(),
+      typ: (r['Type'] || '').trim(),
+      eqp: (r['Equipment'] || '').trim(),
+      src: (r['Source'] || '').trim(),
+      sep: NIR.normSEP(r['SEP']),
+      prd: (r['Product'] || '').trim(),   // เก็บชื่อเดิมไว้ (หน้า Summary ใช้ชื่อนี้เป็น key ของ Adjust Bias)
+      smp: (r['Sample'] || '').trim(),
+      v,
+    };
+    const det = (r['Detail'] || '').trim(); if (det) row.det = det;
+    const lab = (r['Lab No_x002e_'] || '').trim(); if (lab && lab !== '-') row.lab = lab;
+    return row;
+  };
+
+  // ── สร้างตาราง SEP จากข้อมูลเก่า (ใช้ครั้งเดียวตอนย้ายข้อมูล) ─────────────────
+  NIR.buildSepFromWide = function (wideRows) {
+    const byCode = new Map();           // code → { prd:Counter, p:{par:Counter(u2)} }
+    wideRows.forEach(r => {
+      const code = NIR.normSEP(r['SEP']); if (!code) return;
+      if (!byCode.has(code)) byCode.set(code, { prd: new Map(), p: {}, n: 0 });
+      const e = byCode.get(code); e.n++;
+      const prd = NIR.normProduct(r['Product']);
+      e.prd.set(prd, (e.prd.get(prd) || 0) + 1);
+      NIR.PARAMS.forEach(p => {
+        const u2 = NIR.num(r[p.u2]); if (u2 === null || u2 === 0) return;
+        const k = String(Math.abs(u2));
+        e.p[p.key] = e.p[p.key] || new Map();
+        e.p[p.key].set(k, (e.p[p.key].get(k) || 0) + 1);
+      });
+    });
+    const top = m => [...m.entries()].sort((a, b) => b[1] - a[1])[0];
+    const sets = {}, conflicts = [];
+    [...byCode.keys()].sort().forEach(code => {
+      const e = byCode.get(code);
+      const s = { prd: top(e.prd)[0], sep: {}, note: 'ย้ายจาก Excel เดิม' };
+      Object.keys(e.p).forEach(par => {
+        const [u2, cnt] = top(e.p[par]);
+        s.sep[par] = r6(+u2 / 2);
+        if (e.p[par].size > 1) conflicts.push({ code, par, values: [...e.p[par].entries()], used: u2, count: cnt });
+      });
+      sets[code] = s;
+    });
+
+    // กฎ: Product + Plant → รหัส SEP ตั้งแต่วันที่ใช้ครั้งแรก
+    const tl = new Map();               // prd|pla → Map(code → {first, n})
+    wideRows.forEach(r => {
+      const code = NIR.normSEP(r['SEP']); const prd = NIR.normProduct(r['Product']);
+      if (!code || !prd || !sets[code] || sets[code].prd !== prd) return;   // ข้ามแถวที่เลือก SEP ผิด product
+      const k = prd + '|' + (r['Plant'] || '').trim();
+      const d = NIR.excelSerialToISO(r['Month']); if (!d) return;
+      if (!tl.has(k)) tl.set(k, new Map());
+      const m = tl.get(k);
+      const e = m.get(code) || { first: d, n: 0 };
+      if (d < e.first) e.first = d; e.n++; m.set(code, e);
+    });
+    const rules = [];
+    [...tl.keys()].sort().forEach(k => {
+      const [prd, pla] = k.split('|');
+      const entries = [...tl.get(k).entries()].sort((a, b) => a[1].first.localeCompare(b[1].first));
+      entries.forEach(([code, e]) => rules.push({ prd, pla, sep: code, from: e.first }));
+    });
+    return { version: 1, updated: new Date().toISOString(), sets, rules, conflicts };
+  };
+
+  // ── หา SEP อัตโนมัติ: Product + Plant + วันที่ ──────────────────────────────
+  NIR.findSep = function (sepDb, prd, pla, date) {
+    if (!sepDb || !prd) return '';
+    const p = NIR.normProduct(prd);
+    date = date || NIR.todayISO();
+    const pick = plant => sepDb.rules
+      .filter(r => r.prd === p && r.pla === plant && r.from <= date)
+      .sort((a, b) => b.from.localeCompare(a.from))[0];
+    let r = pick(pla) || pick('*');
+    if (!r) {   // ไม่มีกฎของ plant นี้ → ใช้ SEP ล่าสุดของ product นี้จาก plant ไหนก็ได้
+      r = sepDb.rules.filter(x => x.prd === p && x.from <= date).sort((a, b) => b.from.localeCompare(a.from))[0];
+    }
+    if (!r) {   // ตัวอย่างเก่ากว่ากฎแรก → ใช้ SEP แรกสุดของ product นี้ (plant เดียวกันก่อน)
+      const first = list => list.sort((a, b) => a.from.localeCompare(b.from))[0];
+      r = first(sepDb.rules.filter(x => x.prd === p && x.pla === pla)) || first(sepDb.rules.filter(x => x.prd === p));
+    }
+    if (!r) {   // ไม่มีกฎเลย แต่มีชุด SEP ของ product นี้ → ใช้ชุดล่าสุด
+      const codes = Object.keys(sepDb.sets || {}).filter(c => sepDb.sets[c].prd === p).sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+      return codes[0] || '';
+    }
+    return r ? r.sep : '';
+  };
+
+  NIR.limits = function (sepDb, code, par) {
+    const s = sepDb && sepDb.sets[code];
+    const v = s && s.sep[par];
+    if (v === undefined || v === null || v === '') return null;
+    return { u2: r6(2 * v), l2: r6(-2 * v), u3: r6(3 * v), l3: r6(-3 * v) };
+  };
+
+  // แถว slim → records แบบ long (รูปแบบเดียวกับที่ Dashboard ใช้เดิม)
+  NIR.slimToLong = function (rows, sepDb) {
+    const out = [];
+    rows.forEach(r => {
+      const mon = NIR.isoToMonthSerial(r.d || '1900-01-01');
+      Object.keys(r.v || {}).forEach(par => {
+        const [wc, nir] = r.v[par];
+        if (wc === null || nir === null || wc === undefined || nir === undefined) return;
+        const lim = NIR.limits(sepDb, r.sep, par) || {};
+        out.push({
+          no: r.no === '' ? '' : String(r.no), mon, pla: r.pla, typ: r.typ, eqp: r.eqp, src: r.src,
+          sep: r.sep, prd: r.prd, sample: r.smp, par,
+          diff: Math.round((wc - nir) * 10000) / 10000, wc, nir,
+          u2: lim.u2 ?? null, l2: lim.l2 ?? null, u3: lim.u3 ?? null, l3: lim.l3 ?? null,
+        });
+      });
+    });
+    return out;
+  };
+
+  NIR.monthOf = d => (d || '').slice(0, 7);
+  NIR.splitByMonth = function (rows) {
+    const m = {};
+    rows.forEach(r => { const k = NIR.monthOf(r.d) || 'unknown'; (m[k] = m[k] || []).push(r); });
+    return m;
+  };
+
+  // JSON 1 แถวต่อ 1 บรรทัด → ดูประวัติแก้ไขบน GitHub ได้ง่าย
+  NIR.stringifyMonth = function (month, rows) {
+    rows = rows.slice().sort((a, b) => (+a.no || 0) - (+b.no || 0));
+    return '{"month":' + JSON.stringify(month) + ',"count":' + rows.length + ',"rows":[\n' +
+      rows.map(r => JSON.stringify(r)).join(',\n') + '\n]}\n';
+  };
+  NIR.stringifySep = function (db) {
+    const sets = Object.keys(db.sets).sort().map(k => JSON.stringify(k) + ':' + JSON.stringify(db.sets[k]));
+    const rules = db.rules.map(r => JSON.stringify(r));
+    return '{"version":' + (db.version || 1) + ',"updated":' + JSON.stringify(db.updated || new Date().toISOString()) +
+      ',\n"sets":{\n' + sets.join(',\n') + '\n},\n"rules":[\n' + rules.join(',\n') + '\n]' +
+      (db.aliases ? ',\n"aliases":' + JSON.stringify(db.aliases, null, 0).replace(/","/g, '",\n"') : '') +
+      (db.instruments ? ',\n"instruments":' + JSON.stringify(db.instruments) : '') + '}\n';
+  };
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ตัวอ่านไฟล์จาก 3 แหล่ง: Smart iLab (.xls ที่จริงเป็น CSV), IQX, Foss (Mosaic export)
+  // ══════════════════════════════════════════════════════════════════════
+
+  // ชื่อสินค้าในไฟล์ → Product ใน Dashboard (เรียนรู้จากข้อมูลเดิม; แก้/เพิ่มได้ในหน้า Import แล้วจะเก็บลง sep.json)
+  NIR.DEFAULT_ALIASES = {
+    'nir:01': 'AP1', 'nir:02': 'FM', 'nir:03': 'YC', 'nir:04': 'CGM', 'nir:05': 'SBM', 'nir:06': 'SBH',
+    'nir:07': 'SB,G', 'nir:08': 'BR,P', 'nir:09': 'CAS-C,PL', 'nir:10': 'HFEM', 'nir:11': 'WB', 'nir:12': 'WG',
+    'nir:14': 'RB,S', 'nir:18': 'WP', 'nir:19': 'FFS', 'nir:20': 'CKO',
+    'ilab:AP1': 'AP1', 'ilab:BP-PL': 'BP-PL', 'ilab:BR,P': 'BR,P', 'ilab:BROKEN RICE': 'BR,P',
+    'ilab:CAS-C': 'CAS-C,PL', 'ilab:CAS-PL': 'CAS-C,PL', 'ilab:CGM': 'CGM', 'ilab:CKO A': 'CKO', 'ilab:CKO': 'CKO',
+    'ilab:FM(SKIPJACK)': 'FM', 'ilab:PC SALMON MEAL': 'FM', 'ilab:PC-FM': 'FM', 'ilab:PCTM': 'FM', 'ilab:FM': 'FM',
+    'ilab:HFEM': 'HFEM', 'ilab:MBM(OVINE)': 'MBM(OVINE)', 'ilab:PC-PMM53-55': 'AP1', 'ilab:RB,S': 'RB,S',
+    'ilab:RB,EXT(JASMINE)': 'RB,F,Ext', 'ilab:SB,G': 'SB,G', 'ilab:SBH': 'SBH', 'ilab:SBM,DH': 'SBM', 'ilab:SBM': 'SBM',
+    'ilab:WB': 'WB', 'ilab:WG': 'WG', 'ilab:WHEAT-P': 'WP', 'ilab:YC': 'YC',
+  };
+  // เครื่อง NIR (serial) → Plant / Type / Equipment / Source
+  NIR.DEFAULT_INSTRUMENTS = {
+    '91915486': { pla: 'Rayong', typ: 'RM', eqp: 'DS2500', src: 'Lab', name: 'IQX Rayong' },
+    '91887229': { pla: '169', typ: 'RM', eqp: 'DS2500-2', src: 'QC', name: 'PCG_DS2500_2' },
+    'SMARTILAB': { pla: '169', typ: 'RM', eqp: 'DS2500', src: 'Lab', name: 'Smart iLab' },
+  };
+  const merged = (defs, over) => { const o = Object.assign({}, defs, over || {}); Object.keys(o).forEach(k => { if (o[k] === null) delete o[k]; }); return o; };
+  NIR.aliases = db => merged(NIR.DEFAULT_ALIASES, db && db.aliases);
+  NIR.instruments = db => merged(NIR.DEFAULT_INSTRUMENTS, db && db.instruments);
+
+  NIR.resolveProduct = function (db, key, fallbackName) {
+    const a = NIR.aliases(db);
+    if (key && a[key]) return a[key];
+    if (fallbackName) {   // ลองชื่อตรงกับ product ที่มีอยู่
+      const known = new Set(Object.values((db && db.sets) || {}).map(s => s.prd).concat(((db && db.rules) || []).map(r => r.prd)));
+      const n = NIR.normProduct(fallbackName);
+      if (known.has(n)) return n;
+    }
+    return '';
+  };
+
+  // CSV ทั้งไฟล์ (รองรับ "..." ที่มี , หรือขึ้นบรรทัดใหม่)
+  NIR.parseCSV = function (text) {
+    text = text.replace(/^﻿/, '');
+    const delim = (text.split('\n')[0].match(/\t/g) || []).length > (text.split('\n')[0].match(/,/g) || []).length ? '\t' : ',';
+    const rows = []; let row = [], cur = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) {
+        if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; }
+        else cur += c;
+      } else if (c === '"') q = true;
+      else if (c === delim) { row.push(cur); cur = ''; }
+      else if (c === '\n') { row.push(cur.replace(/\r$/, '')); rows.push(row); row = []; cur = ''; }
+      else cur += c;
+    }
+    if (cur !== '' || row.length) { row.push(cur.replace(/\r$/, '')); rows.push(row); }
+    return rows.filter(r => r.some(c => String(c).trim() !== ''));
+  };
+
+  // "11.24g/100g(L)" → 11.24 ; "xxx" / "ND…" / "<0.1" → null
+  NIR.labNum = function (v) {
+    if (v === null || v === undefined) return null;
+    if (typeof v === 'number') return isFinite(v) ? v : null;
+    const m = String(v).trim().replace(/,/g, '').match(/^(-?\d+(?:\.\d+)?)(?![\d.])/);
+    return m ? +m[1] : null;
+  };
+
+  // วันที่หลายรูปแบบ → YYYY-MM-DD (d/m/y, d-m-y, พ.ศ., Excel serial, y-m-d)
+  NIR.parseDate = function (s) {
+    if (s === null || s === undefined || s === '') return '';
+    if (typeof s === 'number') return s > 20000 && s < 80000 ? NIR.excelSerialToISO(Math.floor(s)) : '';
+    if (s instanceof Date) return isNaN(s) ? '' : s.toISOString().slice(0, 10);
+    s = String(s).trim();
+    const fy = y => (y < 100 ? y + 2000 : y > 2400 ? y - 543 : y);
+    const p = x => String(x).padStart(2, '0');
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return fy(+m[1]) + '-' + p(m[2]) + '-' + p(m[3]);
+    m = s.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+    if (m) {
+      let a = +m[1], b = +m[2]; const y = fy(+m[3]);
+      let dd = a, mm = b;                       // ค่าเริ่มต้น: วัน/เดือน/ปี
+      if (b > 12 && a <= 12) { dd = b; mm = a; } // ถ้าเห็นชัดว่าเป็น เดือน/วัน/ปี
+      if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return '';
+      return y + '-' + p(mm) + '-' + p(dd);
+    }
+    const n = NIR.num(s); if (n && n > 20000 && n < 80000) return NIR.excelSerialToISO(Math.floor(n));
+    return '';
+  };
+  function cellText(v) {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'number' && v > 20000 && v < 80000 && v % 1 !== 0) {   // Excel datetime
+      const d = new Date(Math.round((v - 25569) * 86400000));
+      const p = x => String(x).padStart(2, '0');
+      return p(d.getUTCDate()) + '-' + p(d.getUTCMonth() + 1) + '-' + d.getUTCFullYear() + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) + ':' + p(d.getUTCSeconds());
+    }
+    return String(v).trim();
+  }
+
+  // Smart iLab: คอลัมน์ WC → คอลัมน์ NIR (CALCIUM = Ca, PHOSPHORUS = P, PD 0.002 = PD, STARCH = Starch)
+  NIR.ILAB_PAIRS = [
+    ['M', ['M'], 'M-NIR'], ['CP', ['CP', 'CP-KJ'], 'CP-NIR'], ['EE', ['EE'], 'EE-NIR'], ['AH', ['AH'], 'AH-NIR'],
+    ['FIB', ['FIB'], 'FIB-NIR'], ['ASH', ['ASH'], 'ASH-NIR'], ['Ca', ['CALCIUM', 'Ca'], 'Ca-NIR'], ['P', ['PHOSPHORUS', 'P'], 'P-NIR'],
+    ['Aw', ['Aw'], 'Aw-NIR'], ['NaCl', ['NaCl', 'Cl'], 'NaCl-NIR'], ['PD', ['PD 0.002', 'PD'], 'PD-NIR'], ['TVBN', ['TVBN'], 'TVBN-NIR'],
+    ['Sand', ['Sand'], 'Sand-NIR'], ['Starch', ['STARCH', 'Starch'], 'Starch-NIR'], ['BHT', ['BHT'], 'BHT-NIR'],
+    ['pH', ['pH'], 'pH-NIR'], ['Fat-C', ['Fat-C'], 'Fat-C-NIR'], ['FFA', ['FFA'], 'FFA-NIR'],
+  ];
+  // Mosaic (IQX/Foss): "A_M" = ค่า NIR, "Ref A_M" = ค่า WC
+  NIR.MOSAIC_PARAM = { 'M': 'M', 'CP': 'CP', 'FAT-EE': 'EE', 'EE': 'EE', 'FAT-AH': 'AH', 'AH': 'AH', 'FIB': 'FIB', 'ASH': 'ASH',
+    'CA': 'Ca', 'P': 'P', 'SAND': 'Sand', 'STARCH': 'Starch', 'PD': 'PD', 'TVBN': 'TVBN', 'BHT': 'BHT', 'FFA': 'FFA',
+    'AW': 'Aw', 'NACL': 'NaCl', 'PH': 'pH', 'FAT-C': 'Fat-C', 'CP-QCP': 'CP-QCP', 'STARCH-QCP': 'Starch-QCP' };
+
+  NIR.detectSource = function (header) {
+    const h = header.map(x => String(x || '').trim());
+    if (h.includes('Lab No.') && h.includes('Seq') && h.some(x => /-NIR$/.test(x))) return 'ilab';
+    if (h.includes('Analysis Time') && h.some(x => /^Ref /.test(x))) return 'mosaic';
+    return '';
+  };
+
+  function splitLabSeq(id) {          // "02-QCR260002999008" → { lab:"02-QCR260002999", seq:8 }
+    const m = String(id || '').trim().match(/^(\d{2}-[A-Z]+\d{9})(\d{3})$/i);
+    return m ? { lab: m[1].toUpperCase(), seq: +m[2] } : null;
+  }
+
+  // table = array of arrays (แถวแรกคือหัวตาราง) → { kind, rows:[...], wc: Map(lab#seq → {par:wc}) , skipped }
+  NIR.parseSource = function (table, db, fileName) {
+    const header = table[0].map(x => String(x || '').trim());
+    const kind = NIR.detectSource(header);
+    const col = name => header.indexOf(name);
+    const inst = NIR.instruments(db);
+    const out = { kind, rows: [], wc: new Map(), skipped: 0, total: table.length - 1, file: fileName || '' };
+    if (!kind) return out;
+
+    if (kind === 'ilab') {
+      const I = k => col(k);
+      const cfg = inst.SMARTILAB;
+      table.slice(1).forEach(r => {
+        const g = k => (I(k) >= 0 ? r[I(k)] : '');
+        const lab = String(g('Lab No.')).trim().toUpperCase(), seq = +g('Seq') || 0;
+        const v = {}, wcOnly = {};
+        let hasNir = false;
+        NIR.ILAB_PAIRS.forEach(([par, wcCols, nirCol]) => {
+          let wc = null;
+          for (const c of wcCols) { const n = NIR.labNum(g(c)); if (n !== null) { wc = n; break; } }
+          const nir = NIR.labNum(g(nirCol));
+          if (wc !== null) wcOnly[par] = wc;
+          if (nir !== null) { hasNir = true; v[par] = [wc, nir]; }
+        });
+        if (lab && seq) out.wc.set(lab + '#' + seq, wcOnly);
+        if (!hasNir) { out.skipped++; return; }
+        const code = String(g('Sample')).trim();
+        const st = String(g('Sample Type')).toUpperCase();
+        const detail = String(g('Product Detail')).trim();
+        const smp = (detail || String(g('Product Name')).trim()).replace(/\s*SD\s*\d{1,2}\/\d{1,2}\/\d{2,4}\s*/i, ' ').replace(/\s+/g, ' ').trim();
+        out.rows.push({
+          origin: 'Smart iLab', k: 'ilab:' + lab + '#' + seq, lab, seq,
+          prdKey: 'ilab:' + code.toUpperCase(), prdName: code, prdHint: String(g('Product Name')).trim(),
+          smp, det: code + ' · ' + lab + ' #' + seq,
+          d: NIR.parseDate(g('Sampling Date')) || NIR.parseDate(g('Recieved Date')) || NIR.parseDate(g('Order Date')),
+          pla: cfg.pla, typ: /FINISH|FG|อาหารสำเร็จ/.test(st) ? 'FG' : cfg.typ, eqp: cfg.eqp, src: cfg.src, inst: 'SMARTILAB',
+          v,
+        });
+      });
+      return out;
+    }
+
+    // Mosaic export (IQX / Foss)
+    const pairs = [];
+    header.forEach((h, i) => {
+      const m = h.match(/^Ref\s+(.+)$/); if (!m) return;
+      const nirIdx = col(m[1]); if (nirIdx < 0) return;
+      const nm = m[1].replace(/^[A-Z0-9]{1,2}_/, '').toUpperCase();
+      const par = NIR.MOSAIC_PARAM[nm]; if (!par) return;
+      pairs.push([par, i, nirIdx]);
+    });
+    const iT = col('Analysis Time'), iPN = col('Product Name'), iSN = col('Sample Number'), iSer = col('Instrument Serial Number'),
+      iIN = col('Instrument Name'), iLab = col('2Lab No/Job ID'), iCls = col('3LB/LA/RM/FG'), iNm = col('1Sample name'), iTyp = col('Sample Type');
+    table.slice(1).forEach(r => {
+      if (iTyp >= 0 && r[iTyp] && !/normal/i.test(String(r[iTyp]))) { out.skipped++; return; }   // ข้าม check sample / reference
+      const v = {}; let any = false;
+      pairs.forEach(([par, wi, ni]) => {
+        const wc = NIR.labNum(r[wi]), nir = NIR.labNum(r[ni]);
+        if (nir === null) return;
+        v[par] = [wc, nir]; any = true;
+      });
+      if (!any) { out.skipped++; return; }
+      const serial = String(r[iSer] || r[iIN] || '').trim();
+      const cfg = inst[serial] || null;
+      const time = cellText(r[iT]);
+      const labId = iLab >= 0 ? String(r[iLab] || '').trim() : '';
+      const ls = splitLabSeq(labId);
+      const sn = String(r[iSN] || '').trim();
+      const smp = ((labId || sn) + ' ' + time).trim();
+      const pn = String(r[iPN] || '').trim();
+      const num = pn.match(/^(\d{1,3})\s/);
+      const cls = iCls >= 0 ? String(r[iCls] || '').toUpperCase() : '';
+      out.rows.push({
+        origin: (cfg && cfg.name) || ('NIR ' + serial), k: 'nir:' + serial + ':' + smp, lab: ls ? ls.lab : '', seq: ls ? ls.seq : 0,
+        prdKey: num ? 'nir:' + num[1].padStart(2, '0') : 'nir:' + pn.toLowerCase(), prdName: pn,
+        prdHint: iNm >= 0 ? String(r[iNm] || '').trim() : '',
+        smp, det: '', d: NIR.parseDate(time),
+        pla: cfg ? cfg.pla : '', typ: cls === 'FG' ? 'FG' : (cfg ? cfg.typ : ''), eqp: cfg ? cfg.eqp : '', src: cfg ? cfg.src : '',
+        inst: serial, instKnown: !!cfg, instName: String(r[iIN] || '').trim(),
+        v,
+      });
+    });
+    return out;
+  };
+
+  // ── โหลดข้อมูลทั้งหมดจาก GitHub Pages ──────────────────────────────────────
+  NIR.fetchJSON = async function (url) {
+    const res = await fetch(url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now(), { cache: 'no-cache' });
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + url);
+    return res.json();
+  };
+  NIR.loadAll = async function (base) {
+    base = base || NIR.BASE_URL;
+    const [sepDb, index] = await Promise.all([NIR.fetchJSON(base + 'sep.json'), NIR.fetchJSON(base + 'data/index.json')]);
+    const files = await Promise.all(index.files.map(f => NIR.fetchJSON(base + 'data/' + f).catch(() => ({ rows: [] }))));
+    const rows = [].concat(...files.map(f => f.rows || []));
+    return { sepDb, index, rows };
+  };
+
+  // ── GitHub API (บันทึกตรงจากหน้า Import) ────────────────────────────────────
+  function b64utf8(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(bin);
+  }
+  NIR.gh = function (token) {
+    const R = NIR.REPO;
+    const api = 'https://api.github.com/repos/' + R.owner + '/' + R.repo + '/contents/';
+    const H = extra => Object.assign({ Authorization: 'Bearer ' + token, 'X-GitHub-Api-Version': '2022-11-28' }, extra || {});
+    return {
+      async listShas(dir) {
+        const res = await fetch(api + dir + '?ref=' + R.branch + '&_cb=' + Date.now(), { headers: H({ Accept: 'application/vnd.github+json' }) });
+        if (res.status === 404) return {};
+        if (!res.ok) throw new Error('GitHub ' + res.status + ': ' + (await res.text()).slice(0, 200));
+        const arr = await res.json(); const m = {};
+        (Array.isArray(arr) ? arr : [arr]).forEach(f => { m[f.path] = f.sha; });
+        return m;
+      },
+      async getJSON(path) {
+        const res = await fetch(api + path + '?ref=' + R.branch + '&_cb=' + Date.now(), { headers: H({ Accept: 'application/vnd.github.raw+json' }) });
+        if (res.status === 404) return null;
+        if (!res.ok) throw new Error('GitHub ' + res.status + ': ' + (await res.text()).slice(0, 200));
+        return JSON.parse(await res.text());
+      },
+      async put(path, text, sha, message) {
+        const body = { message, content: b64utf8(text), branch: R.branch };
+        if (sha) body.sha = sha;
+        const res = await fetch(api + path, { method: 'PUT', headers: H({ Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' }), body: JSON.stringify(body) });
+        if (!res.ok) throw new Error('บันทึก ' + path + ' ไม่สำเร็จ (GitHub ' + res.status + '): ' + (await res.text()).slice(0, 200));
+        return res.json();
+      },
+      async test() {
+        const res = await fetch('https://api.github.com/repos/' + R.owner + '/' + R.repo, { headers: H() });
+        if (!res.ok) throw new Error('GitHub ' + res.status);
+        const j = await res.json();
+        if (!j.permissions || !j.permissions.push) throw new Error('Token นี้ไม่มีสิทธิ์เขียน repo');
+        return j;
+      },
+    };
+  };
+
+  // ตาราง SEP สำรอง (สร้างจาก data2.json วันที่ 27/10/2026) — ใช้เมื่อยังโหลดตาราง SEP จาก GitHub ไม่ได้
+  NIR.BUILTIN_SEP = {"version":1,"updated":"2026-10-27","sets":{"AF2":{"prd":"Aqua Food","sep":{"M":0.269174,"CP":0.449218,"AH":0.34503,"FIB":0.471686,"ASH":0.403849,"Ca":0.106305,"P":0.09536,"Aw":0.03447,"NaCl":0.156506},"note":"ย้ายจาก Excel เดิม"},"AF3":{"prd":"Aqua Food","sep":{"M":0.27,"CP":0.48,"AH":0.33,"FIB":0.52,"ASH":0.4,"Ca":0.128,"P":0.098,"Aw":0.04,"NaCl":0.17},"note":"ย้ายจาก Excel เดิม"},"AP1-2":{"prd":"AP1","sep":{"M":0.12,"CP":1,"EE":0.54,"FIB":0.36,"ASH":0.4,"Ca":0.3833,"P":0.283,"PD":1.41,"CP-QCP":1},"note":"ย้ายจาก Excel เดิม"},"AP1-3":{"prd":"AP1","sep":{"M":0.12,"CP":0.88,"EE":0.43,"FIB":0.47,"ASH":0.6,"Ca":0.351,"P":0.178,"PD":1.375},"note":"ย้ายจาก Excel เดิม"},"BFKB3":{"prd":"Bird Kibbles","sep":{"M":0.31,"CP":0.49,"EE":0.86,"AH":0.34,"FIB":0.46,"ASH":0.5,"Ca":0.26,"P":0.071,"Aw":0.03,"NaCl":0.12},"note":"ย้ายจาก Excel เดิม"},"BFM2":{"prd":"Bird Mix2","sep":{"M":0.2,"CP":0.44,"EE":0.59,"AH":0.44,"FIB":0.48,"ASH":0.3,"Ca":0.101,"P":0.052,"Aw":0.04,"NaCl":0.06},"note":"ย้ายจาก Excel เดิม"},"BFM3":{"prd":"Bird Mix2","sep":{"M":0.22,"CP":0.45,"EE":0.48,"AH":0.38,"FIB":0.54,"ASH":0.5,"Ca":0.164,"P":0.062,"Aw":0.04,"NaCl":0.07},"note":"ย้ายจาก Excel เดิม"},"BP-PL2":{"prd":"BP-PL","sep":{"M":0.17,"CP":0.17,"EE":0.21,"FIB":0.61,"ASH":0.7},"note":"ย้ายจาก Excel เดิม"},"BR,P2":{"prd":"BR,P","sep":{"M":0.16,"CP":0.25},"note":"ย้ายจาก Excel เดิม"},"CAS-2":{"prd":"CAS-C,PL","sep":{"M":0.15,"FIB":0.56,"ASH":0.6,"Sand":0.67,"Starch":2.26,"Starch-QCP":2.26},"note":"ย้ายจาก Excel เดิม"},"CAS-3":{"prd":"CAS-C,PL","sep":{"M":0.15,"FIB":0.56,"ASH":0.6,"Sand":0.64,"Starch":2.12},"note":"ย้ายจาก Excel เดิม"},"CAS-4":{"prd":"CAS-C,PL","sep":{"M":0.16,"FIB":0.54,"ASH":0.6,"Sand":0.69,"Starch":2.06},"note":"ย้ายจาก Excel เดิม"},"CFKB2":{"prd":"Cat Kibbles","sep":{"M":0.26,"CP":0.52,"AH":0.54,"FIB":0.37,"ASH":0.4,"Ca":0.109,"P":0.067,"Aw":0.02,"NaCl":0.14},"note":"ย้ายจาก Excel เดิม"},"CFM1":{"prd":"Cat Mix2","sep":{"M":0.1821,"CP":0.4903,"AH":0.6643,"FIB":0.3502,"ASH":0.3356,"Ca":0.1123,"P":0.1294,"Aw":0.0343,"NaCl":0.1396},"note":"ย้ายจาก Excel เดิม"},"CFM2":{"prd":"Cat Mix2","sep":{"M":0.22,"CP":0.52,"AH":0.35,"FIB":0.36,"ASH":0.5,"Ca":0.253,"P":0.082,"Aw":0.03,"NaCl":0.11},"note":"ย้ายจาก Excel เดิม"},"CFM3":{"prd":"Cat Mix2","sep":{"M":0.24,"CP":0.53,"AH":0.41,"FIB":0.36,"ASH":0.6,"Ca":0.246,"P":0.079,"Aw":0.02,"NaCl":0.1},"note":"ย้ายจาก Excel เดิม"},"CGM2":{"prd":"CGM","sep":{"M":0.19,"CP":0.39,"EE":0.53,"FIB":0.29},"note":"ย้ายจาก Excel เดิม"},"CGM3":{"prd":"CGM","sep":{"M":0.16,"CP":0.44,"EE":0.42,"FIB":0.27},"note":"ย้ายจาก Excel เดิม"},"CGM4":{"prd":"CGM","sep":{"M":0.15,"CP":0.44,"EE":0.42,"FIB":0.28},"note":"ย้ายจาก Excel เดิม"},"CKO2":{"prd":"CKO","sep":{"M":0.03},"note":"ย้ายจาก Excel เดิม"},"CKO3":{"prd":"CKO","sep":{"M":0.03,"FFA":0.1},"note":"ย้ายจาก Excel เดิม"},"CP01":{"prd":"CP01","sep":{"M":0.21,"CP":0.39,"AH":0.25,"ASH":0.8,"Aw":0.01,"pH":0.05},"note":"ย้ายจาก Excel เดิม"},"CP02":{"prd":"CP01","sep":{"M":0.12,"CP":0.3,"AH":0.21,"ASH":0.9,"Aw":0.01,"pH":0.05},"note":"ย้ายจาก Excel เดิม"},"DOKB3":{"prd":"Dog Kibbles","sep":{"M":0.31,"CP":0.56,"AH":0.57,"FIB":0.57,"ASH":0.5,"Ca":0.153,"P":0.076,"Aw":0.02,"NaCl":0.19},"note":"ย้ายจาก Excel เดิม"},"DOKB4":{"prd":"Dog Kibbles","sep":{"M":0.28,"CP":0.59,"AH":0.67,"FIB":0.5,"ASH":0.5,"Ca":0.159,"P":0.089,"Aw":0.03,"NaCl":0.13},"note":"ย้ายจาก Excel เดิม"},"DOM2":{"prd":"Dog Mix2","sep":{"M":0.265675,"CP":0.553495,"AH":0.467348,"FIB":0.415184,"ASH":0.451464,"Ca":0.16468,"P":0.080867,"Aw":0.036212,"NaCl":0.099077},"note":"ย้ายจาก Excel เดิม"},"DOM3":{"prd":"Dog Mix2","sep":{"M":0.24,"CP":0.56,"AH":0.46,"FIB":0.4,"ASH":0.6,"Ca":0.149,"P":0.066,"Aw":0.04,"NaCl":0.11},"note":"ย้ายจาก Excel เดิม"},"ELU2":{"prd":"EGG LU","sep":{"M":0.53,"CP":0.35,"ASH":0.3,"pH":0.23,"Fat-C":0.34},"note":"ย้ายจาก Excel เดิม"},"ELU3":{"prd":"EGG LU","sep":{"M":0.5,"CP":0.29,"ASH":0.3,"pH":0.23,"Fat-C":0.33},"note":"ย้ายจาก Excel เดิม"},"EPU3":{"prd":"EGG PU","sep":{"M":0.14,"CP":0.48,"AH":0.51,"ASH":0.5,"Aw":0.01,"pH":0.07},"note":"ย้ายจาก Excel เดิม"},"EPU4":{"prd":"EGG PU","sep":{"M":0.18,"CP":0.48,"AH":0.53,"ASH":0.4,"Aw":0.01,"pH":0.07},"note":"ย้ายจาก Excel เดิม"},"FFS1":{"prd":"FFS","sep":{"M":0.1567,"CP":0.3585,"EE":0.354},"note":"ย้ายจาก Excel เดิม"},"FG2":{"prd":"FG-Online","sep":{"M":0.34,"CP":0.37,"AH":0.69,"FIB":0.48,"Aw":0.03},"note":"ย้ายจาก Excel เดิม"},"FG3":{"prd":"FG-Online","sep":{"M":0.31,"CP":0.47,"AH":0.55,"FIB":0.46,"Aw":0.031732},"note":"ย้ายจาก Excel เดิม"},"FM2":{"prd":"FM","sep":{"M":0.19,"CP":0.85,"EE":0.51,"ASH":0.7,"TVBN":6.8,"BHT":58.74},"note":"ย้ายจาก Excel เดิม"},"FM3":{"prd":"FM","sep":{"M":0.18,"CP":0.71,"EE":0.52,"ASH":0.6,"TVBN":6.6,"BHT":50.32},"note":"ย้ายจาก Excel เดิม"},"FP01-2":{"prd":"FP01","sep":{"M":0.14,"CP":0.38,"AH":0.18,"ASH":1,"Aw":0.02,"pH":0.12},"note":"ย้ายจาก Excel เดิม"},"FPB01-2":{"prd":"FPB01","sep":{"M":0.24,"CP":0.23,"AH":0.15,"ASH":0.3,"Aw":0.01,"pH":0.05},"note":"ย้ายจาก Excel เดิม"},"FPB01-3":{"prd":"FPB01","sep":{"M":0.25,"CP":0.18,"AH":0.16,"ASH":0.3,"Aw":0.01,"pH":0.05},"note":"ย้ายจาก Excel เดิม"},"FPM3":{"prd":"FP02 04 05 MIX","sep":{"M":0.24,"CP":0.38,"AH":0.21,"ASH":0.7,"Aw":0.01,"pH":0.13},"note":"ย้ายจาก Excel เดิม"},"GM3":{"prd":"Goat Milk","sep":{"M":0.34,"CP":0.11,"AH":0.14,"FIB":0.01,"pH":0.07,"Fat-C":0.14},"note":"ย้ายจาก Excel เดิม"},"HFEM2":{"prd":"HFEM","sep":{"M":0.23,"CP":0.82,"CP-QCP":0.82},"note":"ย้ายจาก Excel เดิม"},"HFEM3":{"prd":"HFEM","sep":{"M":0.22,"CP":0.82},"note":"ย้ายจาก Excel เดิม"},"HOKB3":{"prd":"Horse Kibbles","sep":{"M":0.36,"CP":0.5,"EE":0.5,"AH":0.41,"FIB":0.59,"ASH":0.4,"Ca":0.147,"P":0.099,"Aw":0.02,"NaCl":0.31},"note":"ย้ายจาก Excel เดิม"},"HOM2":{"prd":"Horse Mix2","sep":{"M":0.29,"CP":0.49,"EE":0.55,"AH":0.57,"FIB":0.82,"ASH":0.4,"Ca":0.127,"P":0.074,"Aw":0.03,"NaCl":0.21},"note":"ย้ายจาก Excel เดิม"},"HPB2":{"prd":"HPB03 04","sep":{"M":0.16,"CP":0.26,"AH":0.16,"ASH":0.3,"Aw":0.01,"pH":0.05},"note":"ย้ายจาก Excel เดิม"},"HPB3":{"prd":"HPB03 04","sep":{"M":0.15,"CP":0.27,"AH":0.17,"ASH":0.3,"Aw":0.01,"pH":0.05},"note":"ย้ายจาก Excel เดิม"},"IPB01-1":{"prd":"IPB01","sep":{"M":0.3,"CP":0.26,"AH":0.29,"ASH":0.2,"Aw":0.02,"pH":0.03},"note":"ย้ายจาก Excel เดิม"},"Liver1":{"prd":"Liver","sep":{"M":0.94,"CP":0.92,"ASH":0.2,"pH":0.18,"Fat-C":0.31},"note":"ย้ายจาก Excel เดิม"},"Liver2":{"prd":"Liver","sep":{"M":0.87,"CP":0.37,"ASH":0.2,"pH":0.16,"Fat-C":0.4},"note":"ย้ายจาก Excel เดิม"},"MBM2":{"prd":"MBM(OVINE)","sep":{"M":0.2,"CP":0.94,"EE":0.49,"FIB":0.71,"ASH":1.1,"PD":3.2},"note":"ย้ายจาก Excel เดิม"},"MF01-3":{"prd":"MF01 02","sep":{"M":0.19,"CP":1.15,"AH":0.13,"ASH":0.1,"Aw":0.03,"pH":0.05},"note":"ย้ายจาก Excel เดิม"},"Mix1-2":{"prd":"Mix1 Online","sep":{"M":0.24,"CP":1.36,"AH":0.47,"FIB":0.86},"note":"ย้ายจาก Excel เดิม"},"PEC06-3":{"prd":"PEC06","sep":{"M":0.29,"CP":0.4,"ASH":1,"pH":0.05,"Fat-C":0.14},"note":"ย้ายจาก Excel เดิม"},"PEC06-4":{"prd":"PEC06","sep":{"M":0.35,"CP":0.35,"ASH":0.9,"pH":0.04,"Fat-C":0.17},"note":"ย้ายจาก Excel เดิม"},"PEC3":{"prd":"PEC LH SDF","sep":{"M":0.58,"CP":0.34,"ASH":0.4,"pH":0.1,"Fat-C":0.2},"note":"ย้ายจาก Excel เดิม"},"PEC4":{"prd":"PEC LH SDF","sep":{"M":0.55,"CP":0.29,"ASH":0.3,"pH":0.09,"Fat-C":0.29},"note":"ย้ายจาก Excel เดิม"},"PEDLH-3":{"prd":"PED LH02","sep":{"M":0.33,"CP":0.25,"ASH":1,"pH":0.08,"Fat-C":0.3},"note":"ย้ายจาก Excel เดิม"},"PEDLH-4":{"prd":"PED LH02","sep":{"M":0.31,"CP":0.24,"ASH":1,"pH":0.09,"Fat-C":0.32},"note":"ย้ายจาก Excel เดิม"},"RB,S2":{"prd":"RB,S","sep":{"M":0.16,"CP":0.35,"EE":0.45,"FIB":0.69,"ASH":0.3},"note":"ย้ายจาก Excel เดิม"},"RB,S3":{"prd":"RB,S","sep":{"M":0.16,"CP":0.35,"EE":0.45,"FIB":0.69,"ASH":0.3},"note":"ย้ายจาก Excel เดิม"},"RBext1":{"prd":"RB,F,Ext","sep":{"M":0.18,"CP":0.31,"EE":0.87,"FIB":0.68,"ASH":0.4},"note":"ย้ายจาก Excel เดิม"},"RFKB2":{"prd":"Rodent Kibbles","sep":{"M":0.34,"CP":0.37,"EE":0.27,"AH":0.24,"FIB":0.6,"ASH":0.4,"Ca":0.108,"P":0.073,"Aw":0.03,"NaCl":0.1},"note":"ย้ายจาก Excel เดิม"},"RFM2":{"prd":"Rodent Mix2","sep":{"M":0.34,"CP":0.45,"EE":0.42,"AH":0.37,"FIB":0.75,"ASH":0.4,"Ca":0.09,"P":0.055,"Aw":0.042,"NaCl":0.07},"note":"ย้ายจาก Excel เดิม"},"RFM3":{"prd":"Rodent Mix2","sep":{"M":0.34,"CP":0.46,"EE":0.38,"AH":0.31,"FIB":0.85,"ASH":0.3,"Ca":0.092,"P":0.056,"Aw":0.06,"NaCl":0.07},"note":"ย้ายจาก Excel เดิม"},"SB,G2":{"prd":"SB,G","sep":{"M":0.16,"CP":0.47,"EE":0.63},"note":"ย้ายจาก Excel เดิม"},"SB,G3":{"prd":"SB,G","sep":{"M":0.17,"CP":0.49,"EE":0.64},"note":"ย้ายจาก Excel เดิม"},"SBH2":{"prd":"SBH","sep":{"M":0.12,"CP":0.32,"FIB":0.6},"note":"ย้ายจาก Excel เดิม"},"SBH3":{"prd":"SBH","sep":{},"note":"ย้ายจาก Excel เดิม"},"SBM1":{"prd":"PEANUT CAKE","sep":{"M":0.13,"CP":0.6,"EE":0.59,"FIB":0.31,"CP-QCP":0.6},"note":"ย้ายจาก Excel เดิม"},"SBM2":{"prd":"SBM","sep":{"M":0.13,"CP":0.59,"EE":0.36,"FIB":0.35},"note":"ย้ายจาก Excel เดิม"},"SBM3":{"prd":"SBM","sep":{"M":0.14,"CP":0.58,"EE":0.32,"FIB":0.32},"note":"ย้ายจาก Excel เดิม"},"SDFI01-1":{"prd":"SDF I01","sep":{"M":0.61,"CP":0.39,"ASH":0.8,"pH":0.35,"Fat-C":0.23},"note":"ย้ายจาก Excel เดิม"},"SHM2":{"prd":"SHM","sep":{"M":0.57,"CP":0.87,"EE":0.47,"NaCl":0.79},"note":"ย้ายจาก Excel เดิม"},"STM2":{"prd":"Stick/Miniroll","sep":{"M":0.64,"CP":0.55,"AH":0.42,"FIB":0.24,"ASH":0.1,"pH":0.09},"note":"ย้ายจาก Excel เดิม"},"TRM1":{"prd":"Tuna red meat","sep":{"M":0.63,"CP":0.47,"Fat-C":0.17},"note":"ย้ายจาก Excel เดิม"},"Tuna gut1":{"prd":"Tuna gut","sep":{"M":0.87,"CP":0.66,"ASH":0.3,"TVBN":12.17,"pH":0.12,"Fat-C":0.48},"note":"ย้ายจาก Excel เดิม"},"WB2":{"prd":"WB","sep":{"M":0.23,"CP":0.37,"EE":0.45,"FIB":0.51,"ASH":0.3},"note":"ย้ายจาก Excel เดิม"},"WB3":{"prd":"WB","sep":{"M":0.21,"CP":0.33,"EE":0.43,"FIB":0.56,"ASH":0.3},"note":"ย้ายจาก Excel เดิม"},"WF2":{"prd":"Wet Food","sep":{"M":0.5,"CP":0.4,"AH":0.27,"FIB":0.2,"ASH":0.2,"Ca":0.073,"P":0.035,"pH":0.26},"note":"ย้ายจาก Excel เดิม"},"WFCP18+1":{"prd":"WFCP 18+","sep":{"M":0.73,"CP":0.6,"AH":0.38,"FIB":0.24,"ASH":0.2,"pH":0.09},"note":"ย้ายจาก Excel เดิม"},"WG2":{"prd":"WG","sep":{"M":0.17,"CP":0.44},"note":"ย้ายจาก Excel เดิม"},"WG3":{"prd":"WG","sep":{"M":0.17,"CP":0.4},"note":"ย้ายจาก Excel เดิม"},"WP2":{"prd":"WP","sep":{"M":0.34,"CP":0.25,"AH":0.16},"note":"ย้ายจาก Excel เดิม"},"WP3":{"prd":"WP","sep":{},"note":"ย้ายจาก Excel เดิม"},"YC2":{"prd":"YC","sep":{"M":0.22,"CP":0.31},"note":"ย้ายจาก Excel เดิม"}},"rules":[{"prd":"AP1","pla":"169","sep":"AP1-3","from":"2026-02-01"},{"prd":"AP1","pla":"Indonesia","sep":"AP1-2","from":"2026-03-01"},{"prd":"AP1","pla":"Indonesia","sep":"AP1-3","from":"2026-07-01"},{"prd":"AP1","pla":"Rayong","sep":"AP1-3","from":"2026-03-01"},{"prd":"Aqua Food","pla":"169","sep":"AF2","from":"2026-03-01"},{"prd":"Aqua Food","pla":"169","sep":"AF3","from":"2026-06-01"},{"prd":"BP-PL","pla":"169","sep":"BP-PL2","from":"2026-02-01"},{"prd":"BR,P","pla":"169","sep":"BR,P2","from":"2026-02-01"},{"prd":"BR,P","pla":"Indonesia","sep":"BR,P2","from":"2026-03-01"},{"prd":"BR,P","pla":"Rayong","sep":"BR,P2","from":"2026-03-01"},{"prd":"Bird Kibbles","pla":"169","sep":"BFKB3","from":"2026-03-01"},{"prd":"Bird Mix2","pla":"169","sep":"BFM2","from":"2026-03-01"},{"prd":"Bird Mix2","pla":"169","sep":"BFM3","from":"2026-08-01"},{"prd":"CAS-C,PL","pla":"169","sep":"CAS-2","from":"2026-02-01"},{"prd":"CAS-C,PL","pla":"169","sep":"CAS-3","from":"2026-02-01"},{"prd":"CAS-C,PL","pla":"169","sep":"CAS-4","from":"2026-07-01"},{"prd":"CAS-C,PL","pla":"Indonesia","sep":"CAS-2","from":"2026-03-01"},{"prd":"CAS-C,PL","pla":"Indonesia","sep":"CAS-3","from":"2026-07-01"},{"prd":"CAS-C,PL","pla":"Rayong","sep":"CAS-3","from":"2026-03-01"},{"prd":"CAS-C,PL","pla":"Rayong","sep":"CAS-4","from":"2026-07-01"},{"prd":"CGM","pla":"169","sep":"CGM2","from":"2026-02-01"},{"prd":"CGM","pla":"169","sep":"CGM3","from":"2026-03-01"},{"prd":"CGM","pla":"169","sep":"CGM4","from":"2026-08-01"},{"prd":"CGM","pla":"Indonesia","sep":"CGM2","from":"2026-03-01"},{"prd":"CGM","pla":"Indonesia","sep":"CGM3","from":"2026-07-01"},{"prd":"CGM","pla":"Rayong","sep":"CGM3","from":"2026-03-01"},{"prd":"CGM","pla":"Rayong","sep":"CGM4","from":"2026-08-01"},{"prd":"CKO","pla":"169","sep":"CKO2","from":"2026-02-01"},{"prd":"CKO","pla":"169","sep":"CKO3","from":"2026-08-01"},{"prd":"CKO","pla":"Rayong","sep":"CKO2","from":"2026-03-01"},{"prd":"CKO","pla":"Rayong","sep":"CKO3","from":"2026-08-01"},{"prd":"CP01","pla":"POC","sep":"CP01","from":"2026-02-01"},{"prd":"CP01","pla":"POC","sep":"CP02","from":"2026-04-01"},{"prd":"Cat Kibbles","pla":"169","sep":"CFKB2","from":"2026-03-01"},{"prd":"Cat Kibbles","pla":"Indonesia","sep":"CFKB2","from":"2026-03-01"},{"prd":"Cat Kibbles","pla":"Myanmar","sep":"CFKB2","from":"2026-04-01"},{"prd":"Cat Kibbles","pla":"Rayong","sep":"CFKB2","from":"2026-03-01"},{"prd":"Cat Mix2","pla":"169","sep":"CFM2","from":"2026-03-01"},{"prd":"Cat Mix2","pla":"169","sep":"CFM3","from":"2026-04-01"},{"prd":"Cat Mix2","pla":"Indonesia","sep":"CFM1","from":"2026-03-01"},{"prd":"Cat Mix2","pla":"Indonesia","sep":"CFM3","from":"2026-07-01"},{"prd":"Cat Mix2","pla":"Myanmar","sep":"CFM3","from":"2026-04-01"},{"prd":"Cat Mix2","pla":"Rayong","sep":"CFM2","from":"2026-03-01"},{"prd":"Cat Mix2","pla":"Rayong","sep":"CFM3","from":"2026-04-01"},{"prd":"Dog Kibbles","pla":"169","sep":"DOKB3","from":"2026-03-01"},{"prd":"Dog Kibbles","pla":"169","sep":"DOKB4","from":"2026-05-01"},{"prd":"Dog Kibbles","pla":"Indonesia","sep":"DOKB3","from":"2026-03-01"},{"prd":"Dog Kibbles","pla":"Indonesia","sep":"DOKB4","from":"2026-07-01"},{"prd":"Dog Kibbles","pla":"Myanmar","sep":"DOKB3","from":"2026-04-01"},{"prd":"Dog Kibbles","pla":"Rayong","sep":"DOKB3","from":"2026-03-01"},{"prd":"Dog Kibbles","pla":"Rayong","sep":"DOKB4","from":"2026-06-01"},{"prd":"Dog Mix2","pla":"169","sep":"DOM2","from":"2026-03-01"},{"prd":"Dog Mix2","pla":"169","sep":"DOM3","from":"2026-05-01"},{"prd":"Dog Mix2","pla":"Indonesia","sep":"DOM2","from":"2026-03-01"},{"prd":"Dog Mix2","pla":"Indonesia","sep":"DOM3","from":"2026-07-01"},{"prd":"Dog Mix2","pla":"Myanmar","sep":"DOM3","from":"2026-04-01"},{"prd":"Dog Mix2","pla":"Rayong","sep":"DOM2","from":"2026-04-01"},{"prd":"Dog Mix2","pla":"Rayong","sep":"DOM3","from":"2026-05-01"},{"prd":"EGG LU","pla":"POC","sep":"ELU2","from":"2026-02-01"},{"prd":"EGG LU","pla":"POC","sep":"ELU3","from":"2026-05-01"},{"prd":"EGG PU","pla":"POC","sep":"EPU3","from":"2026-03-01"},{"prd":"EGG PU","pla":"POC","sep":"EPU4","from":"2026-04-01"},{"prd":"FFS","pla":"Indonesia","sep":"FFS1","from":"2026-03-01"},{"prd":"FFS","pla":"Rayong","sep":"FFS1","from":"2026-03-01"},{"prd":"FG-Online","pla":"169","sep":"FG2","from":"2026-03-01"},{"prd":"FG-Online","pla":"169","sep":"FG3","from":"2026-04-01"},{"prd":"FM","pla":"169","sep":"FM2","from":"2026-02-01"},{"prd":"FM","pla":"169","sep":"FM3","from":"2026-02-01"},{"prd":"FM","pla":"Indonesia","sep":"FM2","from":"2026-03-01"},{"prd":"FM","pla":"Indonesia","sep":"FM3","from":"2026-07-01"},{"prd":"FM","pla":"Myanmar","sep":"FM3","from":"2026-04-01"},{"prd":"FM","pla":"Rayong","sep":"FM2","from":"2026-02-01"},{"prd":"FM","pla":"Rayong","sep":"FM3","from":"2026-04-01"},{"prd":"FP01","pla":"POC","sep":"FP01-2","from":"2026-03-01"},{"prd":"FP02 04 05 MIX","pla":"POC","sep":"FPM3","from":"2026-02-01"},{"prd":"FPB01","pla":"POC","sep":"FPB01-2","from":"2026-03-01"},{"prd":"FPB01","pla":"POC","sep":"FPB01-3","from":"2026-09-01"},{"prd":"Goat Milk","pla":"Wet Food","sep":"GM3","from":"2026-02-01"},{"prd":"HFEM","pla":"169","sep":"HFEM2","from":"2026-02-01"},{"prd":"HFEM","pla":"169","sep":"HFEM3","from":"2026-05-01"},{"prd":"HFEM","pla":"Rayong","sep":"HFEM2","from":"2026-03-01"},{"prd":"HFEM","pla":"Rayong","sep":"HFEM3","from":"2026-05-01"},{"prd":"HPB03 04","pla":"POC","sep":"HPB2","from":"2026-02-01"},{"prd":"HPB03 04","pla":"POC","sep":"HPB3","from":"2026-05-01"},{"prd":"Horse Kibbles","pla":"169","sep":"HOKB3","from":"2026-03-01"},{"prd":"Horse Kibbles","pla":"Myanmar","sep":"HOKB3","from":"2026-04-01"},{"prd":"Horse Mix2","pla":"169","sep":"HOM2","from":"2026-03-01"},{"prd":"Horse Mix2","pla":"Myanmar","sep":"HOM2","from":"2026-04-01"},{"prd":"IPB01","pla":"POC","sep":"IPB01-1","from":"2026-08-01"},{"prd":"Liver","pla":"POC","sep":"Liver1","from":"2026-03-01"},{"prd":"Liver","pla":"POC","sep":"Liver2","from":"2026-03-01"},{"prd":"MBM(OVINE)","pla":"169","sep":"MBM2","from":"2026-07-01"},{"prd":"MF01 02","pla":"POC","sep":"MF01-3","from":"2026-08-01"},{"prd":"Mix1 Online","pla":"169","sep":"Mix1-2","from":"2026-04-01"},{"prd":"PEANUT CAKE","pla":"Myanmar","sep":"SBM1","from":"2026-04-01"},{"prd":"PEC LH SDF","pla":"POC","sep":"PEC3","from":"2026-02-01"},{"prd":"PEC LH SDF","pla":"POC","sep":"PEC4","from":"2026-07-01"},{"prd":"PEC06","pla":"POC","sep":"PEC06-3","from":"2026-02-01"},{"prd":"PEC06","pla":"POC","sep":"PEC06-4","from":"2026-06-01"},{"prd":"PED LH02","pla":"POC","sep":"PEDLH-3","from":"2026-03-01"},{"prd":"PED LH02","pla":"POC","sep":"PEDLH-4","from":"2026-06-01"},{"prd":"RB,F,Ext","pla":"169","sep":"RBext1","from":"2026-02-01"},{"prd":"RB,S","pla":"169","sep":"RB,S3","from":"2026-02-01"},{"prd":"RB,S","pla":"169","sep":"RB,S2","from":"2026-02-01"},{"prd":"RB,S","pla":"Rayong","sep":"RB,S3","from":"2026-03-01"},{"prd":"RB,S","pla":"Rayong","sep":"RB,S2","from":"2026-03-01"},{"prd":"Rodent Kibbles","pla":"169","sep":"RFKB2","from":"2026-03-01"},{"prd":"Rodent Kibbles","pla":"Myanmar","sep":"RFKB2","from":"2026-04-01"},{"prd":"Rodent Mix2","pla":"169","sep":"RFM2","from":"2026-03-01"},{"prd":"Rodent Mix2","pla":"169","sep":"RFM3","from":"2026-09-01"},{"prd":"Rodent Mix2","pla":"Myanmar","sep":"RFM2","from":"2026-04-01"},{"prd":"SB,G","pla":"169","sep":"SB,G2","from":"2026-03-01"},{"prd":"SB,G","pla":"169","sep":"SB,G3","from":"2026-05-01"},{"prd":"SB,G","pla":"Myanmar","sep":"SB,G2","from":"2026-04-01"},{"prd":"SBH","pla":"169","sep":"SBH2","from":"2026-02-01"},{"prd":"SBH","pla":"Myanmar","sep":"SBH2","from":"2026-04-01"},{"prd":"SBH","pla":"Rayong","sep":"SBH2","from":"2026-03-01"},{"prd":"SBH","pla":"Rayong","sep":"SBH3","from":"2026-09-01"},{"prd":"SBM","pla":"169","sep":"SBM2","from":"2026-02-01"},{"prd":"SBM","pla":"169","sep":"SBM3","from":"2026-08-01"},{"prd":"SBM","pla":"Indonesia","sep":"SBM2","from":"2026-03-01"},{"prd":"SBM","pla":"Myanmar","sep":"SBM2","from":"2026-04-01"},{"prd":"SBM","pla":"Rayong","sep":"SBM2","from":"2026-03-01"},{"prd":"SBM","pla":"Rayong","sep":"SBM3","from":"2026-09-01"},{"prd":"SDF I01","pla":"POC","sep":"SDFI01-1","from":"2026-03-01"},{"prd":"SHM","pla":"Indonesia","sep":"SHM2","from":"2026-03-01"},{"prd":"SHM","pla":"Myanmar","sep":"SHM2","from":"2026-08-01"},{"prd":"SHM","pla":"Rayong","sep":"SHM2","from":"2026-07-01"},{"prd":"Stick/Miniroll","pla":"Wet Food","sep":"STM2","from":"2026-02-01"},{"prd":"Tuna gut","pla":"POC","sep":"Tuna gut1","from":"2026-09-01"},{"prd":"Tuna red meat","pla":"Wet Food","sep":"TRM1","from":"2026-07-01"},{"prd":"WB","pla":"169","sep":"WB2","from":"2026-02-01"},{"prd":"WB","pla":"169","sep":"WB3","from":"2026-07-01"},{"prd":"WB","pla":"Indonesia","sep":"WB2","from":"2026-03-01"},{"prd":"WB","pla":"Myanmar","sep":"WB2","from":"2026-08-01"},{"prd":"WB","pla":"Rayong","sep":"WB2","from":"2026-03-01"},{"prd":"WB","pla":"Rayong","sep":"WB3","from":"2026-07-01"},{"prd":"WFCP 18+","pla":"Wet Food","sep":"WFCP18+1","from":"2026-06-01"},{"prd":"WG","pla":"169","sep":"WG2","from":"2026-02-01"},{"prd":"WG","pla":"169","sep":"WG3","from":"2026-05-01"},{"prd":"WG","pla":"Indonesia","sep":"WG2","from":"2026-03-01"},{"prd":"WG","pla":"Rayong","sep":"WG2","from":"2026-03-01"},{"prd":"WG","pla":"Rayong","sep":"WG3","from":"2026-05-01"},{"prd":"WP","pla":"169","sep":"WP2","from":"2026-03-01"},{"prd":"WP","pla":"Rayong","sep":"WP2","from":"2026-03-01"},{"prd":"WP","pla":"Rayong","sep":"WP3","from":"2026-09-01"},{"prd":"Wet Food","pla":"Wet Food","sep":"WF2","from":"2026-02-01"},{"prd":"YC","pla":"169","sep":"YC2","from":"2026-02-01"},{"prd":"YC","pla":"Indonesia","sep":"YC2","from":"2026-03-01"},{"prd":"YC","pla":"Rayong","sep":"YC2","from":"2026-03-01"}]};
+
+  global.NIR = NIR;
+  if (typeof module !== 'undefined') module.exports = NIR;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<style>
+:root{
+  --bg:#f0f6fd;--bg2:#ffffff;--bg3:#e8f2fc;
+  --border:#cde0f5;--border2:#b0ccec;
+  --txt:#0d1f35;--txt2:#2d4a6b;--txt3:#5a7a9a;
+  --blue:#3d84c6;--blue-bg:#e8f2fc;--blue-light:#a8ccee;--blue-glow:rgba(91,155,213,0.18);
+  --amber:#b9770e;--amber-bg:#fff6e8;--amber-border:#f5d29a;
+  --red:#c74848;--red-bg:#fff1f1;--red-border:#f3c4c4;
+  --green:#23875c;--green-bg:#ecfaf3;--green-border:#b5e6cf;
+  --grey-bg:#f3f6f9;
+  --r:10px;--r-lg:14px;
+  --font:'DM Sans','Sarabun',sans-serif;--mono:'DM Mono',monospace;
+  --shadow:0 1px 4px rgba(30,58,95,0.06),0 4px 16px rgba(30,58,95,0.04);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--txt);font-size:13px;line-height:1.5;padding:20px 20px 60px}
+.page-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin:8px 0 16px}
+.page-title{font-size:20px;font-weight:700;letter-spacing:-.4px;display:flex;align-items:center;gap:10px}
+.chip{font-size:10px;font-weight:700;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-light);border-radius:20px;padding:3px 10px;font-family:var(--mono)}
+.sub{font-size:11px;color:var(--txt3);font-family:var(--mono);margin-top:3px}
+.tabs{display:flex;gap:4px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:4px;box-shadow:var(--shadow);flex-wrap:wrap}
+.tab{border:none;background:none;font:600 12px var(--font);color:var(--txt2);padding:8px 14px;border-radius:9px;cursor:pointer}
+.tab.active{background:var(--blue);color:#fff}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 18px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card-title{font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card-title .n{background:var(--blue);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.f{display:flex;flex-direction:column;gap:4px}
+.f label,.lbl{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px}
+input,select,textarea{font:13px var(--font);color:var(--txt);border:1.5px solid var(--border);border-radius:var(--r);background:var(--bg);padding:7px 10px;width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-glow)}
+textarea{font-family:var(--mono);font-size:12px;min-height:140px;resize:vertical;white-space:pre}
+.btn{font:600 12px var(--font);border:1.5px solid var(--blue-light);background:var(--blue-bg);color:var(--blue);padding:8px 14px;border-radius:var(--r);cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--blue)}
+.btn.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.danger{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:4px 9px;font-size:11px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+.note{font-size:12px;color:var(--txt2);background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;line-height:1.6}
+.note.warn{background:var(--amber-bg);border-color:var(--amber-border);color:#7a4d07}
+.note.err{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
+.note.ok{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.tbl-wrap{overflow:auto;max-height:560px;border:1px solid var(--border);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;font-size:12px}
+th{position:sticky;top:0;background:var(--bg3);color:var(--txt2);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;text-align:left;padding:7px 8px;border-bottom:1px solid var(--border);white-space:nowrap;z-index:1}
+td{padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap}
+tr.off td{opacity:.45}
+td input,td select{padding:4px 7px;font-size:12px;border-radius:7px}
+.drop{display:flex;flex-direction:column;align-items:center;gap:4px;border:2px dashed var(--blue-light);border-radius:var(--r-lg);padding:22px;background:var(--bg);cursor:pointer;text-align:center;color:var(--txt2);transition:all .15s}
+.drop:hover,.drop.over{border-color:var(--blue);background:var(--blue-bg)}
+.drop-sub{font-size:11px;color:var(--txt3)}
+.fchip{display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:9px;padding:6px 10px;margin-top:6px;font-size:12px;flex-wrap:wrap}
+.fchip span{color:var(--txt3);flex:1}
+.cellv{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.cellv .raw{font-family:var(--mono);font-size:10.5px;color:var(--txt2);white-space:nowrap}
+.cellv .raw .sep{color:var(--border2);margin:0 3px}
+.cellv .raw i{color:var(--amber);font-style:normal}
+.cellv .lim{font-family:var(--mono);font-size:9.5px;color:var(--txt3)}
+.thsub{font-size:9px;font-weight:500;color:var(--txt3);text-transform:none;letter-spacing:0;line-height:1.3;margin-top:2px}
+.badge.n{background:var(--grey-bg);color:var(--txt3)}
+.badge.b{background:var(--blue-bg);color:var(--blue)}
+details.card>summary{list-style:none}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::after{content:'▾';margin-left:auto;color:var(--txt3)}
+details.card[open]>summary::after{content:'▴'}
+.mapstrip{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 10px;margin-bottom:6px}
+.mapcol{flex:0 0 132px;display:flex;flex-direction:column;gap:3px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px}
+.mapcol.used{background:var(--blue-bg);border-color:var(--blue-light)}
+.mapcol .h{font-family:var(--mono);font-size:10px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mapcol .ex{font-family:var(--mono);font-size:10px;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mapcol select{font-size:11px;padding:3px 5px}
+.pv{font-family:var(--mono);font-size:11px;padding:2px 6px;border-radius:6px;display:inline-block;min-width:54px;text-align:right}
+.pv.g{background:var(--green-bg);color:var(--green)}
+.pv.a{background:var(--amber-bg);color:var(--amber)}
+.pv.r{background:var(--red-bg);color:var(--red);font-weight:600}
+.pv.n{background:var(--grey-bg);color:var(--txt3)}
+.badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;display:inline-block}
+.badge.r{background:var(--red-bg);color:var(--red)}
+.badge.a{background:var(--amber-bg);color:var(--amber)}
+.badge.g{background:var(--green-bg);color:var(--green)}
+.legend{display:flex;gap:10px;font-size:11px;color:var(--txt3);align-items:center;flex-wrap:wrap}
+.stat{display:flex;gap:18px;flex-wrap:wrap}
+.stat div{font-size:11px;color:var(--txt3)}
+.stat b{display:block;font-size:18px;color:var(--txt);font-family:var(--mono)}
+.mono{font-family:var(--mono)}
+.hide{display:none!important}
+.sep-layout{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:12px}
+@media(max-width:860px){.sep-layout{grid-template-columns:1fr}}
+.plist{max-height:620px;overflow:auto;border:1px solid var(--border);border-radius:var(--r)}
+.pitem{padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.pitem:hover{background:var(--bg3)}
+.pitem.sel{background:var(--blue-bg);box-shadow:inset 3px 0 0 var(--blue)}
+.pitem .code{font-family:var(--mono);font-size:11px;color:var(--blue);font-weight:600}
+.pitem .pl{font-size:10px;color:var(--txt3)}
+.verbox{border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:8px}
+.verbox.cur{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-glow)}
+.vals{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px;margin-top:8px}
+.val{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:5px 8px}
+.val .k{font-size:10px;color:var(--txt3);font-weight:700}
+.val .v{font-family:var(--mono);font-size:12px}
+.val .v small{color:var(--txt3);display:block;font-size:10px}
+.val input{padding:4px 6px;font-family:var(--mono);font-size:12px;margin-top:2px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--txt);color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:999;box-shadow:0 6px 24px rgba(0,0,0,.2);max-width:90vw}
+.busy{position:fixed;inset:0;background:rgba(240,246,253,.7);display:flex;align-items:center;justify-content:center;z-index:998;font-weight:600;color:var(--txt2);gap:10px}
+.spin{width:22px;height:22px;border:3px solid var(--blue-light);border-top-color:var(--blue);border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.steps{counter-reset:s;padding-left:0;list-style:none}
+.steps li{counter-increment:s;padding:4px 0 4px 30px;position:relative}
+.steps li::before{content:counter(s);position:absolute;left:0;top:4px;width:20px;height:20px;border-radius:50%;background:var(--blue-bg);color:var(--blue);font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center}
+a{color:var(--blue)}
+@media(max-width:600px){body{padding:16px 16px 60px}}
+</style>
+<!-- ===== NIR themes: Finance / Feature / Bento / Classic — สลับได้ที่ปุ่มมุมซ้ายล่าง ===== -->
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@200;300;400;500;600;700&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script>
+(function () {
+  var page = (typeof NIR_TOOL_ID !== 'undefined') ? NIR_TOOL_ID : '';
+  var def = (page === 'running' || page === 'summary' || page === 'bias') ? 'finance' : 'feature';
+  var t = def;   /* ใช้สไตล์ที่กำหนดตายตัวต่อหน้า (ไม่มีปุ่มสลับ) */
+  var c = document.documentElement.classList;
+  c.add({ finance: 'fb', feature: 'fx', bento: 'nb' }[t] || 'none');
+  if (page) c.add('nb-' + page);
+})();
+</script>
+<style id="nir-bento">
+html.nb {
+  --nb-ink: #0a0a0a;
+  --nb-paper: #ffffff;
+  --nb-bg: #f4f4f0;
+  --nb-yellow: #fde047;
+  --nb-green: #4ade80;
+  --nb-red: #f87171;
+  --nb-blue: #60a5fa;
+  --nb-purple: #a78bfa;
+  --nb-amber: #fbbf24;
+  --nb-shadow: 6px 6px 0 0 var(--nb-ink);
+  --nb-shadow-sm: 3px 3px 0 0 var(--nb-ink);
+  /* ตัวแปรเดิมของทั้ง 3 หน้า */
+  --r: 0px; --r-lg: 0px;
+  --border: var(--nb-ink); --border2: var(--nb-ink);
+  --bg: var(--nb-bg); --bg2: var(--nb-paper); --bg3: #fafaf7;
+  --txt: var(--nb-ink); --txt2: #27272a; --txt3: #52525b;
+  --shadow: var(--nb-shadow);
+  --blue: #2563eb; --blue-bg: #dbeafe; --blue-light: var(--nb-ink); --blue-glow: rgba(0,0,0,.15);
+}
+html.nb body {
+  background-color: var(--nb-bg) !important;
+  background-image: radial-gradient(rgba(0,0,0,.09) 1px, transparent 1px) !important;
+  background-size: 22px 22px !important;
+  color: var(--nb-ink);
+}
+html.nb body::before { background: var(--nb-ink) !important; height: 6px !important; animation: none !important; }
+
+/* ---- หัวข้อ: หนา ตัวใหญ่ ---- */
+html.nb .page-title, html.nb .topbar-title, html.nb .form-top-center, html.nb .greeting {
+  font-weight: 900 !important; letter-spacing: -.03em !important; text-transform: uppercase; color: var(--nb-ink) !important;
+}
+html.nb .page-title { font-size: 26px !important; }
+html.nb .page-subtitle, html.nb .topbar-sub, html.nb .last-updated, html.nb #lastUpdated {
+  font-weight: 700 !important; letter-spacing: .12em !important; text-transform: uppercase; color: #52525b !important;
+}
+html.nb .card-title, html.nb .section-title, html.nb .dp-section-title, html.nb .tt-section-title, html.nb .f-label, html.nb .flabel, html.nb .info-label {
+  color: var(--nb-ink) !important; font-weight: 900 !important; letter-spacing: .06em !important;
+}
+html.nb .card-title, html.nb .section-title {
+  border-bottom: 3px solid var(--nb-ink); padding-bottom: 8px; text-transform: uppercase;
+}
+html.nb .card-title .bar { background: var(--nb-ink) !important; width: 10px !important; height: 10px !important; border-radius: 0 !important; }
+
+/* ---- กล่อง/การ์ด: กรอบดำ 3px + เงาแข็ง ---- */
+html.nb .card, html.nb .form-card, html.nb .section, html.nb .detail-panel, html.nb .conclude-block,
+html.nb .ap-modal, html.nb .topbar, html.nb .filter-bar, html.nb .tbl-wrap, html.nb .pre-alert-banner,
+html.nb .stat-card, html.nb .legend-bar, html.nb .selection-panel, html.nb #selectionPanel, html.nb .chart-wrap {
+  background: var(--nb-paper) !important;
+  border: 3px solid var(--nb-ink) !important;
+  border-radius: 0 !important;
+  box-shadow: var(--nb-shadow) !important;
+}
+html.nb .card, html.nb .section, html.nb .form-card { margin-bottom: 18px !important; }
+html.nb .tbl-wrap .tbl-wrap, html.nb .card .tbl-wrap { box-shadow: none !important; }
+html.nb .form-top { background: var(--nb-ink) !important; color: #fff !important; border-radius: 0 !important; }
+html.nb .form-top * { color: #fff !important; }
+html.nb .info-cell { border-color: var(--nb-ink) !important; }
+
+/* ---- ปุ่ม / ชิป ---- */
+html.nb .nav-link, html.nb .btn-savepdf, html.nb .btn-export, html.nb .btn-save, html.nb .btn-cancel, html.nb .btn-edit,
+html.nb .btn-delete, html.nb .btn-approve, html.nb .vtab, html.nb button.btn, html.nb .clear-btn, html.nb .pre-alert-toggle {
+  border: 2px solid var(--nb-ink) !important; border-radius: 0 !important; font-weight: 800 !important;
+  box-shadow: var(--nb-shadow-sm) !important; color: var(--nb-ink) !important; background: var(--nb-paper) !important;
+  transition: transform .12s, box-shadow .12s !important;
+}
+html.nb .nav-link:hover, html.nb .btn-savepdf:hover, html.nb .btn-export:hover, html.nb .btn-save:hover, html.nb .btn-edit:hover,
+html.nb .btn-approve:hover, html.nb .vtab:hover, html.nb button.btn:hover {
+  transform: translate(-2px, -2px); box-shadow: 5px 5px 0 0 var(--nb-ink) !important; background: var(--nb-yellow) !important;
+}
+html.nb .nav-link:active, html.nb .btn-savepdf:active, html.nb .vtab:active, html.nb button.btn:active {
+  transform: translate(2px, 2px); box-shadow: 0 0 0 0 var(--nb-ink) !important;
+}
+html.nb .vtab.active, html.nb .btn-approve, html.nb .btn-save { background: var(--nb-ink) !important; color: #fff !important; }
+html.nb .btn-delete { background: var(--nb-red) !important; }
+html.nb .view-toggle { border: 2px solid var(--nb-ink) !important; border-radius: 0 !important; box-shadow: var(--nb-shadow-sm) !important; padding: 3px !important; background: #fff !important; }
+html.nb .view-toggle .vtab { box-shadow: none !important; border: 0 !important; }
+
+html.nb .chip-opt, html.nb .fchip, html.nb .plant-chip, html.nb .equip-chip, html.nb .src-chip, html.nb .label-chip,
+html.nb .tag, html.nb .chip, html.nb .pre-alert-chip, html.nb .tt-sample-chip, html.nb .param-btn, html.nb .pbtn {
+  border: 2px solid var(--nb-ink) !important; border-radius: 0 !important; font-weight: 800 !important;
+  color: var(--nb-ink) !important; background: var(--nb-paper) !important; box-shadow: 2px 2px 0 0 var(--nb-ink);
+}
+html.nb .chip-opt.active, html.nb .fchip.active, html.nb .plant-chip.sel, html.nb .equip-chip.sel, html.nb .src-chip.sel,
+html.nb .label-chip.sel, html.nb .param-btn.active, html.nb .pbtn.active {
+  background: var(--nb-ink) !important; color: #fff !important; box-shadow: 2px 2px 0 0 var(--nb-yellow) !important;
+}
+html.nb .chip-opt:hover, html.nb .fchip:hover, html.nb .label-chip:hover { background: var(--nb-yellow) !important; }
+html.nb .chip-opt.active:hover, html.nb .fchip.active:hover { background: var(--nb-ink) !important; }
+
+/* ---- ช่องกรอก ---- */
+html.nb select, html.nb input[type=text], html.nb input[type=date], html.nb input[type=number], html.nb textarea,
+html.nb .search-box, html.nb .finput, html.nb .corr-textarea {
+  border: 2px solid var(--nb-ink) !important; border-radius: 0 !important; background-color: #fff !important;
+  box-shadow: var(--nb-shadow-sm) !important; color: var(--nb-ink) !important; font-weight: 600;
+}
+html.nb select:focus, html.nb input:focus, html.nb textarea:focus, html.nb .search-box:focus-within {
+  outline: none !important; box-shadow: 3px 3px 0 0 var(--nb-yellow), 5px 5px 0 0 var(--nb-ink) !important;
+}
+html.nb .search-box input { box-shadow: none !important; border: 0 !important; }
+html.nb .search-dd, html.nb .dd-menu { border: 3px solid var(--nb-ink) !important; border-radius: 0 !important; box-shadow: var(--nb-shadow) !important; }
+
+/* ---- ตาราง ---- */
+html.nb table thead th, html.nb table.sum th, html.nb .dt-table thead th, html.nb .dp-table th {
+  background: var(--nb-ink) !important; color: #fff !important; font-weight: 800 !important;
+  text-transform: uppercase; letter-spacing: .05em; border-color: #3f3f46 !important;
+}
+html.nb table tbody td, html.nb table.sum td { border-color: rgba(0,0,0,.18) !important; }
+html.nb table tbody tr:hover td, html.nb table.sum tbody tr:hover td { background: #fef9c3 !important; }
+html.nb table.sum td.td-product, html.nb tbody td.td-left { font-weight: 800 !important; }
+
+/* ---- ป้ายสถานะ: สีสด กรอบดำ ---- */
+html.nb .status { border: 2px solid var(--nb-ink) !important; border-radius: 0 !important; color: var(--nb-ink) !important; font-weight: 800 !important; box-shadow: 2px 2px 0 0 var(--nb-ink); }
+html.nb .status.pass { background: var(--nb-green) !important; }
+html.nb .status.fail3 { background: var(--nb-red) !important; }
+html.nb .status.fail2 { background: var(--nb-purple) !important; }
+html.nb .status.rule9, html.nb .status.warn9 { background: var(--nb-amber) !important; }
+html.nb .status.none { background: #e4e4e7 !important; box-shadow: none; }
+html.nb .ap-ok { background: var(--nb-green) !important; border: 2px solid var(--nb-ink) !important; border-radius: 0 !important; color: var(--nb-ink) !important; }
+html.nb .ap-wait { background: var(--nb-amber) !important; border: 2px solid var(--nb-ink) !important; border-radius: 0 !important; color: var(--nb-ink) !important; }
+
+/* ---- กล่องสรุปตัวเลข (Running) ---- */
+html.nb .sum-box, html.nb .stat-box, html.nb .summary-card, html.nb .kpi {
+  border: 3px solid var(--nb-ink) !important; border-radius: 0 !important; box-shadow: var(--nb-shadow-sm) !important;
+}
+
+/* ---- tooltip / popup ---- */
+html.nb .tt-box, html.nb #rawParamPopup, html.nb .ap-modal { border: 3px solid var(--nb-ink) !important; border-radius: 0 !important; box-shadow: var(--nb-shadow) !important; }
+html.nb #loadingOverlay .spinner, html.nb .spinner { border-color: #d4d4d8 !important; border-top-color: var(--nb-ink) !important; }
+
+
+/* ---- Running: แท็บพารามิเตอร์ / กล่องสรุป / ปุ่ม export ---- */
+html.nb .param-tabs .tab, html.nb .btn-export-chart, html.nb .btn-clear-sel, html.nb .s-clear {
+  border: 2px solid var(--nb-ink) !important; border-radius: 0 !important; font-weight: 800 !important;
+  color: var(--nb-ink) !important; background: var(--nb-paper) !important; box-shadow: 2px 2px 0 0 var(--nb-ink) !important;
+}
+html.nb .param-tabs .tab:hover, html.nb .btn-export-chart:hover { background: var(--nb-yellow) !important; }
+html.nb .param-tabs .tab.active { background: var(--nb-ink) !important; color: #fff !important; box-shadow: 2px 2px 0 0 var(--nb-yellow) !important; }
+html.nb .rule-pill, html.nb .stat-pill {
+  border: 3px solid var(--nb-ink) !important; border-radius: 0 !important; box-shadow: var(--nb-shadow-sm) !important;
+}
+html.nb .rule-pill.red { background: var(--nb-red) !important; }
+html.nb .rule-pill.purple { background: var(--nb-purple) !important; }
+html.nb .rule-pill.yellow { background: var(--nb-amber) !important; }
+html.nb .rule-pill.blue { background: var(--nb-blue) !important; }
+html.nb .rule-pill .rp-label, html.nb .rule-pill .rp-count, html.nb .stat-pill .lbl, html.nb .stat-pill .val { color: var(--nb-ink) !important; font-weight: 900 !important; }
+html.nb .rule-pill .rp-dot { background: var(--nb-ink) !important; border-radius: 0 !important; }
+html.nb .stat-pill.green { background: var(--nb-green) !important; }
+html.nb .stat-pill.blue { background: var(--nb-blue) !important; }
+
+/* ---- Bias: หัวกลุ่มเครื่อง ---- */
+html.nb .section { box-shadow: var(--nb-shadow) !important; }
+html.nb.nb-bias .section-title, html.nb .section > .section-title:first-child {
+  background: var(--nb-ink) !important; color: #fff !important; border-radius: 0 !important; border-bottom: 3px solid var(--nb-ink);
+}
+html.nb .section-title * { color: inherit !important; }
+html.nb .section-title span[style*="opacity"], html.nb .section-title small { color: var(--nb-yellow) !important; opacity: 1 !important; }
+
+/* ---- Summary: แถบกรองไม่ต้องเป็นกล่อง (แถวชิปอยู่นอกกล่อง) ---- */
+html.nb.nb-summary .filter-bar { border: 0 !important; box-shadow: none !important; background: transparent !important; padding-left: 0 !important; }
+html.nb button[onclick="clearFilters()"] {
+  border: 2px solid var(--nb-ink) !important; border-radius: 0 !important; background: var(--nb-red) !important;
+  color: var(--nb-ink) !important; font-weight: 800 !important; box-shadow: var(--nb-shadow-sm) !important;
+}
+
+/* ===================== Feature theme (แบบ Feature Card บนหน้า Portal) ===================== */
+html.fx { --acc: hsl(211, 100%, 60%); --acc-light: hsl(210, 100%, 83%); --acc-dark: hsl(216, 100%, 97%); --acc-ink: hsl(214, 80%, 42%); }
+html.fx.nb-running { --acc: hsl(35, 91%, 52%); --acc-light: hsl(41, 100%, 85%); --acc-dark: hsl(30, 100%, 96%); --acc-ink: hsl(28, 85%, 36%); }
+html.fx.nb-summary { --acc: hsl(262, 85%, 60%); --acc-light: hsl(261, 100%, 87%); --acc-dark: hsl(264, 100%, 97%); --acc-ink: hsl(262, 60%, 42%); }
+html.fx.nb-bias    { --acc: hsl(211, 100%, 58%); --acc-light: hsl(210, 100%, 83%); --acc-dark: hsl(216, 100%, 97%); --acc-ink: hsl(214, 80%, 40%); }
+html.fx.nb-import  { --acc: hsl(152, 62%, 40%); --acc-light: hsl(150, 70%, 82%); --acc-dark: hsl(150, 80%, 96%); --acc-ink: hsl(152, 70%, 27%); }
+html.fx {
+  --fx-line: #e5e5e2; --fx-muted: #8a8a85; --fx-ink: #1a1a1a;
+  --fx-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --fx-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+  --fx-shadow-up: 0 20px 25px -5px rgba(0, 0, 0, .1), 0 10px 10px -5px rgba(0, 0, 0, .04);
+  --r: 10px; --r-lg: 16px;
+  --border: var(--fx-line); --border2: #d6d6d1;
+  --bg: #f6f6f3; --bg2: #ffffff; --bg3: #fafaf7;
+  --txt: var(--fx-ink); --txt2: #4a4a46; --txt3: var(--fx-muted);
+  --shadow: var(--fx-shadow);
+  --blue: var(--acc); --blue-bg: var(--acc-dark); --blue-light: var(--acc-light);
+  --blue-glow: color-mix(in srgb, var(--acc) 22%, transparent);
+}
+html.fx body {
+  background-color: #f6f6f3 !important;
+  background-image: radial-gradient(1100px 460px at 50% -160px, color-mix(in srgb, var(--acc-light) 75%, transparent) 0%, transparent 70%) !important;
+  background-repeat: no-repeat !important; color: var(--fx-ink);
+}
+html.fx body::before { background: var(--acc) !important; animation: none !important; height: 3px !important; }
+
+/* ---- หัวหน้า ---- */
+html.fx .page-title, html.fx .topbar-title { font-weight: 700 !important; letter-spacing: -.025em !important; color: var(--fx-ink) !important; }
+html.fx .page-title .chip, html.fx .page-header .chip {
+  background: var(--acc-dark) !important; color: var(--acc) !important; border: 0 !important; border-radius: 999px !important;
+  font-weight: 700 !important; letter-spacing: .06em !important;
+}
+html.fx .page-subtitle, html.fx .topbar-sub, html.fx .last-updated, html.fx #lastUpdated, html.fx .sub {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace !important; color: var(--fx-muted) !important;
+}
+
+/* ---- การ์ด: มุมโค้ง 16px + แสงสีจางด้านบน + เลขลำดับ 001 ---- */
+html.fx body { counter-reset: fxcard; }
+html.fx .card, html.fx .form-card, html.fx .section, html.fx .detail-panel, html.fx .conclude-block, html.fx .topbar,
+html.fx .ap-modal, html.fx .pre-alert-banner, html.fx .legend-bar, html.fx #selectionPanel {
+  background-color: #fff !important;
+  background-image: radial-gradient(circle at 50% -30%, color-mix(in srgb, var(--acc-light) 45%, transparent) 0%, transparent 55%) !important;
+  border: 1px solid var(--fx-line) !important; border-radius: 16px !important; box-shadow: var(--fx-shadow) !important;
+}
+html.fx .card, html.fx .section { counter-increment: fxcard; }
+html.fx .tbl-wrap { border-radius: 12px !important; border-color: var(--fx-line) !important; }
+html.fx .card-title, html.fx .nb-running .card-title {
+  display: inline-flex !important; width: fit-content; align-items: center; gap: 8px !important;
+  background: var(--acc-dark) !important; color: var(--acc) !important; border-radius: 999px !important;
+  padding: 4px 12px 4px 10px !important; font-size: 11px !important; font-weight: 700 !important; letter-spacing: .06em !important;
+  text-transform: uppercase; border: 0 !important;
+}
+html.fx .card-title::before {
+  content: "0" counter(fxcard, decimal-leading-zero);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--fx-muted); font-weight: 700; letter-spacing: 0;
+}
+html.fx .card-title .bar { display: none !important; }
+html.fx .card-title .n { background: none !important; color: var(--acc) !important; width: auto !important; height: auto !important; display: none !important; }
+html.fx .section-title {
+  background: linear-gradient(135deg, var(--acc-dark), #fff) !important; color: var(--acc-ink) !important;
+  border-radius: 16px 16px 0 0 !important; border-bottom: 1px solid var(--fx-line) !important; font-weight: 700 !important;
+}
+html.fx .section-title::before {
+  content: "0" counter(fxcard, decimal-leading-zero); font-family: ui-monospace, Menlo, monospace; color: var(--fx-muted); margin-right: 4px;
+}
+html.fx .section-title * { color: inherit !important; }
+html.fx .form-top { background: linear-gradient(135deg, var(--acc-light), var(--acc-dark) 70%) !important; border-radius: 16px 16px 0 0 !important; }
+html.fx .form-top, html.fx .form-top * { color: var(--fx-ink) !important; }
+html.fx .form-top-right { border-color: rgba(0, 0, 0, .08) !important; }
+
+/* ---- ปุ่ม ---- */
+html.fx .nav-link, html.fx .btn-savepdf, html.fx .btn-export, html.fx .btn-export-chart, html.fx .btn-edit, html.fx .btn-cancel,
+html.fx .btn, html.fx button.btn, html.fx .vtab, html.fx .btn-clear-sel {
+  border: 1px solid var(--fx-line) !important; border-radius: 10px !important; background: #fff !important; color: var(--fx-ink) !important;
+  font-weight: 600 !important; box-shadow: var(--fx-shadow) !important;
+  transition: transform .45s var(--fx-spring), box-shadow .3s ease, background .2s !important;
+}
+html.fx .nav-link:hover, html.fx .btn-savepdf:hover, html.fx .btn-export:hover, html.fx .btn-export-chart:hover, html.fx .btn:hover, html.fx .btn-edit:hover {
+  transform: translateY(-2px); box-shadow: 0 8px 16px -6px rgba(0, 0, 0, .15) !important; background: var(--acc-dark) !important;
+}
+html.fx .btn.primary, html.fx .btn-approve, html.fx .btn-save, html.fx .vtab.active {
+  background: var(--acc) !important; color: #fff !important; border-color: var(--acc) !important;
+}
+html.fx .btn.primary:hover, html.fx .btn-approve:hover, html.fx .btn-save:hover { background: var(--acc-ink) !important; }
+html.fx .btn.danger, html.fx .btn-delete { background: hsl(0, 100%, 97%) !important; color: hsl(0, 72%, 46%) !important; border-color: hsl(0, 100%, 90%) !important; }
+html.fx .view-toggle, html.fx .tabs { border: 1px solid var(--fx-line) !important; border-radius: 12px !important; background: #fff !important; box-shadow: var(--fx-shadow) !important; }
+html.fx .view-toggle .vtab { box-shadow: none !important; border: 0 !important; }
+html.fx .tabs .tab { border-radius: 9px !important; }
+html.fx .tabs .tab.active { background: var(--acc) !important; color: #fff !important; }
+
+/* ---- ชิป: เม็ดยา ---- */
+html.fx .chip-opt, html.fx .fchip, html.fx .plant-chip, html.fx .equip-chip, html.fx .src-chip, html.fx .label-chip,
+html.fx .tag, html.fx .pre-alert-chip, html.fx .param-tabs .tab {
+  border: 1px solid var(--fx-line) !important; border-radius: 999px !important; background: #fff !important; color: var(--txt2) !important;
+  box-shadow: none !important; font-weight: 600 !important;
+}
+html.fx .chip-opt:hover, html.fx .fchip:hover, html.fx .label-chip:hover, html.fx .param-tabs .tab:hover { background: var(--acc-dark) !important; border-color: var(--acc-light) !important; color: var(--acc-ink) !important; }
+html.fx .chip-opt.active, html.fx .fchip.active, html.fx .plant-chip.sel, html.fx .equip-chip.sel, html.fx .src-chip.sel, html.fx .label-chip.sel {
+  background: var(--acc-dark) !important; color: var(--acc-ink) !important; border-color: var(--acc-light) !important; font-weight: 700 !important;
+}
+html.fx .param-tabs .tab.active { background: var(--acc) !important; color: #fff !important; border-color: var(--acc) !important; box-shadow: 0 6px 14px -6px var(--acc) !important; }
+
+/* ---- ช่องกรอก ---- */
+html.fx select, html.fx input[type=text], html.fx input[type=date], html.fx input[type=number], html.fx input[type=password],
+html.fx input:not([type]), html.fx textarea, html.fx .search-box, html.fx .finput, html.fx .corr-textarea {
+  border: 1px solid var(--fx-line) !important; border-radius: 10px !important; background-color: #fff !important; color: var(--fx-ink) !important;
+}
+html.fx select:focus, html.fx input:focus, html.fx textarea:focus, html.fx .search-box:focus-within {
+  outline: none !important; border-color: var(--acc) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc-light) 60%, transparent) !important;
+}
+html.fx .search-box input { border: 0 !important; box-shadow: none !important; }
+html.fx .search-dd { border: 1px solid var(--fx-line) !important; border-radius: 14px !important; box-shadow: var(--fx-shadow-up) !important; }
+
+/* ---- ตาราง ---- */
+html.fx table thead th, html.fx .dt-table thead th, html.fx .dp-table th {
+  background: #fafaf7 !important; color: var(--fx-muted) !important; font-weight: 700 !important; font-size: 10.5px !important;
+  text-transform: uppercase; letter-spacing: .06em; border-color: var(--fx-line) !important;
+}
+html.fx table.sum th { background: var(--acc-dark) !important; color: var(--acc-ink) !important; border-color: var(--fx-line) !important; }
+html.fx table tbody td { border-color: #efefec !important; }
+html.fx table tbody tr:hover td { background: var(--acc-dark) !important; }
+
+/* ---- ป้ายสถานะ: เม็ดยาพาสเทล ---- */
+html.fx .status, html.fx .badge, html.fx .ap-ok, html.fx .ap-wait { border-radius: 999px !important; font-weight: 700 !important; }
+
+/* ---- กล่องสรุปตัวเลข (Running): การ์ดเล็กลอยขึ้นตอนชี้ ---- */
+html.fx .rule-pill, html.fx .stat-pill {
+  border-radius: 16px !important; background: #fff !important; border: 1px solid var(--fx-line) !important; box-shadow: var(--fx-shadow) !important;
+  transition: transform .5s var(--fx-spring), box-shadow .3s ease !important;
+}
+html.fx .rule-pill:hover, html.fx .stat-pill:hover { transform: translateY(-6px); box-shadow: var(--fx-shadow-up) !important; }
+html.fx .rule-pill.red   { background-image: radial-gradient(circle at 15% 0%, hsl(0, 100%, 92%) 0%, transparent 70%) !important; }
+html.fx .rule-pill.purple{ background-image: radial-gradient(circle at 15% 0%, hsl(261, 100%, 92%) 0%, transparent 70%) !important; }
+html.fx .rule-pill.yellow{ background-image: radial-gradient(circle at 15% 0%, hsl(41, 100%, 88%) 0%, transparent 70%) !important; }
+html.fx .rule-pill.blue  { background-image: radial-gradient(circle at 15% 0%, hsl(210, 100%, 90%) 0%, transparent 70%) !important; }
+html.fx .rule-pill .rp-count, html.fx .stat-pill .val { font-family: ui-monospace, "SF Mono", Menlo, monospace !important; font-weight: 700 !important; }
+
+/* ---- หน้า Import ---- */
+html.fx .drop { border: 2px dashed var(--acc-light) !important; border-radius: 16px !important;
+  background: radial-gradient(circle at 50% 0%, var(--acc-dark) 0%, #fff 70%) !important; transition: transform .45s var(--fx-spring) !important; }
+html.fx .drop:hover, html.fx .drop.over { transform: translateY(-4px); border-color: var(--acc) !important; }
+html.fx .note { border-radius: 12px !important; }
+html.fx .pitem.sel { background: var(--acc-dark) !important; box-shadow: inset 3px 0 0 var(--acc) !important; }
+html.fx .verbox { border-radius: 14px !important; }
+html.fx .verbox.cur { border-color: var(--acc) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc-light) 55%, transparent) !important; }
+html.fx .fchip, html.fx .mapcol { border-radius: 12px !important; }
+html.fx .mapcol.used { background: var(--acc-dark) !important; border-color: var(--acc-light) !important; }
+html.fx .stat b { font-family: ui-monospace, "SF Mono", Menlo, monospace !important; }
+
+/* ---- popup ---- */
+html.fx .tt-box, html.fx #rawParamPopup { border-radius: 14px !important; border: 1px solid var(--fx-line) !important; box-shadow: var(--fx-shadow-up) !important; }
+@media (prefers-reduced-motion: reduce) { html.fx * { transition: none !important; } }
+
+/* ===================== Finance theme (แบบ finance-bento — ฉบับพื้นขาว) ===================== */
+html.fb {
+  --fb-ink: #0b0b0c; --fb-t2: rgba(11, 11, 12, .58); --fb-t3: rgba(11, 11, 12, .4); --fb-hair: #ececef; --fb-soft: #f5f5f7;
+  --fb-acc: #E8FF1F; --fb-ease: cubic-bezier(.32, .72, 0, 1);
+  --fb-card-shadow: 0 1px 0 rgba(0, 0, 0, .02), 0 14px 34px -18px rgba(16, 16, 40, .18);
+  --r: 14px; --r-lg: 28px;
+  --border: var(--fb-hair); --border2: #e2e2e6;
+  --bg: #ffffff; --bg2: #ffffff; --bg3: var(--fb-soft);
+  --txt: var(--fb-ink); --txt2: var(--fb-t2); --txt3: var(--fb-t3);
+  --shadow: var(--fb-card-shadow);
+  --blue: var(--fb-ink); --blue-bg: var(--fb-soft); --blue-light: #d9d9de; --blue-glow: rgba(11, 11, 12, .12);
+  --font: Geist, "IBM Plex Sans Thai", "Sarabun", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --mono: "Geist Mono", "DM Mono", ui-monospace, Menlo, monospace;
+}
+html.fb body { background-color: #f8eef3 !important; background-image: radial-gradient(1200px 560px at 50% -160px, rgba(249, 168, 212, .45) 0%, transparent 70%) !important; background-repeat: no-repeat !important; color: var(--fb-ink); font-family: var(--font) !important; -webkit-font-smoothing: antialiased; }
+html.fb body::before { display: none !important; }
+/* Summary: พื้นหลังครีม */
+html.fb.nb-summary body {
+  background-color: #F7F2E2 !important;
+  background-image: radial-gradient(rgba(70, 66, 58, .32) 2px, transparent 2.6px), radial-gradient(rgba(70, 66, 58, .32) 2px, transparent 2.6px) !important;
+  background-size: 34px 34px !important; background-position: 0 0, 17px 17px !important; background-repeat: repeat !important;
+}
+/* Summary: ส่วนที่วางบนลายจุด → การ์ดขาวลอยขึ้นมา */
+html.fb.nb-summary .page-header {
+  background: #fff; border: 1px solid var(--fb-hair); border-radius: 28px; padding: 18px 24px !important;
+  box-shadow: var(--fb-card-shadow); margin-top: 0 !important; margin-bottom: 14px !important; align-items: center !important;
+}
+html.fb.nb-summary .filter-bar {
+  background: #fff !important; border: 1px solid var(--fb-hair) !important; border-bottom: 0 !important;
+  border-radius: 28px 28px 0 0 !important; padding: 18px 24px 6px !important; margin: 14px 0 0 !important; box-shadow: none !important;
+}
+html.fb.nb-summary .chip-filter-block {
+  background: #fff; border: 1px solid var(--fb-hair); border-top: 0; border-radius: 0 0 28px 28px;
+  padding: 6px 24px 18px; margin-bottom: 14px; box-shadow: 0 14px 34px -18px rgba(16, 16, 40, .18);
+}
+html.fb.nb-summary .legend-bar, html.fb.nb-summary .pre-alert-banner { background: #fff !important; }
+@keyframes fbIn { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+
+/* ---- หัวหน้า ---- */
+html.fb .page-title, html.fb .topbar-title { font-size: 28px !important; font-weight: 700 !important; letter-spacing: -.03em !important; color: var(--fb-ink) !important; }
+html.fb .page-title .chip, html.fb .page-header .chip {
+  height: 22px; display: inline-flex; align-items: center; padding: 0 9px !important; border-radius: 11px !important; border: 0 !important;
+  background: var(--fb-ink) !important; color: #fff !important; font: 600 11px var(--mono) !important; letter-spacing: -.02em !important;
+}
+html.fb .page-subtitle, html.fb .topbar-sub, html.fb .last-updated, html.fb #lastUpdated {
+  font-family: var(--font) !important; font-weight: 500 !important; color: var(--fb-t3) !important; letter-spacing: -.01em !important; font-size: 12.5px !important;
+}
+
+/* ---- การ์ด: มุม 28px พื้นขาว เงาบางมาก ---- */
+html.fb .card, html.fb .form-card, html.fb .section, html.fb .detail-panel, html.fb .conclude-block, html.fb .topbar,
+html.fb .pre-alert-banner, html.fb #selectionPanel, html.fb .ap-modal {
+  background: #fff !important; background-image: none !important; border: 1px solid var(--fb-hair) !important;
+  border-radius: 28px !important; box-shadow: var(--fb-card-shadow) !important;
+  animation: fbIn .8s var(--fb-ease) both;
+}
+html.fb .card { padding: 22px 24px !important; }
+html.fb .card:nth-of-type(2) { animation-delay: .06s; } html.fb .card:nth-of-type(3) { animation-delay: .12s; } html.fb .card:nth-of-type(4) { animation-delay: .18s; }
+html.fb .legend-bar { border-radius: 16px !important; border: 1px solid var(--fb-hair) !important; background: #fff !important; box-shadow: none !important; }
+html.fb .tbl-wrap { border-radius: 20px !important; border-color: var(--fb-hair) !important; box-shadow: none !important; }
+html.fb .card-title {
+  font-size: 18px !important; font-weight: 600 !important; letter-spacing: -.02em !important; text-transform: none !important;
+  color: var(--fb-ink) !important; margin-bottom: 14px !important; border: 0 !important;
+}
+html.fb .card-title .bar { display: none !important; }
+/* หัวข้อสีชมพู */
+html.fb .page-title, html.fb .topbar-title, html.fb .card-title { color: #db2777 !important; }
+html.fb .page-title .chip, html.fb .page-header .chip { background: #db2777 !important; }
+html.fb .f-label, html.fb .flabel, html.fb .info-label, html.fb .chip-row-label, html.fb .lbl-hdr {
+  font-size: 11px !important; font-weight: 600 !important; letter-spacing: .06em !important; text-transform: uppercase; color: var(--fb-t2) !important;
+}
+
+/* ---- กล่องตัวเลข: สีตามเกณฑ์ โทนอ่อนแบบมินิมอล ---- */
+html.fb .rule-pill, html.fb .stat-pill {
+  position: relative; border-radius: 20px !important; padding: 16px 18px !important; min-height: 88px;
+  background: #fafafb !important; border: 1px solid var(--fb-hair) !important; box-shadow: none !important;
+  animation: fbIn .8s var(--fb-ease) both; transition: transform .5s var(--fb-ease), box-shadow .3s ease !important;
+}
+html.fb .rule-pill:hover, html.fb .stat-pill:hover { transform: translateY(-3px); box-shadow: 0 12px 24px -16px rgba(16, 16, 40, .25) !important; }
+html.fb .rule-pill { --k: #2563eb; --k-bg: #f3f7ff; --k-line: #dfe9fd; }
+html.fb .rule-pill.red    { --k: #dc2626; --k-bg: #fef5f5; --k-line: #fbe1e1; }
+html.fb .rule-pill.purple { --k: #7c3aed; --k-bg: #f8f5ff; --k-line: #ece4fd; animation-delay: .05s; }
+html.fb .rule-pill.yellow { --k: #d97706; --k-bg: #fffaf0; --k-line: #fbeccc; animation-delay: .1s; }
+html.fb .rule-pill.blue   { --k: #2563eb; --k-bg: #f3f7ff; --k-line: #dfe9fd; animation-delay: .15s; }
+html.fb .rule-pill { background: var(--k-bg) !important; border-color: var(--k-line) !important; }
+html.fb .rule-pill .rp-dot { background: var(--k) !important; width: 8px !important; height: 8px !important; }
+html.fb .rule-pill .rp-label { color: var(--fb-t2) !important; font-size: 11.5px !important; font-weight: 600 !important; }
+html.fb .rule-pill .rp-count { color: var(--k) !important; }
+html.fb .stat-pill .lbl { color: var(--fb-t2) !important; font-size: 11px !important; font-weight: 600 !important; letter-spacing: .06em !important; }
+html.fb .stat-pill .val { color: var(--fb-ink) !important; }
+html.fb .stat-pill.green { background: #f2fbf6 !important; border-color: #d8f1e3 !important; }
+html.fb .stat-pill.green .val { color: #16a34a !important; }
+html.fb .stat-pill.blue  { background: #fff7ef !important; border-color: #fde6cf !important; }
+html.fb .stat-pill.blue .val { color: #ea580c !important; }
+html.fb .rule-pill .rp-count, html.fb .stat-pill .val {
+  font-family: var(--font) !important; font-size: 36px !important; font-weight: 300 !important;
+  letter-spacing: -.04em !important; line-height: 1 !important; font-variant-numeric: tabular-nums;
+}
+
+/* Summary: หัวแบบฟอร์ม สีชมพูโทนอ่อน */
+html.fb .form-top { background: #fdf2f8 !important; border-radius: 28px 28px 0 0 !important; border-bottom: 1px solid #fbe0ee !important; }
+html.fb .form-top, html.fb .form-top * { color: var(--fb-ink) !important; }
+html.fb .form-top-center > *:first-child, html.fb .form-top-center b, html.fb .form-top-center strong { color: #db2777 !important; }
+html.fb .form-top-sub { color: var(--fb-t2) !important; }
+html.fb .form-top-right { border-color: #fbe0ee !important; }
+html.fb .info-cell { border-color: var(--fb-hair) !important; }
+html.fb .info-val { font-size: 22px !important; font-weight: 300 !important; letter-spacing: -.03em !important; }
+
+/* Bias: หัวกลุ่มเครื่อง สีเดิมของหน้า (น้ำเงินเข้ม ตัวขาว) */
+html.fb .section-title {
+  background: linear-gradient(135deg, #1e293b, #334155) !important; color: #fff !important; border-bottom: 0 !important;
+  border-radius: 28px 28px 0 0 !important; padding: 14px 22px !important; font-size: 15px !important; font-weight: 600 !important;
+}
+html.fb .section-title * { color: inherit !important; }
+
+/* ---- ปุ่ม: เม็ดยามน ดำ/ขาว ---- */
+html.fb .nav-link, html.fb .btn-savepdf, html.fb .btn-export, html.fb .btn-export-chart, html.fb .btn-edit, html.fb .btn-cancel, html.fb .btn-clear-sel {
+  border: 1px solid var(--fb-hair) !important; border-radius: 14px !important; background: #fff !important; color: var(--fb-ink) !important;
+  font-weight: 600 !important; box-shadow: none !important; transition: background .25s, transform .4s var(--fb-ease) !important;
+}
+html.fb .nav-link:hover, html.fb .btn-savepdf:hover, html.fb .btn-export:hover, html.fb .btn-export-chart:hover, html.fb .btn-edit:hover { background: var(--fb-soft) !important; transform: translateY(-1px); }
+html.fb .btn-approve, html.fb .btn-save { background: var(--fb-ink) !important; color: #fff !important; border-color: var(--fb-ink) !important; border-radius: 14px !important; }
+html.fb .btn-delete { border-radius: 14px !important; }
+/* segmented control แบบต้นฉบับ */
+html.fb .view-toggle { display: inline-flex; padding: 3px !important; gap: 2px; border-radius: 14px !important; background: var(--fb-soft) !important; border: 1px solid var(--fb-hair) !important; box-shadow: none !important; }
+html.fb .view-toggle .vtab { height: 30px; border: 0 !important; border-radius: 11px !important; background: transparent !important; color: var(--fb-t2) !important; box-shadow: none !important; font-weight: 600 !important; }
+html.fb .view-toggle .vtab.active { background: var(--fb-ink) !important; color: #fff !important; }
+
+/* ---- ชิป: แบบปุ่มใน segmented ---- */
+html.fb .chip-opt, html.fb .fchip, html.fb .plant-chip, html.fb .equip-chip, html.fb .src-chip, html.fb .label-chip, html.fb .param-tabs .tab, html.fb .pre-alert-chip {
+  border: 1px solid transparent !important; border-radius: 11px !important; background: var(--fb-soft) !important; color: var(--fb-t2) !important;
+  font-weight: 600 !important; box-shadow: none !important; transition: background .25s, color .25s !important;
+}
+html.fb .chip-opt:hover, html.fb .fchip:hover, html.fb .label-chip:hover, html.fb .param-tabs .tab:hover { background: #ebebef !important; color: var(--fb-ink) !important; }
+html.fb .chip-opt.active, html.fb .fchip.active, html.fb .plant-chip.sel, html.fb .equip-chip.sel, html.fb .src-chip.sel, html.fb .label-chip.sel, html.fb .param-tabs .tab.active {
+  background: var(--fb-ink) !important; color: #fff !important; border-color: var(--fb-ink) !important;
+}
+
+/* ---- ช่องกรอก ---- */
+html.fb select, html.fb input[type=text], html.fb input[type=date], html.fb input[type=number], html.fb textarea, html.fb .search-box, html.fb .finput, html.fb .corr-textarea {
+  border: 1px solid transparent !important; border-radius: 14px !important; background-color: var(--fb-soft) !important; color: var(--fb-ink) !important; box-shadow: none !important;
+}
+html.fb select:focus, html.fb input:focus, html.fb textarea:focus, html.fb .search-box:focus-within {
+  outline: none !important; border-color: var(--fb-ink) !important; background-color: #fff !important; box-shadow: 0 0 0 4px rgba(232, 255, 31, .55) !important;
+}
+html.fb .search-box input { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+html.fb .search-dd { border: 1px solid var(--fb-hair) !important; border-radius: 18px !important; box-shadow: 0 24px 48px -20px rgba(16, 16, 40, .3) !important; }
+
+/* ---- ตาราง ---- */
+html.fb table thead th, html.fb table.sum th, html.fb .dt-table thead th, html.fb .dp-table th {
+  background: #fdf2f8 !important; color: #db2777 !important; font-size: 11px !important; font-weight: 700 !important;
+  letter-spacing: .06em; text-transform: uppercase; border-color: var(--fb-hair) !important;
+}
+html.fb table tbody td, html.fb table.sum td { border-color: #f0f0f2 !important; }
+html.fb table thead th { border-color: #fbe0ee !important; }
+html.fb table thead th * { color: inherit; }
+html.fb table tbody tr:hover td, html.fb table.sum tbody tr:hover td { background: #fafafb !important; }
+html.fb tbody td.td-left { background: #fff !important; font-weight: 600 !important; }
+html.fb table.sum td.td-product { background: #fdf2f8 !important; color: #be185d !important; font-weight: 700 !important; border-right: 1px solid #fbe0ee !important; }
+html.fb table.sum td.td-product * { color: inherit; }
+html.fb table.sum tbody tr:hover td.td-product { background: #fce7f3 !important; }
+
+/* ---- ป้ายสถานะ: chip มน ---- */
+html.fb .status { border-radius: 11px !important; font-weight: 600 !important; }
+html.fb .ap-ok, html.fb .ap-wait { border-radius: 11px !important; }
+
+/* ---- tooltip ---- */
+html.fb .tt-box, html.fb #rawParamPopup { border-radius: 18px !important; border: 1px solid var(--fb-hair) !important; box-shadow: 0 24px 48px -20px rgba(16, 16, 40, .3) !important; }
+@media (prefers-reduced-motion: reduce) { html.fb * { animation: none !important; transition: none !important; } }
+
+/* ---- ปุ่มสลับธีม ---- */
+.nb-switch { position: fixed; left: 14px; bottom: 14px; z-index: 9998; display: flex; gap: 2px; padding: 3px;
+  background: #fff; border: 1px solid #e5e5e2; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.1); font: 600 11px/1 system-ui, sans-serif; }
+.nb-switch button { border: 0; background: none; padding: 6px 9px; border-radius: 7px; cursor: pointer; color: #77776f; font: inherit; }
+.nb-switch button.on { background: #1a1a1a; color: #fff; }
+html.nb .nb-switch { border: 2px solid #0a0a0a; border-radius: 0; box-shadow: 3px 3px 0 0 #0a0a0a; }
+html.nb .nb-switch button { border-radius: 0; }
+html.fx .nb-switch button.on { background: var(--acc); }
+html.fb .nb-switch { border-radius: 14px; background: #f5f5f7; }
+html.fb .nb-switch button { border-radius: 11px; }
+@media print { .nb-switch { display: none !important; } }
+</style>
+<script>
+/* กราฟ Chart.js: ตัวหนังสือหนาขึ้น เส้นแกนสีดำ (มีผลกับกราฟที่สร้างหลังเปิดหน้า) */
+(function () {
+  function apply() {
+    if (!window.Chart || !document.documentElement.classList.contains('nb')) return;
+    var d = window.Chart.defaults;
+    d.color = '#0a0a0a';
+    d.font.weight = 'bold';
+    d.borderColor = 'rgba(0,0,0,.18)';
+    if (d.elements && d.elements.point) { d.elements.point.borderColor = '#0a0a0a'; d.elements.point.borderWidth = 1.5; }
+    if (d.plugins && d.plugins.tooltip) {
+      d.plugins.tooltip.backgroundColor = '#0a0a0a'; d.plugins.tooltip.cornerRadius = 0;
+      d.plugins.tooltip.titleFont = { weight: 'bold' }; d.plugins.tooltip.borderColor = '#fde047'; d.plugins.tooltip.borderWidth = 2;
+    }
+  }
+  if (window.Chart) apply();
+  document.addEventListener('DOMContentLoaded', apply);
+})();
+</script>
+<!-- ===== /NIR Bento theme ===== -->
+
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <div class="page-title">NIR Data Import <span class="chip">SEP · EQA</span></div>
+    <div class="sub" id="statusLine">กำลังโหลด…</div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="import">📥 นำเข้าข้อมูล</button>
+    <button class="tab" data-tab="sep">🎯 SEP / EQA</button>
+    <button class="tab" data-tab="data">🗂️ ข้อมูลในระบบ</button>
+    <button class="tab" data-tab="setup">⚙️ ตั้งค่า</button>
+  </div>
+</div>
+
+<div id="globalNote"></div>
+
+<!-- ═════════════════════════ IMPORT ═════════════════════════ -->
+<section id="tab-import">
+  <div class="card">
+    <div class="card-title"><span class="n">1</span>เลือกไฟล์ที่ export มา</div>
+    <label class="drop" id="drop">
+      <input type="file" id="files" multiple accept=".xls,.xlsx,.csv,.txt" style="display:none">
+      <div style="font-size:26px">📂</div>
+      <div><b>ลากไฟล์มาวางที่นี่</b> หรือคลิกเพื่อเลือก</div>
+      <div class="drop-sub">Smart iLab (.xls) · IQX (.xlsx) · Foss (.xlsx) — เลือกหลายไฟล์พร้อมกันได้</div>
+    </label>
+    <div id="fileList"></div>
+    <div class="note" style="margin-top:10px;font-size:11px">
+      ระบบรู้เองว่าไฟล์มาจากไหน · Smart iLab จะเลือกเฉพาะแถวที่มีค่า NIR (CALCIUM → Ca, PHOSPHORUS → P, PD 0.002 → PD, STARCH → Starch)
+      · ถ้าลากไฟล์ Smart iLab มาพร้อมกับไฟล์ Foss/IQX ระบบจะเติมค่า WC ที่ยังว่างให้ตาม Lab No.+Seq
+      · แถวที่เคยบันทึกแล้วจะถูกข้าม หรืออัปเดตเฉพาะค่าที่เพิ่งออกผล
+    </div>
+  </div>
+
+  <details class="card" id="pasteBox">
+    <summary class="card-title" style="cursor:pointer;margin:0"><span class="n">2</span>หรือ วางข้อมูลเอง / ค่าเริ่มต้น <span style="text-transform:none;letter-spacing:0;font-weight:500">(ใช้กับข้อมูลที่วาง และเครื่อง NIR ที่ระบบยังไม่รู้จัก)</span></summary>
+    <div class="grid" style="margin:14px 0 12px">
+      <div class="f"><label>Plant</label><input id="dPla" list="dlPla"></div>
+      <div class="f"><label>Type</label><input id="dTyp" list="dlTyp"></div>
+      <div class="f"><label>Equipment</label><input id="dEqp" list="dlEqp"></div>
+      <div class="f"><label>Source</label><input id="dSrc" list="dlSrc"></div>
+      <div class="f"><label>Product</label><input id="dPrd" list="dlPrd" placeholder="(ถ้าไม่มีในข้อมูล)"></div>
+      <div class="f"><label>วันที่วิเคราะห์</label><input id="dDate" type="date"></div>
+    </div>
+    <textarea id="paste" placeholder="ก็อปตารางจากเว็บ (Ctrl+A, Ctrl+C) แล้ววางที่นี่ (Ctrl+V) — รวมแถวหัวตารางด้วย"></textarea>
+    <div class="row" style="margin-top:8px">
+      <label class="row" style="gap:6px;font-size:12px;color:var(--txt2)"><input type="checkbox" id="hasHeader" style="width:auto" checked> แถวแรกเป็นหัวตาราง</label>
+      <span class="spacer"></span>
+      <button class="btn" id="btnClear">ล้าง</button>
+      <button class="btn primary" id="btnParse">อ่านข้อมูล →</button>
+    </div>
+  </details>
+
+  <div class="card hide" id="previewCard">
+    <div class="card-title"><span class="n">3</span>ตรวจสอบก่อนบันทึก</div>
+    <div class="row" style="margin-bottom:10px">
+      <div class="stat" id="pvStat"></div>
+      <span class="spacer"></span>
+      <div class="legend">
+        <span><span class="pv g">±</span> ใน 2SEP</span><span><span class="pv a">±</span> 2–3SEP</span><span><span class="pv r">±</span> เกิน 3SEP</span><span><span class="pv n">±</span> ไม่มี SEP</span>
+      </div>
+    </div>
+    <div class="row" style="margin-bottom:10px;align-items:flex-start">
+      <div class="note" style="flex:1;min-width:260px">ช่องตัวเลขแสดง <b>WC − NIR</b> เทียบกับ SEP ที่ระบบเลือกให้อัตโนมัติ (เปลี่ยนได้ในคอลัมน์ SEP) · <b>*</b> = ค่า WC เติมจาก Smart iLab · ถ้า product ว่าง ให้เลือกครั้งเดียว ระบบจะจำชื่อนั้นไว้</div>
+      <label class="row" style="gap:6px;font-size:12px;color:var(--txt2);align-self:flex-end;padding-bottom:8px"><input type="checkbox" id="pvRaw" style="width:auto"> แสดงค่าดิบ WC | NIR</label>
+      <div class="f" style="width:190px"><label>แสดง</label><select id="pvFilter"><option value="all">ทั้งหมด</option><option value="problem">เฉพาะที่ต้องดู</option><option value="new">ใหม่</option><option value="update">อัปเดตแถวเดิม</option><option value="dup">มีแล้ว</option><option value="on">ที่เลือกไว้</option></select></div>
+    </div>
+    <div id="pvMapWrap"><div class="lbl" style="margin-bottom:6px">จับคู่คอลัมน์ที่วาง (ระบบเดาจากหัวตาราง แก้ได้ และจะจำไว้)</div>
+    <div class="mapstrip" id="pvMap"></div></div>
+    <div class="tbl-wrap" id="pvWrap"></div>
+    <div class="row" style="margin-top:12px">
+      <span id="pvMsg" style="font-size:12px;color:var(--txt3)"></span>
+      <span class="spacer"></span>
+      <button class="btn primary" id="btnSave">บันทึกเข้าระบบ</button>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════ SEP ═════════════════════════ -->
+<section id="tab-sep" class="hide">
+  <div class="sep-layout">
+    <div class="card" style="margin:0">
+      <div class="card-title">Product ทั้งหมด</div>
+      <div class="row" style="margin-bottom:8px">
+        <input id="pSearch" placeholder="ค้นหา product / รหัส SEP" style="flex:1;width:auto">
+        <button class="btn" id="btnNewPrd" title="เพิ่ม product ใหม่">＋</button>
+      </div>
+      <div class="plist" id="pList"></div>
+    </div>
+    <div class="card" style="margin:0" id="pDetail">
+      <div class="note">เลือก product ทางซ้ายเพื่อดูค่า SEP ทุกเวอร์ชัน และกด <b>อัปเดต EQA</b> เมื่อได้ค่าใหม่ — ระบบจะใช้ค่าใหม่กับข้อมูลตั้งแต่วันที่มีผล ส่วนข้อมูลเก่ายังใช้ค่าเดิม ไม่ต้องไปแก้ทีละแถว</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════ DATA ═════════════════════════ -->
+<section id="tab-data" class="hide">
+  <div class="card">
+    <div class="card-title">ข้อมูลในระบบ</div>
+    <div class="row" style="margin-bottom:10px">
+      <input id="qData" placeholder="ค้นหา sample / product / SEP / No." style="max-width:340px">
+      <select id="qMonth" style="max-width:160px"></select>
+      <span class="spacer"></span>
+      <select id="bulkSep" style="max-width:160px"><option value="">เปลี่ยน SEP เป็น…</option></select>
+      <button class="btn" id="btnBulkSep">เปลี่ยน SEP แถวที่เลือก</button>
+      <button class="btn danger" id="btnBulkDel">ลบแถวที่เลือก</button>
+    </div>
+    <div class="tbl-wrap" id="dataWrap"></div>
+    <div style="font-size:11px;color:var(--txt3);margin-top:6px" id="dataMsg"></div>
+  </div>
+</section>
+
+<!-- ═════════════════════════ SETUP ═════════════════════════ -->
+<section id="tab-setup" class="hide">
+  <div class="card">
+    <div class="card-title">บันทึกตรงขึ้น GitHub (แนะนำ)</div>
+    <div class="note" style="margin-bottom:10px">
+      ใส่ GitHub token ครั้งเดียวต่อเครื่อง แล้วปุ่ม "บันทึก" จะเขียนข้อมูลขึ้นระบบทันที (Dashboard เห็นภายใน ~1–2 นาที)<br>
+      ถ้าไม่ใส่ token ระบบจะให้ดาวน์โหลดไฟล์ แล้วไปอัปโหลดเองที่ GitHub
+    </div>
+    <ol class="steps" style="margin-bottom:12px;font-size:12px;color:var(--txt2)">
+      <li>เข้า <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → Settings → Fine-grained tokens → Generate new token</a></li>
+      <li>Resource owner: <b class="mono">central-lab-pcg</b> · Repository access: <b>Only select repositories</b> → <b class="mono">NIR-Running-Performance-Check</b></li>
+      <li>Permissions → Repository → <b>Contents: Read and write</b> → Generate แล้วก็อป token มาวางด้านล่าง</li>
+    </ol>
+    <div class="row">
+      <input id="tok" type="password" placeholder="github_pat_…" style="max-width:420px">
+      <button class="btn primary" id="btnTok">บันทึก & ทดสอบ</button>
+      <button class="btn" id="btnTokDel">ลบ token จากเครื่องนี้</button>
+    </div>
+    <div id="tokMsg" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">เครื่อง NIR → Plant / Equipment / Source</div>
+    <div class="note" style="margin-bottom:10px">ระบบดู <b>Instrument Serial Number</b> ในไฟล์ IQX/Foss แล้วใส่ Plant / Equipment / Source ให้เอง · เครื่องใหม่จะถูกเพิ่มที่นี่อัตโนมัติตอนบันทึกครั้งแรก</div>
+    <div class="tbl-wrap" id="instWrap" style="max-height:none"></div>
+    <div class="row" style="margin-top:8px"><button class="btn sm" id="btnInstAdd">＋ เพิ่มเครื่อง</button><span class="spacer"></span><button class="btn primary" id="btnInstSave">บันทึกการตั้งค่าเครื่อง</button></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">ชื่อสินค้าในไฟล์ → Product</div>
+    <div class="note" style="margin-bottom:10px"><span class="mono">nir:04</span> = Product Name ที่ขึ้นต้นด้วย "04" ในไฟล์ IQX/Foss · <span class="mono">ilab:SBM,DH</span> = คอลัมน์ Sample ใน Smart iLab · เวลาเลือก product ให้ชื่อใหม่ในหน้านำเข้า ระบบจะเพิ่มที่นี่ให้เอง</div>
+    <input id="alQ" placeholder="ค้นหา" style="max-width:260px;margin-bottom:8px">
+    <div class="tbl-wrap" id="alWrap" style="max-height:360px"></div>
+    <div class="row" style="margin-top:8px"><span class="spacer"></span><button class="btn primary" id="btnAlSave">บันทึกชื่อสินค้า</button></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">ย้ายข้อมูลจาก Excel เดิม (ทำครั้งเดียว)</div>
+    <div class="note" style="margin-bottom:10px">
+      ดึง <span class="mono">data.json</span> + <span class="mono">data2.json</span> ที่ Power Automate สร้างไว้ → แยกเป็นตาราง SEP + ไฟล์รายเดือน → บันทึกขึ้น GitHub<br>
+      ระบบใช้ค่า SEP ที่ถูกใช้บ่อยที่สุดของแต่ละรหัส (แก้ค่าที่ก็อปผิดในบางแถวให้อัตโนมัติ) และตัดช่อง <span class="mono">#VALUE!</span> / <span class="mono">#REF!</span> ออก
+    </div>
+    <div class="row">
+      <button class="btn primary" id="btnMigFetch">ดึงจาก GitHub Pages</button>
+      <span style="font-size:12px;color:var(--txt3)">หรือเลือกไฟล์เอง:</span>
+      <input type="file" id="migFiles" accept=".json" multiple style="max-width:300px">
+    </div>
+    <div id="migOut" style="margin-top:12px"></div>
+  </div>
+</section>
+
+<datalist id="dlPla"></datalist><datalist id="dlTyp"></datalist><datalist id="dlEqp"></datalist><datalist id="dlSrc"></datalist><datalist id="dlPrd"></datalist>
+
+<script>
+'use strict';
+// ════════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════════
+const S = { sepDb: null, rows: [], index: null, loaded: false, table: null, mapping: [], preview: [], selPrd: null };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+             set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+             del(k) { try { localStorage.removeItem(k); } catch (e) {} } };
+const token = () => ls.get('nir_gh_token', '');
+const fmt = (x, dp = 2) => x === null || x === undefined || isNaN(x) ? '' : (+x).toFixed(dp);
+const DEC = { ASH: 2, Ca: 3, P: 3, Aw: 3 };
+
+function toast(msg, ms = 3500) { document.querySelectorAll('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), ms); }
+function busy(on, msg) { let b = $('busy'); if (!on) { b && b.remove(); return; } if (!b) { b = document.createElement('div'); b.id = 'busy'; b.className = 'busy'; document.body.appendChild(b); } b.innerHTML = '<div class="spin"></div>' + esc(msg || 'กำลังทำงาน…'); }
+
+// ════════════════════════════════════════════════════════════════════
+// LOAD
+// ════════════════════════════════════════════════════════════════════
+async function loadState() {
+  const tk = token();
+  if (tk) {
+    const gh = NIR.gh(tk);
+    const [sepDb, index] = await Promise.all([gh.getJSON('sep.json'), gh.getJSON('data/index.json')]);
+    if (!sepDb || !index) throw new Error('NO_DATA');
+    const files = await Promise.all(index.files.map(f => gh.getJSON('data/' + f)));
+    S.sepDb = sepDb; S.index = index; S.rows = [].concat(...files.map(f => (f && f.rows) || []));
+  } else {
+    const r = await NIR.loadAll();
+    S.sepDb = r.sepDb; S.index = r.index; S.rows = r.rows;
+  }
+  S.loaded = true;
+}
+
+async function init() {
+  $('dDate').value = NIR.todayISO();
+  const d = ls.get('nir_defaults', {});
+  ['dPla', 'dTyp', 'dEqp', 'dSrc'].forEach(id => { if (d[id]) $(id).value = d[id]; });
+  try { await loadState(); S.migrated = true; }
+  catch (e) {
+    // ยังไม่ได้ย้ายข้อมูล → ใช้ตาราง SEP สำรองก่อน แล้วลองอ่าน Excel เดิม (data.json/data2.json) มาใช้หา SEP + เช็คข้อมูลซ้ำ
+    S.migrated = false;
+    S.sepDb = JSON.parse(JSON.stringify(NIR.BUILTIN_SEP)); S.index = { files: [] }; S.rows = [];
+    const note = (cls, html) => { $('globalNote').innerHTML = '<div class="note ' + cls + '" style="margin-bottom:12px">' + html + '</div>'; };
+    note('warn', '⏳ ยังไม่ได้ย้ายข้อมูลขึ้นรูปแบบใหม่ — กำลังอ่าน Excel เดิม (data.json / data2.json) เพื่อหา SEP และเช็คข้อมูลซ้ำ…');
+    refreshAll();
+    try {
+      const j = await Promise.all(['data.json', 'data2.json'].map(f => NIR.fetchJSON(NIR.BASE_URL + f).catch(() => null)));
+      let all = []; j.forEach(x => { if (x && x.rows) all = all.concat(x.rows); });
+      if (!all.length) throw new Error('no legacy');
+      const seen = new Set();
+      const wide = all.filter(r => { const k = NIR.wideKey(r); if (seen.has(k)) return false; seen.add(k); return true; });
+      const db = NIR.buildSepFromWide(wide); delete db.conflicts;
+      S.sepDb = db; S.rows = wide.map(NIR.wideToSlim).filter(r => r.d);
+      note('warn', 'ใช้ตาราง SEP จาก Excel เดิม (' + Object.keys(db.sets).length + ' ชุด, ' + S.rows.length.toLocaleString() + ' แถว) — <b>ตอนกดบันทึกครั้งแรก ระบบจะย้ายข้อมูลเดิมทั้งหมดขึ้นรูปแบบใหม่ให้พร้อมกัน</b>');
+    } catch (e2) {
+      note('warn', 'ใช้ตาราง SEP สำรองที่ติดมากับหน้านี้ (' + Object.keys(S.sepDb.sets).length + ' ชุด) — อ่าน Excel เดิมไม่ได้ จึงยังเช็คข้อมูลซ้ำกับของเดิมไม่ได้ · แนะนำให้เปิดหน้านี้จากเว็บ แล้วไปที่ ⚙️ ตั้งค่า → ย้ายข้อมูลจาก Excel เดิม');
+    }
+  }
+  refreshAll();
+}
+
+function refreshAll() {
+  const n = S.rows.length, sets = Object.keys(S.sepDb.sets).length;
+  $('statusLine').textContent = (S.loaded ? n.toLocaleString() + ' แถว · ' + (S.index.files || []).length + ' เดือน · ' + sets + ' ชุด SEP' : n ? 'ข้อมูลจาก Excel เดิม ' + n.toLocaleString() + ' แถว (ยังไม่ย้าย) · ' + sets + ' ชุด SEP' : 'ยังไม่มีข้อมูล · ' + sets + ' ชุด SEP') +
+    ' · ' + (token() ? 'บันทึกตรงขึ้น GitHub ✓' : 'โหมดดาวน์โหลดไฟล์ (ยังไม่ใส่ token)');
+  fillDatalists();
+  renderPList(); if (S.selPrd) renderPDetail(S.selPrd);
+  renderData();
+  renderConfig();
+  if (S.mode === 'file' || S.table) buildPreview();
+}
+
+function uniq(arr) { return [...new Set(arr.filter(Boolean))].sort((a, b) => a.localeCompare(b)); }
+function fillDatalists() {
+  const fill = (id, vals) => { $(id).innerHTML = vals.map(v => '<option value="' + esc(v) + '">').join(''); };
+  fill('dlPla', uniq(S.rows.map(r => r.pla).concat(S.sepDb.rules.map(r => r.pla).filter(p => p !== '*'))));
+  fill('dlTyp', uniq(S.rows.map(r => r.typ)));
+  fill('dlEqp', uniq(S.rows.map(r => r.eqp)));
+  fill('dlSrc', uniq(S.rows.map(r => r.src)));
+  fill('dlPrd', allProducts());
+}
+function allProducts() { return uniq(Object.values(S.sepDb.sets).map(s => s.prd).concat(S.sepDb.rules.map(r => r.prd))); }
+
+// ════════════════════════════════════════════════════════════════════
+// SAVE helpers (GitHub API หรือดาวน์โหลด)
+// ════════════════════════════════════════════════════════════════════
+function download(name, text, type) {
+  const blob = text instanceof Blob ? text : new Blob([text], { type: type || 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+// files: { 'data/2026-10.json': text, 'sep.json': text }
+async function writeFiles(files, message) {
+  const tk = token();
+  if (tk) {
+    const gh = NIR.gh(tk);
+    const shas = Object.assign({}, await gh.listShas(''), await gh.listShas('data'));
+    for (const path of Object.keys(files)) {
+      busy(true, 'บันทึก ' + path + ' …');
+      await gh.put(path, files[path], shas[path], message + ' (' + path + ')');
+    }
+    busy(false);
+    return 'github';
+  }
+  const paths = Object.keys(files);
+  if (paths.length === 1 && !paths[0].includes('/')) { download(paths[0], files[paths[0]]); }
+  else {
+    const zip = new JSZip();
+    paths.forEach(p => zip.file(p, files[p]));
+    download('nir-update-' + NIR.todayISO() + '.zip', await zip.generateAsync({ type: 'blob' }));
+  }
+  showUploadHelp(paths);
+  return 'download';
+}
+function showUploadHelp(paths) {
+  $('globalNote').innerHTML = '<div class="note warn" style="margin-bottom:12px"><b>ดาวน์โหลดไฟล์แล้ว</b> — อัปโหลดขึ้น GitHub: เปิด <a target="_blank" rel="noopener" href="https://github.com/' + NIR.REPO.owner + '/' + NIR.REPO.repo + '">repo</a> → <b>Add file → Upload files</b> → ' +
+    (paths.some(p => p.includes('/')) ? 'แตก zip แล้วลาก<b>ทั้งโฟลเดอร์ data</b>' + (paths.includes('sep.json') ? ' และ sep.json' : '') + ' ไปวาง' : 'ลากไฟล์ไปวาง') +
+    ' → Commit changes<br><small>ใส่ token ในแท็บ ⚙️ ตั้งค่า เพื่อข้ามขั้นตอนนี้ได้</small></div>';
+}
+
+function monthFileText(month) {
+  return NIR.stringifyMonth(month, S.rows.filter(r => NIR.monthOf(r.d) === month));
+}
+function indexText() {
+  const months = uniq(S.rows.map(r => NIR.monthOf(r.d))).filter(m => /^\d{4}-\d{2}$/.test(m));
+  S.index = { files: months.map(m => m + '.json'), updated: new Date().toISOString(), count: S.rows.length };
+  return JSON.stringify(S.index, null, 1) + '\n';
+}
+// เขียนเดือนที่เปลี่ยน + index (ถ้ามีเดือนใหม่/หายไป)
+async function saveMonths(months, message, extra) {
+  if (!S.migrated) {   // ครั้งแรก: เขียนข้อมูลเดิมทั้งหมด + ตาราง SEP ขึ้นรูปแบบใหม่ไปพร้อมกัน
+    months = uniq(S.rows.map(r => NIR.monthOf(r.d))).filter(m => /^\d{4}-\d{2}$/.test(m));
+    extra = Object.assign({ 'sep.json': NIR.stringifySep(S.sepDb) }, extra || {});
+    message = message + ' + migrate ' + S.rows.length + ' rows';
+  }
+  const idx = indexText();
+  const files = {};
+  months.forEach(m => { files['data/' + m + '.json'] = monthFileText(m); });
+  files['data/index.json'] = idx;   // อัปเดตเวลาล่าสุดให้ Dashboard ทุกครั้ง
+  Object.assign(files, extra || {});
+  const how = await writeFiles(files, message);
+  S.migrated = true; S.loaded = true;
+  if (how === 'github') $('globalNote').innerHTML = '';
+  return how;
+}
+async function saveSep(message) {
+  S.sepDb.updated = new Date().toISOString();
+  return writeFiles({ 'sep.json': NIR.stringifySep(S.sepDb) }, message);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// IMPORT: ตัวช่วยอ่านข้อมูลที่วาง (paste)
+// ════════════════════════════════════════════════════════════════════
+function splitLine(line, delim) {
+  if (delim === '\t') return line.split('\t').map(s => s.trim());
+  const out = []; let cur = '', q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { if (q && line[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
+    else if (c === delim && !q) { out.push(cur.trim()); cur = ''; }
+    else cur += c;
+  }
+  out.push(cur.trim()); return out;
+}
+function parseTable(text) {
+  const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+  if (!lines.length) return null;
+  const delim = lines.some(l => l.includes('\t')) ? '\t' : (lines[0].split(';').length > lines[0].split(',').length ? ';' : ',');
+  const cells = lines.map(l => splitLine(l, delim));
+  const w = Math.max(...cells.map(r => r.length));
+  cells.forEach(r => { while (r.length < w) r.push(''); });
+  return cells;
+}
+function looksLikeHeader(row) {
+  const nums = row.filter(c => NIR.num(c) !== null).length;
+  return nums < row.filter(Boolean).length / 2;
+}
+
+const TARGETS = [['', '— ไม่ใช้ —'], ['smp', 'Sample'], ['prd', 'Product'], ['no_', 'No. (ข้าม)'], ['pla', 'Plant'], ['typ', 'Type'], ['eqp', 'Equipment'], ['src', 'Source'], ['d', 'วันที่'], ['det', 'Detail'], ['lab', 'Lab No.']]
+  .concat([].concat(...NIR.PARAMS.map(p => [[p.key + '|0', p.label + ' · WC'], [p.key + '|1', p.label + ' · NIR']])));
+
+const PARAM_PATTERNS = [
+  ['CP-QCP', /cp[\s_-]*qcp/], ['Starch-QCP', /starch[\s_-]*qcp/],
+  ['M', /^(m|h2o)\b|moist|ความชื้น/], ['CP', /^cp\b|protein|โปรตีน/], ['EE', /^ee\b|fat(?!-c)|ไขมัน|crude\s*fat/],
+  ['AH', /^ah\b|acid\s*hyd/], ['FIB', /^fib|fiber|fibre|^cf\b|เยื่อใย/], ['ASH', /^ash|เถ้า/], ['Ca', /^ca\b|calcium|แคลเซียม/],
+  ['P', /^p\b|phos|ฟอสฟอรัส/], ['Aw', /^aw\b|water\s*act/], ['NaCl', /nacl|salt|เกลือ/], ['PD', /^pd\b|digest/],
+  ['TVBN', /tvbn|tvb-n/], ['Sand', /sand|ทราย/], ['Starch', /starch|แป้ง/], ['BHT', /bht/], ['pH', /^ph\b/],
+  ['Fat-C', /fat[\s_-]*c/], ['FFA', /ffa|free\s*fatty/],
+];
+function guessTarget(h) {
+  const t = String(h || '').toLowerCase().trim();
+  if (!t) return '';
+  if (/^no\.?$|^no_|^ลำดับ|^#$/.test(t)) return 'no_';
+  if (/lab\s*no/.test(t)) return 'lab';
+  if (/sample|ตัวอย่าง|sample\s*name|^name$/.test(t)) return 'smp';
+  if (/product|สินค้า|ผลิตภัณฑ์/.test(t)) return 'prd';
+  if (/plant|โรงงาน/.test(t)) return 'pla';
+  if (/equip|instrument|เครื่อง/.test(t)) return 'eqp';
+  if (/source|แหล่ง/.test(t)) return 'src';
+  if (/^type$|ประเภท/.test(t)) return 'typ';
+  if (/date|time|วันที่|เวลา/.test(t)) return 'd';
+  if (/detail|รายละเอียด|remark/.test(t)) return 'det';
+  for (const [k, re] of PARAM_PATTERNS) {
+    if (re.test(t)) {
+      const isWC = /(^|[\s_\-(])(wc|wet|ref|lab|chem|ref\.?)\b|เคมี/.test(t);
+      return k + (isWC ? '|0' : '|1');
+    }
+  }
+  return '';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// IMPORT: ไฟล์จาก Smart iLab / IQX / Foss
+// ════════════════════════════════════════════════════════════════════
+S.mode = null; S.fileResults = [];
+
+async function readTable(file) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const isBin = (buf[0] === 0x50 && buf[1] === 0x4B) || (buf[0] === 0xD0 && buf[1] === 0xCF);
+  if (isBin) {
+    const wb = XLSX.read(buf, { type: 'array' });
+    return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: null });
+  }
+  const text = new TextDecoder('utf-8').decode(buf);
+  if (/<table/i.test(text.slice(0, 5000))) {   // บางระบบ export .xls เป็น HTML
+    const wb = XLSX.read(text, { type: 'string' });
+    return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: null });
+  }
+  return NIR.parseCSV(text);
+}
+
+async function handleFiles(files) {
+  if (!files.length) return;
+  busy(true, 'กำลังอ่านไฟล์…');
+  const unknown = [];
+  for (const f of files) {
+    try {
+      const table = await readTable(f);
+      const res = table.length ? NIR.parseSource(table, S.sepDb, f.name) : { kind: '' };
+      if (!res.kind) { unknown.push(f.name); continue; }
+      S.fileResults = S.fileResults.filter(r => r.file !== f.name).concat([res]);
+    } catch (e) { unknown.push(f.name + ' (' + e.message + ')'); }
+  }
+  busy(false);
+  if (unknown.length) toast('อ่านรูปแบบไฟล์ไม่ได้: ' + unknown.join(', ') + ' — ลองก็อปตารางมาวางในช่อง "วางข้อมูล" แทน', 7000);
+  if (!S.fileResults.length) return;
+  S.mode = 'file'; S.preview = [];
+  buildFilePreview();
+  $('previewCard').classList.remove('hide');
+  $('previewCard').scrollIntoView({ behavior: 'smooth' });
+}
+$('files').onchange = e => { handleFiles([...e.target.files]); e.target.value = ''; };
+const dropEl = $('drop');
+['dragenter', 'dragover'].forEach(ev => dropEl.addEventListener(ev, e => { e.preventDefault(); dropEl.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => dropEl.addEventListener(ev, e => { e.preventDefault(); dropEl.classList.remove('over'); }));
+dropEl.addEventListener('drop', e => handleFiles([...e.dataTransfer.files]));
+
+function renderFileList() {
+  if (S.mode !== 'file' || !S.fileResults.length) { $('fileList').innerHTML = ''; return; }
+  const label = { ilab: 'Smart iLab', mosaic: 'NIR (IQX / Foss)' };
+  $('fileList').innerHTML = S.fileResults.map((r, i) => '<div class="fchip"><b>' + esc(r.file) + '</b><span>' + esc(r.rows[0] ? r.rows[0].origin : label[r.kind]) + ' · ใช้ ' + r.rows.length + ' / ' + r.total + ' แถว' +
+    (r.kind === 'ilab' ? ' (ข้าม ' + r.skipped + ' แถวที่ไม่มีค่า NIR)' : r.skipped ? ' (ข้าม ' + r.skipped + ')' : '') + '</span><button class="btn sm" data-rmf="' + i + '">✕</button></div>').join('') +
+    '<button class="btn sm" id="btnClearFiles" style="margin-top:6px">ล้างไฟล์ทั้งหมด</button>';
+  $('fileList').querySelectorAll('[data-rmf]').forEach(b => b.onclick = () => { S.fileResults.splice(+b.dataset.rmf, 1); if (!S.fileResults.length) clearImport(); else buildFilePreview(); });
+  $('btnClearFiles').onclick = clearImport;
+}
+function clearImport() {
+  S.fileResults = []; S.table = null; S.preview = []; S.mode = null;
+  $('previewCard').classList.add('hide'); renderFileList();
+}
+
+function buildFilePreview() {
+  const db = S.sepDb;
+  // ค่า WC จาก Smart iLab (ทั้งในชุดไฟล์นี้และที่เคยบันทึกไว้) ใช้เติมให้แถว QC ที่ Ref ว่าง
+  const wcMap = new Map();
+  S.rows.forEach(r => { if (r.k && r.k.startsWith('ilab:')) { const o = {}; Object.keys(r.v).forEach(p => { if (r.v[p][0] !== null) o[p] = r.v[p][0]; }); wcMap.set(r.k.slice(5), o); } });
+  S.fileResults.forEach(res => res.wc.forEach((v, k) => wcMap.set(k, v)));
+  const D = defaultsVals();
+  const prev = new Map(S.preview.map(p => [p.k, p]));
+  const byK = new Map();
+  S.fileResults.forEach(res => res.rows.forEach(src => {
+    const r = JSON.parse(JSON.stringify(src));
+    r.filled = [];
+    if (r.lab && r.seq && r.origin !== 'Smart iLab') {
+      const w = wcMap.get(r.lab + '#' + r.seq);
+      if (w) Object.keys(r.v).forEach(p => { if (r.v[p][0] === null && w[p] !== undefined) { r.v[p][0] = w[p]; r.filled.push(p); } });
+    }
+    if (r.origin !== 'Smart iLab' && !r.instKnown) {
+      r.newInst = true; r.pla = D.pla; r.typ = r.typ || D.typ; r.eqp = D.eqp; r.src = D.src;
+    }
+    r.prd = NIR.resolveProduct(db, r.prdKey, r.prdHint) || NIR.resolveProduct(db, '', r.prdName);
+    byK.set(r.k, r);
+  }));
+  S.preview = [...byK.values()].sort((a, b) => (a.d + a.smp).localeCompare(b.d + b.smp)).map((r, i) => {
+    r.i = i;
+    const p = prev.get(r.k);
+    if (p && p.userPrd) { r.prd = p.prd; r.userPrd = true; }
+    if (p && p.userSep) { r.sep = p.sep; r.userSep = true; }
+    finalizeRow(r, p);
+    return r;
+  });
+  renderFileList();
+  renderPreview(null);
+}
+
+function defaultsVals() {
+  return { pla: $('dPla').value.trim(), typ: $('dTyp').value.trim(), eqp: $('dEqp').value.trim(), src: $('dSrc').value.trim(), prd: $('dPrd').value.trim(), d: $('dDate').value };
+}
+
+// ── หาแถวเดิมในระบบ (กันซ้ำ / อัปเดตค่าที่ตามมาทีหลัง) ─────────────────────
+const nrm = s => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+function existingIndex() {
+  if (S._idx && S._idxN === S.rows.length && S._idxRows === S.rows) return S._idx;
+  const byK = new Map(), bySmp = new Map(), byLab = new Map();
+  S.rows.forEach(r => {
+    if (r.k) byK.set(r.k, r);
+    bySmp.set(nrm(r.smp) + '|' + nrm(r.eqp) + '|' + nrm(r.pla), r);
+    if (r.lab) { if (!byLab.has(r.lab)) byLab.set(r.lab, []); byLab.get(r.lab).push(r); }
+  });
+  S._idx = { byK, bySmp, byLab }; S._idxN = S.rows.length; S._idxRows = S.rows;
+  return S._idx;
+}
+function findExisting(r) {
+  const I = existingIndex();
+  if (r.k && I.byK.has(r.k)) return I.byK.get(r.k);
+  const s = I.bySmp.get(nrm(r.smp) + '|' + nrm(r.eqp) + '|' + nrm(r.pla));
+  if (s && (!r.prd || !s.prd || NIR.normProduct(s.prd) === NIR.normProduct(r.prd))) return s;
+  if (r.origin === 'Smart iLab' && r.lab) {     // ข้อมูลเก่าจาก Excel ไม่มี Seq → เทียบจากค่า NIR ที่ตรงกัน
+    const pars = Object.keys(r.v);
+    const need = Math.min(2, pars.length);
+    const c = (I.byLab.get(r.lab) || []).filter(h => !h.k && h.src === r.src && h.pla === r.pla &&
+      pars.filter(p => h.v[p] && h.v[p][1] !== null && Math.abs(h.v[p][1] - r.v[p][1]) < 1e-9).length >= need);
+    if (c.length === 1) return c[0];
+  }
+  return null;
+}
+// เติมได้เฉพาะช่องที่ยังว่างในระบบ — ค่าที่มีอยู่แล้วจะไม่ถูกเขียนทับ (กันค่าพิมพ์ผิดในไฟล์ทับค่าที่แก้แล้ว)
+function changedParams(old, nu) {
+  const out = [];
+  Object.keys(nu.v).forEach(p => {
+    const o = old.v[p] || [null, null], n = nu.v[p];
+    if ([0, 1].some(i => n[i] !== null && (o[i] === null || o[i] === undefined))) out.push(p);
+  });
+  return out;
+}
+function conflictParams(old, nu) {
+  const out = [];
+  Object.keys(nu.v).forEach(p => {
+    const o = old.v[p]; if (!o) return; const n = nu.v[p];
+    [0, 1].forEach(i => { if (n[i] !== null && o[i] !== null && o[i] !== undefined && Math.abs(o[i] - n[i]) > 1e-9) out.push(p + (i ? ' NIR' : ' WC') + ' ระบบ ' + o[i] + ' / ไฟล์ ' + n[i]); });
+  });
+  return out;
+}
+function finalizeRow(r, prev) {
+  r.autoSep = NIR.findSep(S.sepDb, r.prd, r.pla, r.d);
+  if (!r.userSep) r.sep = r.autoSep;
+  r.match = findExisting(r);
+  if (r.match) { r.changes = changedParams(r.match, r); r.conflicts = conflictParams(r.match, r); r.status = r.changes.length ? 'update' : 'dup'; }
+  else { r.changes = []; r.conflicts = []; r.status = 'new'; }
+  r.on = prev ? prev.on : r.status !== 'dup';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// IMPORT: วางข้อมูล (paste)
+// ════════════════════════════════════════════════════════════════════
+$('btnParse').onclick = () => {
+  const t = parseTable($('paste').value);
+  if (!t) { toast('ยังไม่ได้วางข้อมูล'); return; }
+  $('hasHeader').checked = looksLikeHeader(t[0]);
+  // ถ้าวางข้อมูลจาก Smart iLab / IQX / Foss ทั้งตาราง → ใช้ตัวอ่านเฉพาะ
+  if ($('hasHeader').checked && NIR.detectSource(t[0])) {
+    const res = NIR.parseSource(t, S.sepDb, 'ข้อมูลที่วาง');
+    S.fileResults = S.fileResults.filter(r => r.file !== res.file).concat([res]);
+    S.mode = 'file'; S.preview = []; buildFilePreview();
+    $('previewCard').classList.remove('hide'); $('previewCard').scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+  S.mode = 'paste'; S.fileResults = []; renderFileList();
+  S.table = t;
+  const header = $('hasHeader').checked ? t[0] : t[0].map((_, i) => 'คอลัมน์ ' + (i + 1));
+  const saved = ls.get('nir_map_' + header.join('¦'), null);
+  S.mapping = saved && saved.length === header.length ? saved : header.map(guessTarget);
+  S.preview = [];
+  buildPreview();
+  $('previewCard').classList.remove('hide');
+  $('previewCard').scrollIntoView({ behavior: 'smooth' });
+};
+$('hasHeader').onchange = () => { if (S.mode === 'paste' && S.table) $('btnParse').click(); };
+$('btnClear').onclick = () => { $('paste').value = ''; clearImport(); };
+['dPla', 'dTyp', 'dEqp', 'dSrc', 'dPrd', 'dDate'].forEach(id => $(id).addEventListener('change', () => {
+  const d = ls.get('nir_defaults', {}); d[id] = $(id).value; ls.set('nir_defaults', d);
+  if (S.mode === 'paste' && S.table) buildPreview(); else if (S.mode === 'file') buildFilePreview();
+}));
+
+function buildPreview() {
+  if (S.mode === 'file') { buildFilePreview(); return; }
+  const t = S.table; if (!t) return;
+  const head = $('hasHeader').checked;
+  const header = head ? t[0] : t[0].map((_, i) => 'คอลัมน์ ' + (i + 1));
+  const body = head ? t.slice(1) : t;
+  ls.set('nir_map_' + header.join('¦'), S.mapping);
+  const D = defaultsVals();
+  const prevByIdx = new Map(S.preview.map(p => [p.i, p]));
+  S.preview = body.map((cells, i) => {
+    const r = { i, origin: 'วางข้อมูล', v: {}, smp: '', prd: '', pla: '', typ: '', eqp: '', src: '', d: '', det: '', lab: '', filled: [] };
+    S.mapping.forEach((tg, c) => {
+      if (!tg || tg === 'no_') return;
+      const val = cells[c];
+      if (tg.includes('|')) {
+        const [par, side] = tg.split('|'); const n = NIR.labNum(val);
+        if (n === null) return;
+        r.v[par] = r.v[par] || [null, null]; r.v[par][+side] = n;
+      } else if (tg === 'd') r.d = NIR.parseDate(val);
+      else r[tg] = (val || '').trim();
+    });
+    r.pla = r.pla || D.pla; r.typ = r.typ || D.typ; r.eqp = r.eqp || D.eqp; r.src = r.src || D.src;
+    r.prd = NIR.normProduct(r.prd || D.prd);
+    r.d = r.d || D.d || NIR.todayISO();
+    const prev = prevByIdx.get(i);
+    if (prev && prev.userPrd) { r.prd = prev.prd; r.userPrd = true; }
+    if (prev && prev.userSep) { r.sep = prev.sep; r.userSep = true; }
+    finalizeRow(r, prev);
+    return r;
+  }).filter(r => r.smp || Object.keys(r.v).length);
+  renderPreview(header);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// IMPORT: ตารางตรวจสอบ
+// ════════════════════════════════════════════════════════════════════
+function showRaw() { return ls.get('nir_show_raw', true); }
+function diffCell(r, par) {
+  const pair = r.v[par];
+  if (!pair) return '<td></td>';
+  const [wc, nir] = pair;
+  const dp = DEC[par] ?? 2;
+  const fill = r.filled && r.filled.includes(par) ? '*' : '';
+  const lim = NIR.limits(S.sepDb, r.sep, par);
+  const raw = showRaw() ? '<div class="raw"><span title="WC (ค่าเคมี)' + (fill ? ' เติมจาก Smart iLab' : '') + '">' + (wc === null ? '<i>รอ WC</i>' : fmt(wc, dp) + fill) + '</span><span class="sep">|</span><span title="NIR">' + (nir === null ? '<i>–</i>' : fmt(nir, dp)) + '</span></div>' +
+    (lim ? '<div class="lim">±' + +lim.u2.toFixed(4) + ' / ±' + +lim.u3.toFixed(4) + '</div>' : '') : '';
+  if (wc === null || nir === null) return '<td><div class="cellv"><span class="pv n">' + (showRaw() ? '—' : (wc === null ? 'NIR ' + fmt(nir, dp) : 'WC ' + fmt(wc, dp))) + '</span>' + raw + '</div></td>';
+  const d = wc - nir;
+  let cls = 'n';
+  if (lim) cls = Math.abs(d) <= lim.u2 + 1e-9 ? 'g' : Math.abs(d) <= lim.u3 + 1e-9 ? 'a' : 'r';
+  const tip = 'WC ' + fmt(wc, dp) + (fill ? ' (จาก Smart iLab)' : '') + ' − NIR ' + fmt(nir, dp) + ' = ' + fmt(d, dp) + (lim ? ' | 2SEP ±' + lim.u2 + ' · 3SEP ±' + lim.u3 + ' (' + r.sep + ')' : ' | ไม่มี SEP');
+  return '<td title="' + esc(tip) + '"><div class="cellv"><span class="pv ' + cls + '">' + (d >= 0 ? '+' : '') + fmt(d, dp) + '</span>' + raw + '</div></td>';
+}
+function parTh(p) { return '<th>' + esc(p) + (showRaw() ? '<div class="thsub">WC | NIR<br>±2SEP / ±3SEP</div>' : '') + '</th>'; }
+function isOutlier(r, p) {
+  const pr = r.v[p]; if (!pr || pr[0] === null || pr[1] === null) return false;
+  const d = Math.abs(pr[0] - pr[1]); const l = NIR.limits(S.sepDb, r.sep, p);
+  return d > Math.max(l ? 3 * l.u3 : 0, 0.2 * Math.max(Math.abs(pr[0]), Math.abs(pr[1]), 1e-9));
+}
+
+function sepOptions(prd, cur) {
+  const codes = Object.keys(S.sepDb.sets);
+  const mine = codes.filter(c => S.sepDb.sets[c].prd === prd);
+  const other = codes.filter(c => S.sepDb.sets[c].prd !== prd);
+  const o = c => '<option' + (c === cur ? ' selected' : '') + '>' + esc(c) + '</option>';
+  return '<option value="">' + (cur ? '—' : '⚠ เลือก SEP') + '</option>' + (mine.length ? '<optgroup label="' + esc(prd) + '">' + mine.map(o).join('') + '</optgroup>' : '') +
+    '<option value="__new">➕ สร้าง SEP ใหม่' + (prd ? ' ของ ' + esc(prd) : '') + '…</option>' +
+    '<optgroup label="อื่นๆ">' + other.map(o).join('') + '</optgroup>';
+}
+function gotoNewSep(r) {
+  if (!r.prd) { toast('ใส่ product ก่อน แล้วค่อยสร้าง SEP'); return; }
+  S.returnToImport = true;
+  document.querySelector('.tab[data-tab="sep"]').click();
+  S.selPrd = r.prd; $('pSearch').value = ''; renderPList();
+  const has = Object.values(S.sepDb.sets).some(x => x.prd === r.prd);
+  const pars = NIR.PARAM_KEYS.filter(p => S.preview.some(x => x.prd === r.prd && x.v[p]));
+  renderPDetail(r.prd, { kind: 'eqa', newPrd: !has, pla: r.pla, fromDate: r.d, pars,
+    newCode: has ? undefined : r.prd.replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase() + '1' });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function rowIssues(r, pars) {
+  const out = [];
+  if (!r.smp) out.push(['r', 'ไม่มีชื่อ sample']);
+  if (!r.prd) out.push(['r', 'ไม่รู้จัก product' + (r.prdName ? ': ' + r.prdName : '')]);
+  else if (!r.sep) out.push(['a', 'ไม่พบ SEP → เลือก/สร้างในช่อง SEP']);
+  else if (r.userSep && r.sep !== r.autoSep) out.push(['b', 'SEP เลือกเอง']);
+  if (r.newInst) out.push(['a', 'เครื่องใหม่ ' + (r.instName || r.inst) + ' → ใช้ค่าเริ่มต้น']);
+  if (r.status === 'dup') out.push(['n', 'มีในระบบแล้ว']);
+  if (r.status === 'update') out.push(['g', 'อัปเดตแถวเดิม No.' + r.match.no + ': ' + r.changes.join(', ')]);
+  if (r.conflicts && r.conflicts.length) out.push(['a', 'ค่าไม่ตรงกับในระบบ (ไม่เขียนทับ): ' + r.conflicts.join(' · ')]);
+  if (r.filled && r.filled.length) out.push(['b', 'WC จาก iLab: ' + r.filled.join(', ')]);
+  const wcMissing = Object.keys(r.v).filter(p => r.v[p][0] === null);
+  if (wcMissing.length && wcMissing.length === Object.keys(r.v).length) out.push(['n', 'ยังไม่มีค่า WC']);
+  const odd = pars.filter(p => isOutlier(r, p));
+  if (odd.length) out.push(['r', 'ห่างผิดปกติ (พิมพ์ผิด?): ' + odd.join(', ')]);
+  else {
+    const fails = pars.filter(p => { const pr = r.v[p]; if (!pr || pr[0] === null || pr[1] === null) return false; const l = NIR.limits(S.sepDb, r.sep, p); return l && Math.abs(pr[0] - pr[1]) > l.u3 + 1e-9; });
+    if (fails.length) out.push(['r', 'เกิน 3SEP: ' + fails.join(', ')]);
+  }
+  return out;
+}
+const isProblem = r => !r.smp || !r.prd || (r.prd && !r.sep) || r.newInst || (r.conflicts && r.conflicts.length) || (r.status !== 'dup' && NIR.PARAM_KEYS.some(p => isOutlier(r, p)));
+
+function renderPreview(header) {
+  const pars = NIR.PARAM_KEYS.filter(p => S.preview.some(r => r.v[p]));
+  const fileMode = S.mode === 'file';
+  $('pvMapWrap').classList.toggle('hide', fileMode);
+  if (!fileMode) {
+    const mapSel = (tg, c) => '<select data-map="' + c + '">' + TARGETS.map(([k, l]) => '<option value="' + k + '"' + (k === tg ? ' selected' : '') + '>' + esc(l) + '</option>').join('') + '</select>';
+    const ex = S.table[$('hasHeader').checked ? 1 : 0] || [];
+    $('pvMap').innerHTML = header.map((hd, c) => '<div class="mapcol' + (S.mapping[c] ? ' used' : '') + '"><div class="h" title="' + esc(hd) + '">' + esc(hd) + '</div><div class="ex" title="' + esc(ex[c]) + '">' + esc(ex[c] || '·') + '</div>' + mapSel(S.mapping[c], c) + '</div>').join('');
+    $('pvMap').querySelectorAll('[data-map]').forEach(el => el.onchange = () => { S.mapping[+el.dataset.map] = el.value; buildPreview(); });
+  }
+  const flt = $('pvFilter').value;
+  const show = r => flt === 'all' || (flt === 'problem' && isProblem(r)) || (flt === r.status) || (flt === 'on' && r.on);
+  const list = S.preview.filter(show);
+  let h = '<table><thead><tr><th><input type="checkbox" id="pvAll" style="width:auto"></th><th>แหล่ง</th><th>Sample</th><th>Product</th><th>Plant · Eqp · Src</th><th>SEP</th><th>สถานะ</th>' + pars.map(parTh).join('') + '</tr></thead><tbody>';
+  list.forEach(r => {
+    const k = r.i;
+    const iss = rowIssues(r, pars);
+    const badges = (iss.length ? iss : [['g', 'ใหม่']]).map(([c, t]) => '<span class="badge ' + c + '">' + esc(t) + '</span>').join(' ');
+    h += '<tr class="' + (r.on ? '' : 'off') + '"><td><input type="checkbox" data-on="' + k + '" style="width:auto"' + (r.on ? ' checked' : '') + '></td>' +
+      '<td style="font-size:11px;color:var(--txt2)">' + esc(r.origin || '') + '</td>' +
+      '<td title="' + esc(r.smp + (r.det ? '\n' + r.det : '')) + '" style="max-width:250px;overflow:hidden;text-overflow:ellipsis">' + esc(r.smp) + (r.lab ? '<br><span class="mono" style="font-size:10px;color:var(--txt3)">' + esc(r.lab + (r.seq ? ' #' + r.seq : '')) + '</span>' : '') + '</td>' +
+      '<td><input data-prd="' + k + '" list="dlPrd" value="' + esc(r.prd) + '" placeholder="' + esc(r.prdName || '') + '" title="' + esc((r.prdName || '') + (r.prdHint ? ' · ' + r.prdHint : '')) + '" style="min-width:120px' + (r.prd ? '' : ';border-color:var(--red)') + '"></td>' +
+      '<td style="font-size:11px;color:var(--txt2)">' + esc(r.pla) + ' · ' + esc(r.eqp) + ' · ' + esc(r.src) + '<br><span class="mono" style="color:var(--txt3)">' + esc(r.d) + '</span></td>' +
+      '<td><select data-sep="' + k + '" style="min-width:92px">' + sepOptions(r.prd, r.sep) + '</select></td>' +
+      '<td style="white-space:normal;min-width:150px;max-width:260px">' + badges + '</td>' + pars.map(p => diffCell(r, p)).join('') + '</tr>';
+  });
+  h += '</tbody></table>';
+  if (!list.length) h = '<div style="padding:16px;color:var(--txt3)">ไม่มีแถวตามตัวกรองนี้</div>';
+  $('pvWrap').innerHTML = h;
+  updatePvStat(pars);
+  $('pvWrap').querySelectorAll('[data-on]').forEach(el => el.onchange = () => { S.preview[+el.dataset.on].on = el.checked; el.closest('tr').classList.toggle('off', !el.checked); updatePvStat(pars); });
+  $('pvWrap').querySelectorAll('[data-prd]').forEach(el => el.onchange = () => {
+    const r = S.preview[+el.dataset.prd]; const prd = NIR.normProduct(el.value);
+    // ใช้กับทุกแถวที่มีชื่อสินค้าเดียวกันในไฟล์ (เช่น "BR,R" ทั้งหมด)
+    S.preview.forEach(x => { if (x === r || (r.prdKey && x.prdKey === r.prdKey && !x.userPrd)) { x.prd = prd; x.userPrd = x === r || x.userPrd; x.userSep = false; finalizeRow(x, x); } });
+    r.userPrd = true;
+    setTimeout(() => renderPreview(header), 0);
+  });
+  $('pvWrap').querySelectorAll('[data-sep]').forEach(el => el.onchange = () => {
+    const r = S.preview[+el.dataset.sep];
+    if (el.value === '__new') { el.value = r.sep || ''; gotoNewSep(r); return; }
+    r.sep = el.value; r.userSep = !!el.value;
+    // ใช้ SEP เดียวกันกับแถวอื่นของ product+plant เดียวกันที่ยังหาไม่เจอ
+    if (el.value) S.preview.forEach(x => { if (x !== r && !x.sep && x.prd === r.prd && x.pla === r.pla) { x.sep = el.value; x.userSep = true; } });
+    setTimeout(() => renderPreview(header), 0);
+  });
+  if ($('pvAll')) {
+    $('pvAll').checked = list.length && list.every(r => r.on);
+    $('pvAll').onchange = e => { list.forEach(r => r.on = e.target.checked); renderPreview(header); };
+  }
+  S._lastHeader = header;
+}
+$('pvFilter').onchange = () => renderPreview(S._lastHeader);
+$('pvRaw').checked = showRaw();
+$('pvRaw').onchange = () => { ls.set('nir_show_raw', $('pvRaw').checked); renderPreview(S._lastHeader); renderData(); };
+
+function updatePvStat(pars) {
+  const on = S.preview.filter(r => r.on);
+  const bad = on.filter(r => !r.smp || !r.prd).length;
+  const noSep = on.filter(r => r.prd && !r.sep).length;
+  const c = st => S.preview.filter(r => r.status === st).length;
+  $('pvStat').innerHTML = '<div><b>' + S.preview.length + '</b>แถวที่อ่านได้</div><div><b>' + c('new') + '</b>ใหม่</div><div><b>' + c('update') + '</b>อัปเดตแถวเดิม</div><div><b>' + c('dup') + '</b>มีแล้ว (ข้าม)</div><div><b>' + S.preview.filter(isProblem).length + '</b>ต้องดู</div>';
+  $('btnSave').disabled = !on.length || bad > 0;
+  $('btnSave').textContent = 'บันทึกเข้าระบบ (' + on.length + ' แถว)';
+  $('pvMsg').textContent = bad ? 'มี ' + bad + ' แถวที่ยังไม่มี product หรือชื่อ sample — ใส่ product (ระบบจะจำชื่อนี้ไว้ครั้งหน้า) หรือเอาเครื่องหมายถูกออก' : noSep ? noSep + ' แถวยังไม่มี SEP (บันทึกได้ แต่ Dashboard จะไม่มีเส้น SEP)' : '';
+}
+
+$('btnSave').onclick = async () => {
+  const sel = S.preview.filter(r => r.on && r.smp && r.prd && r.status !== 'dup');
+  const selDup = S.preview.filter(r => r.on && r.status === 'dup').length;
+  if (!sel.length) { toast(selDup ? 'แถวที่เลือกมีในระบบแล้วทั้งหมด' : 'ยังไม่ได้เลือกแถว'); return; }
+  try {
+    busy(true, 'กำลังโหลดข้อมูลล่าสุด…');
+    if (token() && S.loaded) {   // โหลดล่าสุดก่อน กันเลข No. ชนกับคนอื่น แล้วจับคู่แถวเดิมใหม่
+      await loadState();
+      sel.forEach(r => { r.match = findExisting(r); r.changes = r.match ? changedParams(r.match, r) : []; r.conflicts = r.match ? conflictParams(r.match, r) : []; r.status = r.match ? (r.changes.length ? 'update' : 'dup') : 'new'; });
+    }
+    let maxNo = S.rows.reduce((m, r) => Math.max(m, +r.no || 0), 0);
+    const months = new Set(); let nNew = 0, nUpd = 0;
+    const stamp = new Date().toISOString().slice(0, 16);
+    sel.forEach(r => {
+      if (r.status === 'dup') return;
+      if (r.status === 'update') {
+        const m = r.match;
+        Object.keys(r.v).forEach(p => { const o = m.v[p] || [null, null]; [0, 1].forEach(i => { if (r.v[p][i] !== null && (o[i] === null || o[i] === undefined)) o[i] = r.v[p][i]; }); m.v[p] = o; });
+        if (r.userSep || !m.sep) m.sep = r.sep;
+        if (r.k && !m.k) m.k = r.k;
+        if (r.lab && !m.lab) m.lab = r.lab;
+        m.upd = stamp; months.add(NIR.monthOf(m.d)); nUpd++;
+        return;
+      }
+      const row = { no: ++maxNo, d: r.d, pla: r.pla, typ: r.typ, eqp: r.eqp, src: r.src, sep: r.sep, prd: r.prd, smp: r.smp, v: r.v };
+      if (r.det) row.det = r.det; if (r.lab) row.lab = r.lab; if (r.k) row.k = r.k;
+      row.added = stamp;
+      S.rows.push(row); months.add(NIR.monthOf(r.d)); nNew++;
+    });
+    // เรียนรู้: ชื่อสินค้าที่ผู้ใช้เลือกเอง + เครื่องใหม่ → เก็บลง sep.json ใช้ครั้งต่อไปอัตโนมัติ
+    const db = S.sepDb; let learned = 0;
+    const al = NIR.aliases(db), ins = NIR.instruments(db);
+    sel.forEach(r => {
+      if (r.prdKey && r.prd && al[r.prdKey] !== r.prd && (r.userPrd || !al[r.prdKey])) { db.aliases = db.aliases || {}; db.aliases[r.prdKey] = r.prd; al[r.prdKey] = r.prd; learned++; }
+      if (r.newInst && r.inst && !ins[r.inst]) { db.instruments = db.instruments || {}; db.instruments[r.inst] = { pla: r.pla, typ: r.typ, eqp: r.eqp, src: r.src, name: r.instName || r.inst }; ins[r.inst] = db.instruments[r.inst]; learned++; }
+    });
+    // SEP ที่เลือกเองให้แถวที่ระบบหาไม่เจอ → เพิ่มเป็นกฎ product+plant ครั้งหน้าจะลิงก์ให้เอง
+    const want = new Map();
+    sel.forEach(r => { if (r.userSep && r.sep && !r.autoSep && r.prd) { const k = r.prd + '|' + r.pla; const w = want.get(k); if (!w || r.d < w.from) want.set(k, { prd: r.prd, pla: r.pla, sep: r.sep, from: r.d }); } });
+    want.forEach(w => { if (!db.rules.some(x => x.prd === w.prd && x.pla === w.pla && x.sep === w.sep)) { db.rules.push(w); learned++; } });
+    const extra = {};
+    if (learned) { db.updated = new Date().toISOString(); extra['sep.json'] = NIR.stringifySep(db); }
+    const how = await saveMonths([...months], 'Import ' + nNew + ' new, ' + nUpd + ' updated', extra);
+    busy(false);
+    toast((how === 'github' ? '✅ บันทึกแล้ว: ' : 'ดาวน์โหลดไฟล์แล้ว: ') + 'ใหม่ ' + nNew + ' · อัปเดต ' + nUpd + (learned ? ' · จำชื่อสินค้า/เครื่องใหม่ ' + learned + ' รายการ' : ''), 7000);
+    $('paste').value = ''; clearImport();
+    refreshAll();
+  } catch (e) { busy(false); alert('บันทึกไม่สำเร็จ: ' + e.message); }
+};
+
+// ════════════════════════════════════════════════════════════════════
+// SEP / EQA
+// ════════════════════════════════════════════════════════════════════
+function productSummary() {
+  const db = S.sepDb, today = NIR.todayISO();
+  return allProducts().map(prd => {
+    const plants = uniq(db.rules.filter(r => r.prd === prd).map(r => r.pla));
+    const cur = {};
+    plants.forEach(pl => { cur[pl] = NIR.findSep(db, prd, pl, today); });
+    const codes = uniq(Object.values(cur));
+    return { prd, plants, cur, codes, nRows: S.rows.filter(r => NIR.normProduct(r.prd) === prd).length };
+  });
+}
+function renderPList() {
+  const q = $('pSearch').value.toLowerCase().trim();
+  const list = productSummary().filter(p => !q || p.prd.toLowerCase().includes(q) || p.codes.some(c => c.toLowerCase().includes(q)));
+  $('pList').innerHTML = list.map(p => '<div class="pitem' + (p.prd === S.selPrd ? ' sel' : '') + '" data-p="' + esc(p.prd) + '"><div><div style="font-weight:600">' + esc(p.prd) + '</div><div class="pl">' + esc(p.plants.join(', ')) + ' · ' + p.nRows + ' แถว</div></div><div class="code">' + esc(p.codes.join(' / ')) + '</div></div>').join('') ||
+    '<div style="padding:12px;color:var(--txt3)">ไม่พบ</div>';
+  $('pList').querySelectorAll('.pitem').forEach(el => el.onclick = () => { S.selPrd = el.dataset.p; renderPList(); renderPDetail(S.selPrd); });
+}
+$('pSearch').oninput = renderPList;
+
+function nextCode(code) {
+  const m = code.match(/^(.*?)(\d+)$/);
+  if (!m) return code + '2';
+  let n = String(+m[2] + 1); let c = m[1] + n;
+  while (S.sepDb.sets[c]) { n = String(+n + 1); c = m[1] + n; }
+  return c;
+}
+
+function renderPDetail(prd, mode) {
+  const db = S.sepDb, today = NIR.todayISO();
+  const rules = db.rules.filter(r => r.prd === prd);
+  const plants = uniq(rules.map(r => r.pla));
+  const cur = {}; plants.forEach(pl => cur[pl] = NIR.findSep(db, prd, pl, today));
+  const codes = uniq(Object.keys(db.sets).filter(c => db.sets[c].prd === prd).concat(rules.map(r => r.sep)));
+  const curCodes = new Set(Object.values(cur));
+  codes.sort((a, b) => { const fa = (rules.find(r => r.sep === a) || {}).from || '9', fb = (rules.find(r => r.sep === b) || {}).from || '9'; return fb.localeCompare(fa); });
+  const latest = codes[0];
+  const usage = c => S.rows.filter(r => r.sep === c).length;
+
+  let h = '<div class="row" style="margin-bottom:12px"><div><div style="font-size:17px;font-weight:700">' + esc(prd) + '</div>' +
+    '<div style="font-size:12px;color:var(--txt2)">ใช้ตอนนี้: ' + (plants.map(pl => esc(pl === '*' ? 'ทุก plant' : pl) + ' → <b class="mono">' + esc(cur[pl] || '—') + '</b>').join(' · ') || '—') + '</div></div><span class="spacer"></span>' +
+    '<button class="btn primary" id="btnEqa">🔄 อัปเดต EQA (ค่า SEP ใหม่)</button></div>';
+
+  if (mode && mode.kind) h += eqaForm(prd, mode, plants, cur, latest);
+
+  codes.forEach(c => {
+    const s = db.sets[c] || { sep: {} };
+    const rs = rules.filter(r => r.sep === c).sort((a, b) => a.from.localeCompare(b.from));
+    h += '<div class="verbox' + (curCodes.has(c) ? ' cur' : '') + '"><div class="row"><b class="mono" style="font-size:14px">' + esc(c) + '</b>' +
+      (curCodes.has(c) ? '<span class="badge g">ใช้อยู่</span>' : '<span class="badge" style="background:var(--grey-bg);color:var(--txt3)">เวอร์ชันเก่า</span>') +
+      '<span style="font-size:11px;color:var(--txt3)">' + (rs.map(r => esc(r.pla === '*' ? 'ทุก plant' : r.pla) + ' ตั้งแต่ ' + esc(r.from)).join(' · ') || 'ไม่มีกฎ') + ' · ใช้กับ ' + usage(c) + ' แถว</span>' +
+      (s.note ? '<span style="font-size:11px;color:var(--txt3)">· ' + esc(s.note) + '</span>' : '') +
+      '<span class="spacer"></span><button class="btn sm" data-edit="' + esc(c) + '">แก้ค่า</button></div>' +
+      '<div class="vals">' + NIR.PARAM_KEYS.filter(p => s.sep[p] !== undefined).map(p => '<div class="val"><div class="k">' + esc(p) + '</div><div class="v">' + s.sep[p] + ' <small>2SEP ' + +(2 * s.sep[p]).toFixed(6) + '</small></div></div>').join('') + '</div></div>';
+  });
+  $('pDetail').innerHTML = h;
+  $('btnEqa').onclick = () => renderPDetail(prd, { kind: 'eqa', from: latest });
+  $('pDetail').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => renderPDetail(prd, { kind: 'edit', code: b.dataset.edit }));
+  if (mode && mode.kind) bindEqaForm(prd, mode, plants, cur, latest);
+}
+
+function eqaForm(prd, mode, plants, cur, latest) {
+  const db = S.sepDb;
+  const base = mode.kind === 'edit' ? db.sets[mode.code] : (db.sets[mode.from] || { sep: {} });
+  const unit = ls.get('nir_sep_unit', '2sep');
+  const pars = NIR.PARAM_KEYS.filter(p => base.sep[p] !== undefined || (mode.pars || []).includes(p));
+  const extra = NIR.PARAM_KEYS.filter(p => base.sep[p] === undefined);
+  const show = v => v === undefined ? '' : +(unit === '2sep' ? 2 * v : v).toFixed(6);
+  let h = '<div class="card" style="background:var(--bg3);border-color:var(--blue-light)">';
+  if (mode.kind === 'edit') {
+    h += '<div class="card-title">แก้ค่า SEP ของ ' + esc(mode.code) + '</div><div class="note warn" style="margin-bottom:10px">ใช้แก้ค่าที่พิมพ์ผิดเท่านั้น — จะมีผลกับข้อมูลทั้ง <b>' + S.rows.filter(r => r.sep === mode.code).length + ' แถว</b> ที่ใช้รหัสนี้ ถ้าเป็นค่าจาก EQA รอบใหม่ให้กด "อัปเดต EQA" แทน</div>';
+  } else {
+    h += '<div class="card-title">อัปเดต EQA — สร้าง SEP เวอร์ชันใหม่</div><div class="grid" style="margin-bottom:10px">' +
+      '<div class="f"><label>รหัสใหม่</label><input id="eqCode" value="' + esc(mode.newCode || (latest ? nextCode(latest) : prd.replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase() + '1')) + '"></div>' +
+      '<div class="f"><label>มีผลตั้งแต่วันที่</label><input id="eqFrom" type="date" value="' + (mode.fromDate || NIR.todayISO()) + '"></div>' +
+      '<div class="f" style="grid-column:span 2"><label>ใช้กับ plant</label><div class="row" style="gap:10px;padding-top:4px">' +
+      uniq(plants.concat(mode.newPrd ? ['*'] : []).concat(mode.pla ? [mode.pla] : [])).map(pl => '<label class="row" style="gap:4px;font-size:12px"><input type="checkbox" class="eqPl" value="' + esc(pl) + '" style="width:auto"' + ((mode.pla ? pl === mode.pla || pl === '*' : (!latest || cur[pl] === latest || pl === '*')) ? ' checked' : '') + '>' + esc(pl === '*' ? 'ทุก plant' : pl) + (cur[pl] ? ' <span class="mono" style="color:var(--txt3)">(' + esc(cur[pl]) + ')</span>' : '') + '</label>').join('') +
+      '</div></div><div class="f" style="grid-column:1/-1"><label>หมายเหตุ</label><input id="eqNote" placeholder="เช่น EQA รอบ 2/2026"></div></div>';
+  }
+  h += '<div class="row" style="margin-bottom:6px"><span class="lbl">กรอกค่าเป็น</span><select id="eqUnit" style="width:auto"><option value="2sep"' + (unit === '2sep' ? ' selected' : '') + '>2SEP (เหมือน Excel เดิม)</option><option value="sep"' + (unit === 'sep' ? ' selected' : '') + '>SEP</option></select>' +
+    '<span style="font-size:11px;color:var(--txt3)">ค่าเริ่มต้นคือค่าเดิม — แก้เฉพาะช่องที่เปลี่ยน, เว้นว่าง = ไม่ใช้พารามิเตอร์นั้น</span></div>' +
+    '<div class="vals">' + pars.map(p => '<div class="val"><div class="k">' + esc(p) + '</div><input class="eqV" data-p="' + p + '" value="' + show(base.sep[p]) + '" inputmode="decimal"></div>').join('') +
+    '<div class="val"><div class="k">+ เพิ่ม</div><select id="eqAdd" style="padding:4px;font-size:11px;margin-top:2px"><option value="">พารามิเตอร์…</option>' + extra.map(p => '<option>' + p + '</option>').join('') + '</select></div></div>' +
+    '<div class="row" style="margin-top:12px"><span class="spacer"></span><button class="btn" id="eqCancel">ยกเลิก</button><button class="btn primary" id="eqSave">' + (mode.kind === 'edit' ? 'บันทึกค่า' : 'สร้าง ' + '<span id="eqCodeLbl"></span>' + ' และบันทึก') + '</button></div></div>';
+  return h;
+}
+
+function bindEqaForm(prd, mode, plants, cur, latest) {
+  const db = S.sepDb;
+  $('eqCancel').onclick = () => renderPDetail(prd);
+  const lbl = () => { if ($('eqCodeLbl')) $('eqCodeLbl').textContent = $('eqCode').value; };
+  if ($('eqCode')) { $('eqCode').oninput = lbl; lbl(); }
+  $('eqUnit').onchange = () => {
+    const from = ls.get('nir_sep_unit', '2sep'), to = $('eqUnit').value;
+    document.querySelectorAll('.eqV').forEach(i => { const n = NIR.num(i.value); if (n !== null) i.value = +(from === to ? n : to === 'sep' ? n / 2 : n * 2).toFixed(6); });
+    ls.set('nir_sep_unit', to);
+  };
+  $('eqAdd').onchange = e => {
+    const p = e.target.value; if (!p) return;
+    const box = e.target.closest('.val');
+    const d = document.createElement('div'); d.className = 'val';
+    d.innerHTML = '<div class="k">' + esc(p) + '</div><input class="eqV" data-p="' + p + '" inputmode="decimal">';
+    box.parentNode.insertBefore(d, box); e.target.querySelector('option[value="' + p + '"]')?.remove(); e.target.value = ''; d.querySelector('input').focus();
+  };
+  $('eqSave').onclick = async () => {
+    const unit = $('eqUnit').value;
+    const sep = {};
+    let bad = false;
+    document.querySelectorAll('.eqV').forEach(i => {
+      if (i.value.trim() === '') return;
+      const n = NIR.num(i.value); if (n === null || n <= 0) { bad = true; i.style.borderColor = 'var(--red)'; return; }
+      sep[i.dataset.p] = Math.round((unit === '2sep' ? n / 2 : n) * 1e6) / 1e6;
+    });
+    if (bad) { toast('มีช่องที่ไม่ใช่ตัวเลข'); return; }
+    if (!Object.keys(sep).length) { toast('ยังไม่ได้กรอกค่า'); return; }
+    const snapshot = JSON.stringify(db);
+    if (mode.kind === 'edit') {
+      db.sets[mode.code].sep = sep;
+      db.sets[mode.code].note = (db.sets[mode.code].note || '') + ' · แก้ค่า ' + NIR.todayISO();
+    } else {
+      const code = $('eqCode').value.trim();
+      const from = $('eqFrom').value;
+      const pls = [...document.querySelectorAll('.eqPl:checked')].map(i => i.value);
+      if (!code) { toast('ใส่รหัส SEP'); return; }
+      if (db.sets[code] && db.sets[code].prd !== prd) { toast('รหัส ' + code + ' ถูกใช้กับ ' + db.sets[code].prd + ' แล้ว'); return; }
+      if (!from) { toast('ใส่วันที่มีผล'); return; }
+      if (!pls.length) { toast('เลือกอย่างน้อย 1 plant'); return; }
+      db.sets[code] = { prd, sep, note: $('eqNote').value.trim() || ('EQA ' + from) };
+      pls.forEach(pl => {
+        db.rules = db.rules.filter(r => !(r.prd === prd && r.pla === pl && r.from === from));
+        db.rules.push({ prd, pla: pl, sep: code, from });
+      });
+      db.rules.sort((a, b) => (a.prd + a.pla + a.from).localeCompare(b.prd + b.pla + b.from));
+    }
+    try {
+      const how = await saveSep(mode.kind === 'edit' ? 'Fix SEP ' + mode.code : 'EQA update ' + prd);
+      toast(how === 'github' ? '✅ บันทึก SEP แล้ว' : 'ดาวน์โหลด sep.json แล้ว — อัปโหลดขึ้น GitHub', 5000);
+      refreshAll(); renderPDetail(prd);
+      if (S.returnToImport && S.preview.length) {   // กลับไปหน้านำเข้า แถวที่รอ SEP จะลิงก์ให้อัตโนมัติ
+        S.returnToImport = false;
+        S.preview.forEach(x => { if (x.prd === prd && !x.userSep) finalizeRow(x, x); });
+        document.querySelector('.tab[data-tab="import"]').click();
+        renderPreview(S._lastHeader);
+        $('previewCard').scrollIntoView({ behavior: 'smooth' });
+      }
+    } catch (e) { busy(false); S.sepDb = JSON.parse(snapshot); alert('บันทึกไม่สำเร็จ: ' + e.message); }
+  };
+}
+
+$('btnNewPrd').onclick = () => {
+  const prd = prompt('ชื่อ product ใหม่ (ให้ตรงกับที่ใช้ในข้อมูล):');
+  if (!prd || !prd.trim()) return;
+  const p = NIR.normProduct(prd);
+  S.selPrd = p;
+  renderPList();
+  renderPDetail(p, { kind: 'eqa', newPrd: true, newCode: p.replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase() + '1' });
+};
+
+// ════════════════════════════════════════════════════════════════════
+// DATA (ดู / ลบ / เปลี่ยน SEP)
+// ════════════════════════════════════════════════════════════════════
+let dataSel = new Set();
+function renderData() {
+  const months = uniq(S.rows.map(r => NIR.monthOf(r.d))).reverse();
+  const curM = $('qMonth').value;
+  $('qMonth').innerHTML = '<option value="">ทุกเดือน</option>' + months.map(m => '<option' + (m === curM ? ' selected' : '') + '>' + m + '</option>').join('');
+  $('bulkSep').innerHTML = '<option value="">เปลี่ยน SEP เป็น…</option>' + Object.keys(S.sepDb.sets).sort().map(c => '<option>' + esc(c) + '</option>').join('');
+  const q = $('qData').value.toLowerCase().trim(), m = $('qMonth').value;
+  let list = S.rows.filter(r => (!m || NIR.monthOf(r.d) === m) && (!q || [r.no, r.smp, r.prd, r.sep, r.pla, r.lab].join(' ').toLowerCase().includes(q)));
+  list = list.slice().sort((a, b) => (+b.no || 0) - (+a.no || 0));
+  const total = list.length; list = list.slice(0, 300);
+  const pars = NIR.PARAM_KEYS.filter(p => list.some(r => r.v[p]));
+  let h = '<table><thead><tr><th><input type="checkbox" id="dAll" style="width:auto"></th><th>No.</th><th>วันที่</th><th>Plant</th><th>Eqp</th><th>Product</th><th>SEP</th><th>Sample</th>' + pars.map(parTh).join('') + '</tr></thead><tbody>';
+  list.forEach(r => {
+    h += '<tr><td><input type="checkbox" data-no="' + esc(r.no) + '" style="width:auto"' + (dataSel.has(String(r.no)) ? ' checked' : '') + '></td><td class="mono">' + esc(r.no) + '</td><td class="mono">' + esc(r.d) + '</td><td>' + esc(r.pla) + '</td><td>' + esc(r.eqp) + '</td><td>' + esc(r.prd) + '</td><td class="mono">' + (r.sep && S.sepDb.sets[r.sep] ? esc(r.sep) : '<span class="badge a">' + esc(r.sep || 'ไม่มี') + '</span>') + '</td>' +
+      '<td style="max-width:260px;overflow:hidden;text-overflow:ellipsis" title="' + esc(r.smp) + '">' + esc(r.smp) + '</td>' + pars.map(p => diffCell(r, p)).join('') + '</tr>';
+  });
+  h += '</tbody></table>';
+  $('dataWrap').innerHTML = h;
+  $('dataMsg').textContent = total > 300 ? 'แสดง 300 จาก ' + total.toLocaleString() + ' แถว (ใช้ช่องค้นหา/เลือกเดือนเพื่อกรอง)' : total.toLocaleString() + ' แถว';
+  $('dataWrap').querySelectorAll('[data-no]').forEach(el => el.onchange = () => { el.checked ? dataSel.add(el.dataset.no) : dataSel.delete(el.dataset.no); });
+  $('dAll').onchange = e => { list.forEach(r => e.target.checked ? dataSel.add(String(r.no)) : dataSel.delete(String(r.no))); renderData(); };
+}
+$('qData').oninput = renderData; $('qMonth').onchange = renderData;
+$('btnBulkDel').onclick = async () => {
+  if (!dataSel.size) { toast('ยังไม่ได้เลือกแถว'); return; }
+  if (!confirm('ลบ ' + dataSel.size + ' แถว?\n(กู้คืนได้จากประวัติใน GitHub)')) return;
+  const months = new Set(S.rows.filter(r => dataSel.has(String(r.no))).map(r => NIR.monthOf(r.d)));
+  const backup = S.rows;
+  S.rows = S.rows.filter(r => !dataSel.has(String(r.no)));
+  try { await saveMonths([...months], 'Delete ' + dataSel.size + ' rows'); dataSel.clear(); toast('ลบแล้ว'); refreshAll(); }
+  catch (e) { busy(false); S.rows = backup; alert('ไม่สำเร็จ: ' + e.message); }
+};
+$('btnBulkSep').onclick = async () => {
+  const code = $('bulkSep').value;
+  if (!dataSel.size || !code) { toast('เลือกแถวและรหัส SEP ก่อน'); return; }
+  if (!confirm('เปลี่ยน SEP ของ ' + dataSel.size + ' แถว เป็น ' + code + '?')) return;
+  const months = new Set(); const backup = JSON.stringify(S.rows);
+  S.rows.forEach(r => { if (dataSel.has(String(r.no))) { r.sep = code; months.add(NIR.monthOf(r.d)); } });
+  try { await saveMonths([...months], 'Change SEP → ' + code + ' (' + dataSel.size + ' rows)'); dataSel.clear(); toast('เปลี่ยนแล้ว'); refreshAll(); }
+  catch (e) { busy(false); S.rows = JSON.parse(backup); alert('ไม่สำเร็จ: ' + e.message); }
+};
+
+// ════════════════════════════════════════════════════════════════════
+// SETUP: เครื่อง NIR + ชื่อสินค้า
+// ════════════════════════════════════════════════════════════════════
+let instDraft = null, alDraft = null;
+function renderConfig() {
+  instDraft = JSON.parse(JSON.stringify(NIR.instruments(S.sepDb)));
+  alDraft = JSON.parse(JSON.stringify(NIR.aliases(S.sepDb)));
+  drawInst(); drawAl();
+}
+function drawInst() {
+  const F = ['name', 'pla', 'typ', 'eqp', 'src'];
+  $('instWrap').innerHTML = '<table><thead><tr><th>Serial / รหัส</th><th>ชื่อ</th><th>Plant</th><th>Type</th><th>Equipment</th><th>Source</th><th></th></tr></thead><tbody>' +
+    Object.keys(instDraft).map(k => '<tr><td class="mono">' + esc(k) + '</td>' + F.map(f => '<td><input data-ik="' + esc(k) + '" data-f="' + f + '" value="' + esc(instDraft[k][f] || '') + '"' + (f === 'pla' ? ' list="dlPla"' : f === 'eqp' ? ' list="dlEqp"' : f === 'src' ? ' list="dlSrc"' : f === 'typ' ? ' list="dlTyp"' : '') + '></td>').join('') +
+      '<td>' + (k === 'SMARTILAB' ? '' : '<button class="btn sm danger" data-idel="' + esc(k) + '">ลบ</button>') + '</td></tr>').join('') + '</tbody></table>';
+  $('instWrap').querySelectorAll('[data-ik]').forEach(i => i.oninput = () => { instDraft[i.dataset.ik][i.dataset.f] = i.value.trim(); });
+  $('instWrap').querySelectorAll('[data-idel]').forEach(b => b.onclick = () => { delete instDraft[b.dataset.idel]; drawInst(); });
+}
+function drawAl() {
+  const q = ($('alQ').value || '').toLowerCase();
+  const keys = Object.keys(alDraft).sort().filter(k => !q || (k + ' ' + alDraft[k]).toLowerCase().includes(q));
+  $('alWrap').innerHTML = '<table><thead><tr><th>ชื่อในไฟล์</th><th>Product</th><th></th></tr></thead><tbody>' +
+    keys.map(k => '<tr><td class="mono">' + esc(k) + '</td><td><input data-ak="' + esc(k) + '" list="dlPrd" value="' + esc(alDraft[k]) + '"></td><td><button class="btn sm danger" data-adel="' + esc(k) + '">ลบ</button></td></tr>').join('') + '</tbody></table>';
+  $('alWrap').querySelectorAll('[data-ak]').forEach(i => i.oninput = () => { alDraft[i.dataset.ak] = i.value.trim(); });
+  $('alWrap').querySelectorAll('[data-adel]').forEach(b => b.onclick = () => { delete alDraft[b.dataset.adel]; drawAl(); });
+}
+$('alQ').oninput = drawAl;
+$('btnInstAdd').onclick = () => {
+  const k = prompt('Instrument Serial Number (ดูได้จากคอลัมน์ในไฟล์ IQX/Foss):'); if (!k || !k.trim()) return;
+  instDraft[k.trim()] = { name: k.trim(), pla: '', typ: 'RM', eqp: '', src: '' }; drawInst();
+};
+// เก็บเฉพาะค่าที่ต่างจากค่าเริ่มต้นในโค้ด (ลบ = ตั้งเป็น null เพื่อปิดค่าเริ่มต้น)
+function diffFromDefault(draft, defs) {
+  const out = {};
+  Object.keys(draft).forEach(k => { if (JSON.stringify(draft[k]) !== JSON.stringify(defs[k])) out[k] = draft[k]; });
+  Object.keys(defs).forEach(k => { if (!(k in draft)) out[k] = null; });
+  return out;
+}
+async function saveConfig(kind) {
+  const db = S.sepDb, snap = JSON.stringify(db);
+  if (kind === 'inst') db.instruments = diffFromDefault(instDraft, NIR.DEFAULT_INSTRUMENTS);
+  else db.aliases = diffFromDefault(alDraft, NIR.DEFAULT_ALIASES);
+  try { const how = await saveSep(kind === 'inst' ? 'Update instruments' : 'Update product aliases'); toast(how === 'github' ? '✅ บันทึกแล้ว' : 'ดาวน์โหลด sep.json แล้ว'); refreshAll(); }
+  catch (e) { busy(false); S.sepDb = JSON.parse(snap); alert('ไม่สำเร็จ: ' + e.message); }
+}
+$('btnInstSave').onclick = () => saveConfig('inst');
+$('btnAlSave').onclick = () => saveConfig('al');
+
+// ════════════════════════════════════════════════════════════════════
+// SETUP: token + migration
+// ════════════════════════════════════════════════════════════════════
+$('tok').value = token() ? '••••••••••••' : '';
+$('btnTok').onclick = async () => {
+  const v = $('tok').value.trim();
+  if (!v || v.startsWith('•')) { toast('วาง token ก่อน'); return; }
+  try {
+    await NIR.gh(v).test();
+    ls.set('nir_gh_token', v); $('tok').value = '••••••••••••';
+    $('tokMsg').innerHTML = '<div class="note ok">✅ ใช้ได้ — บันทึก token ไว้ในเบราว์เซอร์เครื่องนี้แล้ว</div>';
+    try { await loadState(); $('globalNote').innerHTML = ''; } catch (e) {}
+    refreshAll();
+  } catch (e) { $('tokMsg').innerHTML = '<div class="note err">❌ ' + esc(e.message) + '</div>'; }
+};
+$('btnTokDel').onclick = () => { ls.del('nir_gh_token'); $('tok').value = ''; $('tokMsg').innerHTML = '<div class="note">ลบ token แล้ว</div>'; refreshAll(); };
+
+async function runMigration(jsons) {
+  let all = [];
+  jsons.forEach(j => { if (j && j.rows) all = all.concat(j.rows); });
+  if (!all.length) throw new Error('ไม่พบ rows ในไฟล์');
+  const seen = new Set();
+  const wide = all.filter(r => { const k = NIR.wideKey(r); if (seen.has(k)) return false; seen.add(k); return true; });
+  const sepDb = NIR.buildSepFromWide(wide);
+  const conflicts = sepDb.conflicts; delete sepDb.conflicts;
+  const slim = wide.map(NIR.wideToSlim);
+  let errCells = 0;
+  wide.forEach(r => Object.values(r).forEach(v => { if (typeof v === 'string' && v.startsWith('#')) errCells++; }));
+  const byM = NIR.splitByMonth(slim);
+  const months = Object.keys(byM).filter(m => m !== 'unknown').sort();
+  const noSep = slim.filter(r => !r.sep).length;
+  const files = { 'sep.json': NIR.stringifySep(sepDb) };
+  months.forEach(m => files['data/' + m + '.json'] = NIR.stringifyMonth(m, byM[m]));
+  files['data/index.json'] = JSON.stringify({ files: months.map(m => m + '.json'), updated: new Date().toISOString(), count: slim.length }, null, 1) + '\n';
+  const size = Object.values(files).reduce((a, t) => a + new Blob([t]).size, 0);
+  const srcSize = jsons.reduce((a, j) => a + JSON.stringify(j).length, 0);
+  let h = '<div class="note ok" style="margin-bottom:10px"><div class="stat">' +
+    '<div><b>' + slim.length.toLocaleString() + '</b>แถว (ตัดซ้ำ ' + (all.length - wide.length) + ')</div>' +
+    '<div><b>' + months.length + '</b>เดือน (' + months[0] + ' → ' + months[months.length - 1] + ')</div>' +
+    '<div><b>' + Object.keys(sepDb.sets).length + '</b>ชุด SEP</div>' +
+    '<div><b>' + (srcSize / 1e6).toFixed(1) + ' → ' + (size / 1e6).toFixed(1) + ' MB</b>ขนาดไฟล์</div>' +
+    '<div><b>' + errCells + '</b>ช่อง #VALUE!/#REF! ที่ตัดทิ้ง</div></div></div>';
+  if (byM.unknown) h += '<div class="note warn" style="margin-bottom:10px">' + byM.unknown.length + ' แถวไม่มีเดือน — จะไม่ถูกย้าย</div>';
+  if (noSep) h += '<div class="note warn" style="margin-bottom:10px">' + noSep + ' แถวไม่มีรหัส SEP</div>';
+  if (conflicts.length) h += '<div class="note warn" style="margin-bottom:10px"><b>รหัส SEP ที่มีค่าไม่ตรงกันในบางแถว</b> (ใช้ค่าที่พบบ่อยที่สุด):<br>' +
+    conflicts.map(c => '<span class="mono">' + esc(c.code) + ' ' + esc(c.par) + '</span>: ใช้ 2SEP=' + esc(c.used) + ' (' + c.count + ' แถว) · ค่าอื่น ' + c.values.filter(v => v[0] !== c.used).map(v => esc(v[0]) + ' (' + v[1] + ')').join(', ')).join('<br>') + '</div>';
+  h += '<div class="row"><button class="btn primary" id="migSave">' + (token() ? 'บันทึกขึ้น GitHub' : 'ดาวน์โหลด ZIP') + '</button>' +
+    (token() ? '' : '<span style="font-size:12px;color:var(--txt3)">แตก zip แล้วอัปโหลด <b>sep.json</b> + <b>โฟลเดอร์ data</b> ขึ้น repo</span>') + '</div>';
+  $('migOut').innerHTML = h;
+  $('migSave').onclick = async () => {
+    if (S.migrated && S.rows.length && !confirm('มีข้อมูลรูปแบบใหม่อยู่แล้ว ' + S.rows.length + ' แถว — เขียนทับด้วยข้อมูลจาก Excel เดิม?')) return;
+    try {
+      await writeFiles(files, 'Migrate from Excel (' + slim.length + ' rows)');
+      S.sepDb = sepDb; S.rows = slim; S.index = JSON.parse(files['data/index.json']); S.loaded = true; S.migrated = true;
+      $('globalNote').innerHTML = token() ? '<div class="note ok" style="margin-bottom:12px">✅ ย้ายข้อมูลเรียบร้อย — Dashboard จะอ่านรูปแบบใหม่ภายใน 1–2 นาที</div>' : $('globalNote').innerHTML;
+      refreshAll();
+    } catch (e) { busy(false); alert('ไม่สำเร็จ: ' + e.message); }
+  };
+}
+$('btnMigFetch').onclick = async () => {
+  try {
+    busy(true, 'กำลังดึง data.json + data2.json …');
+    const j = await Promise.all(['data.json', 'data2.json'].map(f => NIR.fetchJSON(NIR.BASE_URL + f).catch(() => null)));
+    busy(false);
+    if (!j[0] && !j[1]) throw new Error('ดึงไฟล์ไม่ได้');
+    await runMigration(j);
+  } catch (e) { busy(false); $('migOut').innerHTML = '<div class="note err">❌ ' + esc(e.message) + '</div>'; }
+};
+$('migFiles').onchange = async e => {
+  try {
+    busy(true, 'กำลังอ่านไฟล์…');
+    const j = await Promise.all([...e.target.files].map(f => f.text().then(JSON.parse)));
+    busy(false); await runMigration(j);
+  } catch (err) { busy(false); $('migOut').innerHTML = '<div class="note err">❌ ' + esc(err.message) + '</div>'; }
+};
+
+// ════════════════════════════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════════════════════════════
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === b));
+  ['import', 'sep', 'data', 'setup'].forEach(t => $('tab-' + t).classList.toggle('hide', t !== b.dataset.tab));
+  try { sessionStorage.setItem('nir_tab', b.dataset.tab); } catch (e) {}
+});
+try { const t = sessionStorage.getItem('nir_tab'); if (t) document.querySelector('.tab[data-tab="' + t + '"]').click(); } catch (e) {}
+
+init();
+</script>
+<script src="nir_sidebar.js"></script>
+</body>
+</html>
