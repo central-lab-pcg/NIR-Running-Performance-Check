@@ -25,14 +25,19 @@
   const toolId = (typeof NIR_TOOL_ID !== "undefined") ? NIR_TOOL_ID : null;
   if (toolId && users) {
     const u = users[session.username];
-    if (!u || !u.perms || !u.perms[toolId]) {
+    // Admin ผ่านได้ทุกหน้า (เหมือน nir_sidebar.js) — กันกรณี nir_users ในเครื่องเป็นข้อมูลเก่า ยังไม่มีสิทธิ์ของเครื่องมือใหม่
+    const isAdmin = session.role === "admin" || (u && u.role === "admin");
+    // ถ้า nir_users ไม่มี key ของเครื่องมือนี้เลย ให้ใช้สิทธิ์ที่บันทึกไว้ตอน login แทน
+    const has = (obj) => obj && obj.perms && obj.perms[toolId] === true;
+    const allowed = isAdmin || has(u) || (u && u.perms && u.perms[toolId] === undefined && has(session));
+    if (!allowed) {
       document.documentElement.innerHTML = `<head><meta charset="UTF-8">
         <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f3;}
         .box{text-align:center;padding:40px;background:#fff;border-radius:16px;border:0.5px solid #e0e0dc;max-width:360px;}
-        h2{font-size:18px;font-weight:500;color:#1a1a1a;margin-bottom:8px;}p{font-size:13px;color:#888;margin-bottom:24px;}
-        a{display:inline-block;padding:10px 24px;background:#1a1a1a;color:#fff;border-radius:8px;text-decoration:none;font-size:13px;}</style></head>
+        .box h2{font-size:18px;font-weight:500;color:#1a1a1a;margin-bottom:8px;}.box p{font-size:13px;color:#555;margin-bottom:24px;}
+        .box a{display:inline-block;padding:10px 24px;background:#1a1a1a;color:#fff;border-radius:8px;text-decoration:none;font-size:13px;}</style></head>
         <body><div class="box"><div style="font-size:40px;margin-bottom:12px;">🔒</div>
-        <h2>ไม่มีสิทธิ์เข้าถึง</h2><p>กรุณาติดต่อ Admin</p>
+        <h2>ไม่มีสิทธิ์เข้าถึง</h2><p>กรุณาติดต่อ Admin<br><span style="font-size:11px;color:#999">(เครื่องมือ: ${toolId})</span></p>
         <a href="${PORTAL_URL}">← กลับหน้าหลัก</a></div></body>`;
       setTimeout(() => window.location.replace(PORTAL_URL), 3000);
       return;
