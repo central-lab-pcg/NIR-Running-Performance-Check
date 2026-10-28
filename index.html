@@ -168,6 +168,52 @@
   }
   .save-btn:hover { background: #333; }
   .save-msg { font-size: 12px; color: #2d7a4a; margin-left: 12px; display: none; }
+
+  /* ===== พื้นหลังลายจุด + การ์ดขาว (เหมือนหน้า Summary) ===== */
+  body { background-color: #F7F2E2;
+    background-image: radial-gradient(rgba(70,66,58,.32) 2px, transparent 2.6px), radial-gradient(rgba(70,66,58,.32) 2px, transparent 2.6px);
+    background-size: 34px 34px; background-position: 0 0, 17px 17px; }
+  .main { max-width: 1000px; }
+  .hero-card, .panel-card, .admin-panel { background: #fff; border: 1px solid #ece6d6; border-radius: 22px;
+    box-shadow: 0 1px 2px rgba(60,50,20,.05), 0 8px 24px -12px rgba(60,50,20,.18); }
+  .hero-card { padding: 22px 26px; margin-bottom: 24px; }
+  .hero-card .view-switch { margin-bottom: 0; background: #f6f3ea; }
+  .greeting { font-size: 22px; font-weight: 700; color: #db2777; }
+  .greeting-sub { color: #52525b; margin-bottom: 16px; }
+  .panel-card { padding: 22px 24px 28px; margin-bottom: 24px; }
+  .fc-section.panel-card { margin-bottom: 24px; }
+  .admin-panel { padding: 22px 24px; }
+  .section-label { font-size: 13px; font-weight: 700; letter-spacing: .04em; color: #db2777; margin-bottom: 18px;
+    padding-bottom: 12px; border-bottom: 1px solid #fbe0ee; }
+  .admin-title { font-size: 15px; font-weight: 600; color: #18181b; }
+  .user-table th { color: #db2777; font-size: 11.5px; font-weight: 700; }
+  .user-table td { color: #27272a; border-bottom-color: #f1ede4; }
+  .perm-toggle { color: #3f3f46; border-color: #cfcfd4; background: #fff; }
+  .perm-toggle.on { color: #fff; }
+  .fc-index { color: #57575e; }
+  .fc-desc { color: #52525b; }
+  .card-desc { color: #52525b; }
+  .topbar-logo { color: #52525b; }
+  .user-badge { color: #3f3f46; }
+  .btn-logout { color: #3f3f46; border-color: #cfcfd4; }
+  .login-sub, .login-logo { color: #52525b; }
+  .admin-panel.admin-inner { position: relative; margin-bottom: 0; padding: 22px 24px; border-radius: 16px; border: 1px solid #e5e5e2;
+    box-shadow: 0 1px 2px rgba(0,0,0,.05); overflow-x: auto;
+    background: radial-gradient(circle at 50% 0%, rgba(251,207,232,.35) 0%, transparent 55%), #fff; }
+  .admin-inner .admin-title { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .06em; padding: 4px 12px;
+    border-radius: 999px; background: #fdf2f8; color: #db2777; margin-bottom: 18px; }
+  .section-toggle { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; border-bottom: 1px solid transparent;
+    font-family: inherit; text-align: left; cursor: pointer; margin-bottom: 0; padding: 4px 0; transition: border-color .3s, padding .3s, margin .3s; }
+  .section-toggle .toggle-hint { margin-left: auto; font-size: 11px; font-weight: 500; letter-spacing: 0; color: #9d174d; background: #fdf2f8; padding: 3px 10px; border-radius: 999px; }
+  .section-toggle .chev { font-size: 14px; color: #db2777; transition: transform .35s ease; }
+  .collapsible.open .section-toggle { border-bottom-color: #fbe0ee; padding-bottom: 12px; margin-bottom: 18px; }
+  .collapsible.open .section-toggle .chev { transform: rotate(180deg); }
+  .collapse-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .45s cubic-bezier(.4,0,.2,1); }
+  .collapsible.open .collapse-body { grid-template-rows: 1fr; }
+  .collapse-inner { overflow: hidden; min-height: 0; }
+  .collapsible:not(.open) { padding-bottom: 22px; }
+  @media (prefers-reduced-motion: reduce) { .collapse-body, .section-toggle .chev { transition: none; } }
+  @media (max-width: 600px) { .main { padding: 20px 14px; } .panel-card, .admin-panel { padding: 18px 14px 22px; } .hero-card { padding: 18px; } }
 </style>
 </head>
 <body>
@@ -227,6 +273,7 @@
   </div>
 
   <div class="main">
+    <div class="hero-card">
     <div class="greeting" id="greeting">สวัสดี</div>
     <div class="greeting-sub" id="greeting-sub">เลือก tool ที่ต้องการใช้งาน</div>
 
@@ -234,14 +281,15 @@
       <button type="button" data-view="feature" onclick="setPortalView('feature')">✦ Feature</button>
       <button type="button" data-view="cards" onclick="setPortalView('cards')">▦ การ์ดเดิม</button>
     </div>
+    </div>
 
     <!-- มุมมอง Feature Card -->
     <div id="feature-view" style="display:none">
-      <div class="fc-section">
+      <div class="fc-section panel-card">
         <div class="section-label">📊 ดูกราฟ / ติดตามผล</div>
         <div class="fc-grid" id="fc-grid-view"></div>
       </div>
-      <div class="fc-section">
+      <div class="fc-section panel-card">
         <div class="section-label">🛠️ เครื่องมือสำหรับ NIR</div>
         <div class="fc-grid" id="fc-grid-tools"></div>
       </div>
@@ -249,16 +297,24 @@
 
     <!-- มุมมองการ์ด (แบบเดิม) -->
     <div id="cards-view">
+      <div class="panel-card">
       <div class="section-label">📊 ดูกราฟ / ติดตามผล</div>
       <div class="cards-grid" id="cards-grid-view"></div>
+      </div>
+      <div class="panel-card">
       <div class="section-label">🛠️ เครื่องมือสำหรับ NIR</div>
       <div class="cards-grid" id="cards-grid"></div>
+      </div>
     </div>
 
     <!-- Admin Panel -->
     <div id="admin-panel" style="display:none;">
-      <div class="section-label">จัดการสิทธิ์ผู้ใช้</div>
-      <div class="admin-panel">
+      <div class="panel-card collapsible" id="admin-collapse">
+      <button type="button" class="section-label section-toggle" aria-expanded="false" aria-controls="admin-collapse-body" onclick="toggleAdminSection()">
+        <span>👥 จัดการสิทธิ์ผู้ใช้</span><span class="toggle-hint">กดเพื่อเปิด</span><span class="chev">▾</span>
+      </button>
+      <div class="collapse-body" id="admin-collapse-body"><div class="collapse-inner">
+      <div class="admin-panel admin-inner">
         <div class="admin-title">กำหนดสิทธิ์การเข้าถึง</div>
         <table class="user-table">
           <thead>
@@ -272,6 +328,8 @@
         </table>
         <button class="save-btn" onclick="savePerms()">บันทึก</button>
         <span class="save-msg" id="save-msg">บันทึกแล้ว</span>
+      </div>
+      </div></div>
       </div>
     </div>
 
@@ -722,7 +780,7 @@ function renderPermTable() {
     tr.innerHTML = `
       <td style="font-weight:500; color:#1a1a1a; white-space:nowrap;">
         ${udata.name} ${roleBadge}<br>
-        <span style="font-size:11px;color:#aaa;font-weight:400">${ukey}</span>
+        <span style="font-size:11px;color:#6b6b72;font-weight:400">${ukey}</span>
       </td>
       <td><div class="toggle-wrap">${toolBtns}</div></td>
       <td><div class="toggle-wrap">${plantBtns}</div></td>`;
@@ -805,6 +863,16 @@ window.addEventListener("popstate", function(e) {
     lockPortalHistory();
   } catch(e) {}
 })();
+</script>
+<script>
+function toggleAdminSection(force){
+  const box=document.getElementById('admin-collapse');if(!box)return;
+  const open=typeof force==='boolean'?force:!box.classList.contains('open');
+  box.classList.toggle('open',open);
+  const btn=box.querySelector('.section-toggle');btn.setAttribute('aria-expanded',open);
+  btn.querySelector('.toggle-hint').textContent=open?'กดเพื่อปิด':'กดเพื่อเปิด';
+  if(open)setTimeout(()=>{const y=box.getBoundingClientRect().top+window.scrollY-72;window.scrollTo({top:y,behavior:'smooth'});},470);
+}
 </script>
 </body>
 </html>
