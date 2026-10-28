@@ -25,6 +25,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);font-size:13p
 .nav-link:hover{color:#fff}
 
 .filter-bar{background:#fff;border-bottom:1px solid var(--border);padding:10px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:fixed;left:0;right:0;top:var(--topbar-h,49px);z-index:90}
+/* เว้นที่ให้แถบเมนูด้านซ้าย (nir_sidebar.js) ไม่ให้บังหัวข้อ */
+#nir-sb ~ .topbar, #nir-sb ~ .filter-bar, #nir-sb ~ * .topbar, #nir-sb ~ * .filter-bar{left:220px;transition:left .22s cubic-bezier(.4,0,.2,1)}
+body.nir-col #nir-sb ~ .topbar, body.nir-col #nir-sb ~ .filter-bar, body.nir-col #nir-sb ~ * .topbar, body.nir-col #nir-sb ~ * .filter-bar{left:52px}
 .f-label{font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px}
 select{font-size:12px;padding:6px 28px 6px 10px;border:1px solid var(--border2);border-radius:var(--r);background:#fff;color:var(--txt);font-family:var(--font);cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
 select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.12)}
