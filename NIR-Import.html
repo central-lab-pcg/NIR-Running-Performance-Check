@@ -36,6 +36,8 @@ window.addEventListener('error', function (e) {
 
   // ── ตั้งค่า repo ─────────────────────────────────────────────────────────
   NIR.REPO = { owner: 'central-lab-pcg', repo: 'NIR-Running-Performance-Check', branch: 'main' };
+  // Cloudflare Worker ที่ถือ GitHub token ไว้ให้ (ไม่ต้องใส่ token ในเครื่องผู้ใช้)
+  NIR.RELAY_URL = 'https://nir-import.imguy2727.workers.dev';
   NIR.BASE_URL = 'https://central-lab-pcg.github.io/NIR-Running-Performance-Check/';
 
   // ── พารามิเตอร์ + ชื่อคอลัมน์ใน Excel เดิม (ใช้ตอนแปลงข้อมูลเก่า) ──────────────
@@ -489,10 +491,16 @@ window.addEventListener('error', function (e) {
     for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
     return btoa(bin);
   }
-  NIR.gh = function (token) {
+  // token = GitHub token (เขียนตรง) หรือ null + opts.relay = URL ของ Worker (Worker ใส่ token ให้)
+  NIR.gh = function (token, opts) {
+    opts = opts || {};
     const R = NIR.REPO;
-    const api = 'https://api.github.com/repos/' + R.owner + '/' + R.repo + '/contents/';
-    const H = extra => Object.assign({ Authorization: 'Bearer ' + token, 'X-GitHub-Api-Version': '2022-11-28' }, extra || {});
+    const relay = opts.relay ? opts.relay.replace(/\/+$/, '') : '';
+    const api = relay ? relay + '/contents/' : 'https://api.github.com/repos/' + R.owner + '/' + R.repo + '/contents/';
+    const repoUrl = relay ? relay + '/repo' : 'https://api.github.com/repos/' + R.owner + '/' + R.repo;
+    const H = extra => Object.assign(relay
+      ? Object.assign({}, opts.key ? { 'X-Import-Key': opts.key } : {}, opts.user ? { 'X-NIR-User': opts.user } : {})
+      : { Authorization: 'Bearer ' + token, 'X-GitHub-Api-Version': '2022-11-28' }, extra || {});
     return {
       async listShas(dir) {
         const res = await fetch(api + dir + '?ref=' + R.branch + '&_cb=' + Date.now(), { headers: H({ Accept: 'application/vnd.github+json' }) });
@@ -516,13 +524,26 @@ window.addEventListener('error', function (e) {
         return res.json();
       },
       async test() {
-        const res = await fetch('https://api.github.com/repos/' + R.owner + '/' + R.repo, { headers: H() });
+        const res = await fetch(repoUrl, { headers: H() });
         if (!res.ok) throw new Error('GitHub ' + res.status);
         const j = await res.json();
-        if (!j.permissions || !j.permissions.push) throw new Error('Token นี้ไม่มีสิทธิ์เขียน repo');
+        if (!j.permissions || !j.permissions.push) throw new Error(relay ? 'token ใน Worker ไม่มีสิทธิ์เขียน repo' : 'Token นี้ไม่มีสิทธิ์เขียน repo');
         return j;
       },
     };
+  };
+
+  // เช็ค Worker: {ok, needKey, keyOk} หรือ null ถ้าเรียกไม่ได้
+  NIR.relayHealth = async function (relay, key) {
+    if (!relay) return null;
+    try {
+      const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const t = ctl && setTimeout(() => ctl.abort(), 6000);
+      const res = await fetch(relay.replace(/\/+$/, '') + '/health', { headers: key ? { 'X-Import-Key': key } : {}, signal: ctl && ctl.signal });
+      t && clearTimeout(t);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (e) { return null; }
   };
 
   // ตาราง SEP สำรอง (สร้างจาก data2.json วันที่ 27/10/2026) — ใช้เมื่อยังโหลดตาราง SEP จาก GitHub ไม่ได้
@@ -1298,10 +1319,18 @@ html.fb .nb-switch button { border-radius: 11px; }
 <!-- ═════════════════════════ SETUP ═════════════════════════ -->
 <section id="tab-setup" class="hide">
   <div class="card">
-    <div class="card-title">บันทึกตรงขึ้น GitHub (แนะนำ)</div>
+    <div class="card-title">บันทึกขึ้นระบบอัตโนมัติ (Cloudflare Worker)</div>
     <div class="note" style="margin-bottom:10px">
-      ใส่ GitHub token ครั้งเดียวต่อเครื่อง แล้วปุ่ม "บันทึก" จะเขียนข้อมูลขึ้นระบบทันที (Dashboard เห็นภายใน ~1–2 นาที)<br>
-      ถ้าไม่ใส่ token ระบบจะให้ดาวน์โหลดไฟล์ แล้วไปอัปโหลดเองที่ GitHub
+      ปุ่ม "บันทึก" ส่งข้อมูลผ่าน Worker ซึ่งถือ GitHub token ไว้ให้ ทุกเครื่องใช้ได้เลย ไม่ต้องใส่ token · Dashboard เห็นภายใน ~1–2 นาที
+    </div>
+    <div id="relayBox"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">ทางเลือก: ใส่ GitHub token ในเครื่องนี้</div>
+    <div class="note" style="margin-bottom:10px">
+      ไม่จำเป็นถ้า Worker ด้านบนขึ้น ✅ · ใช้เมื่อ Worker ใช้ไม่ได้ ถ้าใส่ token เครื่องนี้จะเขียนตรงขึ้น GitHub แทน Worker<br>
+      ถ้าไม่มีทั้ง Worker และ token ระบบจะให้ดาวน์โหลดไฟล์ แล้วไปอัปโหลดเองที่ GitHub
     </div>
     <ol class="steps" style="margin-bottom:12px;font-size:12px;color:var(--txt2)">
       <li>เข้า <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → Settings → Fine-grained tokens → Generate new token</a></li>
@@ -1360,6 +1389,19 @@ const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v === n
              set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
              del(k) { try { localStorage.removeItem(k); } catch (e) {} } };
 const token = () => ls.get('nir_gh_token', '');
+// บันทึกผ่าน Cloudflare Worker (ถือ token ไว้ให้) — ใช้อัตโนมัติเมื่อเครื่องนี้ไม่มี token
+const relayUrl = () => ls.get('nir_relay_url', '') || NIR.RELAY_URL || '';
+const relayKey = () => ls.get('nir_import_key', '');
+const nirUser = () => { try { const u = JSON.parse(localStorage.getItem('nir_user') || '{}'); return u.name || u.username || ''; } catch (e) { return ''; } };
+function ghClient() {
+  const tk = token();
+  if (tk) return NIR.gh(tk);
+  if (S.relay && S.relay.ok && S.relay.keyOk) return NIR.gh(null, { relay: relayUrl(), key: relayKey(), user: nirUser() });
+  return null;
+}
+const canWrite = () => !!ghClient();
+const writeMode = () => token() ? 'token' : (canWrite() ? 'relay' : 'download');
+async function checkRelay() { S.relay = await NIR.relayHealth(relayUrl(), relayKey()); return S.relay; }
 const fmt = (x, dp = 2) => x === null || x === undefined || isNaN(x) ? '' : (+x).toFixed(dp);
 const DEC = { ASH: 2, Ca: 3, P: 3, Aw: 3 };
 
@@ -1370,9 +1412,8 @@ function busy(on, msg) { let b = $('busy'); if (!on) { b && b.remove(); return; 
 // LOAD
 // ════════════════════════════════════════════════════════════════════
 async function loadState() {
-  const tk = token();
-  if (tk) {
-    const gh = NIR.gh(tk);
+  const gh = ghClient();
+  if (gh) {
     const [sepDb, index] = await Promise.all([gh.getJSON('sep.json'), gh.getJSON('data/index.json')]);
     if (!sepDb || !index) throw new Error('NO_DATA');
     const files = await Promise.all(index.files.map(f => gh.getJSON('data/' + f)));
@@ -1388,6 +1429,7 @@ async function init() {
   $('dDate').value = NIR.todayISO();
   const d = ls.get('nir_defaults', {});
   ['dPla', 'dTyp', 'dEqp', 'dSrc'].forEach(id => { if (d[id]) $(id).value = d[id]; });
+  await checkRelay(); renderRelay();
   try { await loadState(); S.migrated = true; }
   catch (e) {
     // ยังไม่ได้ย้ายข้อมูล → ใช้ตาราง SEP สำรองก่อน แล้วลองอ่าน Excel เดิม (data.json/data2.json) มาใช้หา SEP + เช็คข้อมูลซ้ำ
@@ -1415,7 +1457,7 @@ async function init() {
 function refreshAll() {
   const n = S.rows.length, sets = Object.keys(S.sepDb.sets).length;
   $('statusLine').textContent = (S.loaded ? n.toLocaleString() + ' แถว · ' + (S.index.files || []).length + ' เดือน · ' + sets + ' ชุด SEP' : n ? 'ข้อมูลจาก Excel เดิม ' + n.toLocaleString() + ' แถว (ยังไม่ย้าย) · ' + sets + ' ชุด SEP' : 'ยังไม่มีข้อมูล · ' + sets + ' ชุด SEP') +
-    ' · ' + (token() ? 'บันทึกตรงขึ้น GitHub ✓' : 'โหมดดาวน์โหลดไฟล์ (ยังไม่ใส่ token)');
+    ' · ' + ({ token: 'บันทึกตรงขึ้น GitHub ✓ (token เครื่องนี้)', relay: 'บันทึกขึ้นระบบอัตโนมัติ ✓', download: 'โหมดดาวน์โหลดไฟล์ — ดูแท็บ ⚙️ ตั้งค่า' })[writeMode()];
   fillDatalists();
   renderPList(); if (S.selPrd) renderPDetail(S.selPrd);
   renderData();
@@ -1445,9 +1487,8 @@ function download(name, text, type) {
 
 // files: { 'data/2026-10.json': text, 'sep.json': text }
 async function writeFiles(files, message) {
-  const tk = token();
-  if (tk) {
-    const gh = NIR.gh(tk);
+  const gh = ghClient();
+  if (gh) {
     const shas = Object.assign({}, await gh.listShas(''), await gh.listShas('data'));
     for (const path of Object.keys(files)) {
       busy(true, 'บันทึก ' + path + ' …');
@@ -1923,7 +1964,7 @@ $('btnSave').onclick = async () => {
   if (!sel.length) { toast(selDup ? 'แถวที่เลือกมีในระบบแล้วทั้งหมด' : 'ยังไม่ได้เลือกแถว'); return; }
   try {
     busy(true, 'กำลังโหลดข้อมูลล่าสุด…');
-    if (token() && S.loaded) {   // โหลดล่าสุดก่อน กันเลข No. ชนกับคนอื่น แล้วจับคู่แถวเดิมใหม่
+    if (canWrite() && S.loaded) {   // โหลดล่าสุดก่อน กันเลข No. ชนกับคนอื่น แล้วจับคู่แถวเดิมใหม่
       await loadState();
       sel.forEach(r => { r.match = findExisting(r); r.changes = r.match ? changedParams(r.match, r) : []; r.conflicts = r.match ? conflictParams(r.match, r) : []; r.status = r.match ? (r.changes.length ? 'update' : 'dup') : 'new'; });
     }
@@ -2222,6 +2263,26 @@ $('btnAlSave').onclick = () => saveConfig('al');
 // ════════════════════════════════════════════════════════════════════
 // SETUP: token + migration
 // ════════════════════════════════════════════════════════════════════
+function renderRelay() {
+  const r = S.relay, box = $('relayBox'); if (!box) return;
+  let h;
+  if (r && r.ok && r.keyOk) h = '<div class="note ok">✅ เชื่อมต่อ Worker แล้ว — กดบันทึกแล้วข้อมูลขึ้นระบบทันที' + (token() ? ' <small>(ตอนนี้เครื่องนี้ใช้ token ของตัวเองแทน)</small>' : '') + '</div>';
+  else if (r && r.ok && !r.keyOk) h = '<div class="note warn" style="margin-bottom:8px">🔑 Worker ตั้งรหัสนำเข้าไว้ — ใส่รหัสครั้งเดียวต่อเครื่อง (ขอจาก Admin)</div>' +
+    '<div class="row"><input id="impKey" type="password" placeholder="รหัสนำเข้า" style="max-width:260px"><button class="btn primary" id="btnImpKey">บันทึกรหัส</button></div>';
+  else h = '<div class="note err">❌ ต่อ Worker ไม่ได้ <span class="mono" style="font-size:11px">' + esc(relayUrl() || '(ยังไม่ได้ตั้ง URL)') + '</span> — ตรวจว่า deploy Worker และตั้ง GH_TOKEN แล้ว หรือใช้ token ด้านล่างแทน</div>';
+  h += '<details style="margin-top:8px;font-size:12px;color:var(--txt2)"><summary>เปลี่ยน URL ของ Worker</summary><div class="row" style="margin-top:6px">' +
+    '<input id="relayUrlIn" value="' + esc(relayUrl()) + '" style="max-width:420px"><button class="btn" id="btnRelayUrl">ทดสอบ & ใช้</button></div></details>';
+  box.innerHTML = h;
+  if ($('btnImpKey')) $('btnImpKey').onclick = async () => {
+    ls.set('nir_import_key', $('impKey').value.trim()); await checkRelay(); renderRelay();
+    if (S.relay && S.relay.keyOk) { toast('✅ รหัสถูกต้อง'); try { await loadState(); } catch (e) {} refreshAll(); } else toast('❌ รหัสไม่ถูกต้อง');
+  };
+  $('btnRelayUrl').onclick = async () => {
+    const v = $('relayUrlIn').value.trim();
+    if (!v || v === NIR.RELAY_URL) ls.del('nir_relay_url'); else ls.set('nir_relay_url', v);
+    await checkRelay(); renderRelay(); try { await loadState(); } catch (e) {} refreshAll();
+  };
+}
 $('tok').value = token() ? '••••••••••••' : '';
 $('btnTok').onclick = async () => {
   const v = $('tok').value.trim();
@@ -2234,7 +2295,7 @@ $('btnTok').onclick = async () => {
     refreshAll();
   } catch (e) { $('tokMsg').innerHTML = '<div class="note err">❌ ' + esc(e.message) + '</div>'; }
 };
-$('btnTokDel').onclick = () => { ls.del('nir_gh_token'); $('tok').value = ''; $('tokMsg').innerHTML = '<div class="note">ลบ token แล้ว</div>'; refreshAll(); };
+$('btnTokDel').onclick = () => { ls.del('nir_gh_token'); $('tok').value = ''; $('tokMsg').innerHTML = '<div class="note">ลบ token แล้ว</div>'; renderRelay(); refreshAll(); };
 
 async function runMigration(jsons) {
   let all = [];
@@ -2265,15 +2326,15 @@ async function runMigration(jsons) {
   if (noSep) h += '<div class="note warn" style="margin-bottom:10px">' + noSep + ' แถวไม่มีรหัส SEP</div>';
   if (conflicts.length) h += '<div class="note warn" style="margin-bottom:10px"><b>รหัส SEP ที่มีค่าไม่ตรงกันในบางแถว</b> (ใช้ค่าที่พบบ่อยที่สุด):<br>' +
     conflicts.map(c => '<span class="mono">' + esc(c.code) + ' ' + esc(c.par) + '</span>: ใช้ 2SEP=' + esc(c.used) + ' (' + c.count + ' แถว) · ค่าอื่น ' + c.values.filter(v => v[0] !== c.used).map(v => esc(v[0]) + ' (' + v[1] + ')').join(', ')).join('<br>') + '</div>';
-  h += '<div class="row"><button class="btn primary" id="migSave">' + (token() ? 'บันทึกขึ้น GitHub' : 'ดาวน์โหลด ZIP') + '</button>' +
-    (token() ? '' : '<span style="font-size:12px;color:var(--txt3)">แตก zip แล้วอัปโหลด <b>sep.json</b> + <b>โฟลเดอร์ data</b> ขึ้น repo</span>') + '</div>';
+  h += '<div class="row"><button class="btn primary" id="migSave">' + (canWrite() ? 'บันทึกขึ้น GitHub' : 'ดาวน์โหลด ZIP') + '</button>' +
+    (canWrite() ? '' : '<span style="font-size:12px;color:var(--txt3)">แตก zip แล้วอัปโหลด <b>sep.json</b> + <b>โฟลเดอร์ data</b> ขึ้น repo</span>') + '</div>';
   $('migOut').innerHTML = h;
   $('migSave').onclick = async () => {
     if (S.migrated && S.rows.length && !confirm('มีข้อมูลรูปแบบใหม่อยู่แล้ว ' + S.rows.length + ' แถว — เขียนทับด้วยข้อมูลจาก Excel เดิม?')) return;
     try {
       await writeFiles(files, 'Migrate from Excel (' + slim.length + ' rows)');
       S.sepDb = sepDb; S.rows = slim; S.index = JSON.parse(files['data/index.json']); S.loaded = true; S.migrated = true;
-      $('globalNote').innerHTML = token() ? '<div class="note ok" style="margin-bottom:12px">✅ ย้ายข้อมูลเรียบร้อย — Dashboard จะอ่านรูปแบบใหม่ภายใน 1–2 นาที</div>' : $('globalNote').innerHTML;
+      $('globalNote').innerHTML = canWrite() ? '<div class="note ok" style="margin-bottom:12px">✅ ย้ายข้อมูลเรียบร้อย — Dashboard จะอ่านรูปแบบใหม่ภายใน 1–2 นาที</div>' : $('globalNote').innerHTML;
       refreshAll();
     } catch (e) { busy(false); alert('ไม่สำเร็จ: ' + e.message); }
   };
