@@ -11,6 +11,283 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+/* ถ้ามีข้อผิดพลาด ให้แสดงบนหน้าเว็บ (ไม่เงียบ) */
+window.addEventListener('error', function (e) {
+  var box = document.getElementById('nirErrBox');
+  if (!box) { box = document.createElement('div'); box.id = 'nirErrBox';
+    box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:#fff1f1;color:#b42318;border-bottom:2px solid #f3c4c4;padding:10px 16px;font:13px sans-serif';
+    (document.body || document.documentElement).appendChild(box); }
+  box.textContent = '⚠️ หน้าเว็บทำงานผิดพลาด: ' + (e.message || e) + ' — ถ้าเปิดไฟล์จาก zip ให้แตก zip ก่อน หรือเปิดจากลิงก์บนเว็บ';
+});
+</script>
+<script>
+/* ===== nir_qc_core.js (รวมไว้ในไฟล์นี้ ไม่ต้องอัปโหลดแยก) ===== */
+/* ═══════════════════════════════════════════════════════════════════
+ * NIR QC Core — ข้อมูล X-Chart (Control Sample) ใช้ร่วมกันระหว่าง
+ *   NIR_Interface_Report_Tool.html (ส่งค่า QC) และ NIR_XChart_Sync.html (กราฟรายเดือน)
+ * เก็บบน GitHub repo เดียวกับข้อมูล NIR:
+ *   xchart/config.json    เกณฑ์ (X̄, ±2SD, ±3SD) ของแต่ละ QC sample แยกพารามิเตอร์ มีวันที่มีผล
+ *   xchart/YYYY-MM.json   ค่าที่วัดได้ของเดือนนั้น + บันทึกการทบทวนประจำเดือน
+ * เขียนผ่าน Cloudflare Worker (nir-import) หรือ GitHub token ในเครื่อง (ถ้ามี)
+ * ═══════════════════════════════════════════════════════════════════ */
+(function (global) {
+  'use strict';
+  const QCX = {};
+  QCX.REPO = { owner: 'central-lab-pcg', repo: 'NIR-Running-Performance-Check', branch: 'main' };
+  QCX.PAGES = 'https://central-lab-pcg.github.io/NIR-Running-Performance-Check/';
+  QCX.RELAY_URL = 'https://nir-import.imguy2727.workers.dev';
+  QCX.PAGE_URL = QCX.PAGES + 'NIR_XChart_Sync.html';
+
+  // พารามิเตอร์ที่ทำ X-Chart (โค้ดตรงกับ Report Tool)
+  QCX.PARAMS = [
+    { code: 'M',   name: 'Moisture',        short: 'M',   dec: 2 },
+    { code: 'CP',  name: 'Crude Protein',   short: 'CP',  dec: 2 },
+    { code: 'AH',  name: 'Acid Hydrolysis', short: 'AH',  dec: 2 },
+    { code: 'FIB', name: 'Fiber',           short: 'FIB', dec: 2 },
+    { code: 'ASH', name: 'Ash',             short: 'ASH', dec: 1 },
+  ];
+  QCX.PAR = Object.fromEntries(QCX.PARAMS.map(p => [p.code, p]));
+  // ชื่อพารามิเตอร์แบบอื่นที่อาจพบ (ข้อมูลเก่า) → โค้ด
+  QCX.PAR_ALIAS = {
+    'moisture': 'M', 'm': 'M', 'm-nir': 'M',
+    'crude protein': 'CP', 'protein': 'CP', 'cp': 'CP', 'cp-nir': 'CP',
+    'acid hydrolysis': 'AH', 'fat-ah': 'AH', 'fat ah': 'AH', 'ah': 'AH', 'ah-nir': 'AH',
+    'fiber': 'FIB', 'fibre': 'FIB', 'crude fiber': 'FIB', 'fib': 'FIB', 'fib-nir': 'FIB',
+    'ash': 'ASH', 'ash-nir': 'ASH',
+  };
+  QCX.parCode = s => QCX.PAR[s] ? s : (QCX.PAR_ALIAS[String(s || '').trim().toLowerCase()] || null);
+
+  // ชื่อ QC: "NIR02/25", "nir 02/25" → key เดียวกัน "NIR02/25"
+  QCX.qcKey = s => String(s || '').toUpperCase().replace(/\s+/g, '');
+  QCX.qcName = (cfg, key) => (cfg && cfg.qc && cfg.qc[key] && cfg.qc[key].name) || key;
+
+  QCX.DEFAULT_CONFIG = {
+    version: 1,
+    doc: { lab: 'ห้องปฏิบัติการทดสอบ บริษัท เพอร์เฟค คอมพาเนียน กรุ๊ป จำกัด', docNo: 'F-LAB-20-11', useDate: '01/05/2025', rev: '06' },
+    qc: {
+      'NIR02/25': {
+        name: 'NIR 02/25', active: true,
+        params: {
+          M:   [{ from: '2025-05-01', mean: 7.76,  p3: 7.94,  p2: 7.88,  m2: 7.63,  m3: 7.57 }],
+          CP:  [{ from: '2025-05-01', mean: 32.45, p3: 33.06, p2: 32.86, m2: 32.05, m3: 31.84 }],
+          AH:  [{ from: '2025-05-01', mean: 10.30, p3: 10.90, p2: 10.70, m2: 9.89,  m3: 9.69 }],
+          FIB: [{ from: '2025-05-01', mean: 2.29,  p3: 2.66,  p2: 2.54,  m2: 2.05,  m3: 1.93 }],
+          ASH: [{ from: '2025-05-01', mean: 6.3,   p3: 7.3,   p2: 7.0,   m2: 5.6,   m3: 5.3 }],
+        },
+      },
+    },
+  };
+
+  // ── วันที่ ──
+  QCX.monthOf = d => /^\d{4}-\d{2}/.test(d || '') ? String(d).slice(0, 7) : '';
+  QCX.todayISO = () => { const t = new Date(); return new Date(t.getTime() - t.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+  QCX.thisMonth = () => QCX.todayISO().slice(0, 7);
+  QCX.monthLabel = m => {
+    if (!/^\d{4}-\d{2}$/.test(m || '')) return '';
+    return new Date(m + '-01T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase();
+  };
+  QCX.monthTh = m => {
+    if (!/^\d{4}-\d{2}$/.test(m || '')) return '';
+    return new Date(m + '-01T00:00:00').toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+  };
+  QCX.addMonth = (m, n) => { const [y, mo] = m.split('-').map(Number); const d = new Date(y, mo - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+  QCX.dmy = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : (d || '');
+
+  // ── เกณฑ์ ──
+  // เวอร์ชันที่มีผล ณ วันที่ (ล่าสุดที่ from <= date) ถ้าก่อนเวอร์ชันแรก ใช้เวอร์ชันแรก
+  QCX.limitsFor = (cfg, key, par, date) => {
+    const q = cfg && cfg.qc && cfg.qc[key];
+    const vs = q && q.params && q.params[par];
+    if (!vs || !vs.length) return null;
+    const sorted = vs.slice().sort((a, b) => a.from.localeCompare(b.from));
+    let hit = null;
+    sorted.forEach(v => { if (!date || v.from <= date) hit = v; });
+    return hit || sorted[0];
+  };
+  QCX.fromMeanSd = (mean, sd, dec) => {
+    const r = x => +x.toFixed(dec === undefined ? 3 : dec + 1);
+    return { mean: +mean, p3: r(mean + 3 * sd), p2: r(mean + 2 * sd), m2: r(mean - 2 * sd), m3: r(mean - 3 * sd), sd: +sd };
+  };
+  // pass / warn (เกิน 2SD) / fail (เกิน 3SD)
+  QCX.status = (v, lim) => {
+    if (v === null || v === undefined || isNaN(v) || !lim) return '';
+    if (v > lim.p3 || v < lim.m3) return 'fail';
+    if (v > lim.p2 || v < lim.m2) return 'warn';
+    return 'pass';
+  };
+  QCX.STATUS_TEXT = { pass: 'Pass', warn: 'Warning', fail: 'Fail', '': '-' };
+
+  // กฎ Westgard แบบย่อ (ใช้กับจุดเรียงตามวันที่ในเดือนเดียวกัน)
+  //   1-3s  : จุดเดียวเกิน ±3SD                    → Fail (ต้องแก้ไข)
+  //   2-2s  : 2 จุดติดกันเกิน 2SD ด้านเดียวกัน        → Fail
+  //   7-T   : 7 จุดติดกันอยู่ด้านเดียวกันของ X̄         → แนวโน้ม (เฝ้าระวัง)
+  QCX.evaluate = (pts, limOf) => {
+    const flags = pts.map(() => []);
+    const side = (v, l) => v > l.mean ? 1 : v < l.mean ? -1 : 0;
+    pts.forEach((p, i) => {
+      const l = limOf(p); if (!l) return;
+      if (p.v > l.p3 || p.v < l.m3) flags[i].push('1-3s');
+      if (i > 0) {
+        const q = pts[i - 1], lq = limOf(q);
+        if (lq) {
+          const hi = p.v > l.p2 && q.v > lq.p2, lo = p.v < l.m2 && q.v < lq.m2;
+          if (hi || lo) { flags[i].push('2-2s'); if (!flags[i - 1].includes('2-2s')) flags[i - 1].push('2-2s'); }
+        }
+      }
+      if (i >= 6) {
+        const s = side(p.v, l);
+        if (s !== 0 && pts.slice(i - 6, i + 1).every(x => { const lx = limOf(x); return lx && side(x.v, lx) === s; })) {
+          for (let k = i - 6; k <= i; k++) if (!flags[k].includes('7-T')) flags[k].push('7-T');
+        }
+      }
+    });
+    return flags;
+  };
+  QCX.RULE_TEXT = {
+    '1-3s': 'เกิน ±3SD (Action limit)',
+    '2-2s': '2 จุดติดกันเกิน 2SD ด้านเดียวกัน',
+    '7-T': '7 จุดติดกันอยู่ด้านเดียวกันของค่าเฉลี่ย (แนวโน้ม)',
+  };
+
+  // ── ผู้ใช้ / ที่เก็บค่าในเครื่อง ──
+  const lsGet = (k, d) => { try { const v = localStorage.getItem(k); if (v === null) return d; try { return JSON.parse(v); } catch (e) { return v; } } catch (e) { return d; } };
+  QCX.user = () => { const u = lsGet('nir_user', {}) || {}; return u.name || u.username || ''; };
+  const token = () => lsGet('nir_gh_token', '') || '';
+  const relayUrl = () => (lsGet('nir_relay_url', '') || QCX.RELAY_URL || '').replace(/\/+$/, '');
+  const relayKey = () => lsGet('nir_import_key', '') || '';
+
+  // ── GitHub client (ผ่าน Worker หรือ token) ──
+  const b64 = s => { const bytes = new TextEncoder().encode(s); let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(bin); };
+  const unb64 = s => new TextDecoder().decode(Uint8Array.from(atob(String(s).replace(/\s/g, '')), c => c.charCodeAt(0)));
+
+  QCX.mode = null;   // 'token' | 'relay' | 'readonly'
+  QCX.relayInfo = null;
+  QCX.connect = async function () {
+    if (token()) { QCX.mode = 'token'; return QCX.mode; }
+    try {
+      const res = await fetch(relayUrl() + '/health', { headers: relayKey() ? { 'X-Import-Key': relayKey() } : {} });
+      QCX.relayInfo = res.ok ? await res.json() : null;
+    } catch (e) { QCX.relayInfo = null; }
+    QCX.mode = QCX.relayInfo && QCX.relayInfo.ok && QCX.relayInfo.keyOk ? 'relay' : 'readonly';
+    return QCX.mode;
+  };
+  QCX.canWrite = () => QCX.mode === 'token' || QCX.mode === 'relay';
+  QCX.MODE_TEXT = { token: 'บันทึกขึ้นระบบ ✓ (token เครื่องนี้)', relay: 'บันทึกขึ้นระบบอัตโนมัติ ✓', readonly: 'ดูได้อย่างเดียว — ต่อ Worker ไม่ได้' };
+
+  function api() {
+    const R = QCX.REPO;
+    if (QCX.mode === 'token') return { base: 'https://api.github.com/repos/' + R.owner + '/' + R.repo + '/contents/', h: { Authorization: 'Bearer ' + token(), 'X-GitHub-Api-Version': '2022-11-28' } };
+    const h = {}; if (relayKey()) h['X-Import-Key'] = relayKey(); if (QCX.user()) h['X-NIR-User'] = QCX.user();
+    return { base: relayUrl() + '/contents/', h };
+  }
+  // อ่านไฟล์ JSON + sha (null ถ้ายังไม่มี)
+  QCX.getFile = async function (path) {
+    if (!QCX.canWrite()) {   // อ่านจากเว็บสาธารณะ (อาจช้ากว่าจริง 1–10 นาที)
+      const res = await fetch(QCX.PAGES + path + '?_=' + Date.now(), { cache: 'no-store' });
+      if (res.status === 404) return { json: null, sha: null };
+      if (!res.ok) throw new Error('โหลด ' + path + ' ไม่ได้ (' + res.status + ')');
+      return { json: await res.json(), sha: null };
+    }
+    const a = api();
+    const res = await fetch(a.base + path + '?ref=' + QCX.REPO.branch + '&_cb=' + Date.now(), { headers: Object.assign({ Accept: 'application/vnd.github+json' }, a.h), cache: 'no-store' });
+    if (res.status === 404) return { json: null, sha: null };
+    if (!res.ok) throw new Error('โหลด ' + path + ' ไม่ได้ (GitHub ' + res.status + '): ' + (await res.text()).slice(0, 160));
+    const j = await res.json();
+    let text;
+    if (j.content && j.encoding === 'base64') text = unb64(j.content);
+    else {   // ไฟล์ใหญ่ >1MB: ขอแบบ raw
+      const r2 = await fetch(a.base + path + '?ref=' + QCX.REPO.branch + '&_cb=' + Date.now(), { headers: Object.assign({ Accept: 'application/vnd.github.raw+json' }, a.h) });
+      text = await r2.text();
+    }
+    return { json: JSON.parse(text), sha: j.sha };
+  };
+  QCX.putFile = async function (path, obj, sha, message) {
+    if (!QCX.canWrite()) throw new Error('ยังบันทึกไม่ได้ — ต่อ Worker ไม่ได้ (ดูหน้า NIR Data Import → ⚙️ ตั้งค่า)');
+    const a = api();
+    const body = { message, content: b64(JSON.stringify(obj, null, 1) + '\n'), branch: QCX.REPO.branch };
+    if (sha) body.sha = sha;
+    const res = await fetch(a.base + path, { method: 'PUT', headers: Object.assign({ Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' }, a.h), body: JSON.stringify(body) });
+    if (res.status === 409 || res.status === 422) { const e = new Error('CONFLICT'); e.conflict = true; throw e; }
+    if (!res.ok) throw new Error('บันทึก ' + path + ' ไม่สำเร็จ (GitHub ' + res.status + '): ' + (await res.text()).slice(0, 200));
+    return res.json();
+  };
+  // อ่าน → แก้ → เขียน (ถ้ามีคนบันทึกพร้อมกัน โหลดใหม่แล้วลองซ้ำ)
+  QCX.update = async function (path, empty, mutate, message) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const f = await QCX.getFile(path);
+      const obj = f.json || (typeof empty === 'function' ? empty() : JSON.parse(JSON.stringify(empty)));
+      const out = await mutate(obj);
+      if (out === false) return { obj, skipped: true };
+      try { await QCX.putFile(path, obj, f.sha, message); return { obj }; }
+      catch (e) { if (!e.conflict || attempt === 2) throw e; }
+    }
+  };
+
+  // ── ไฟล์ข้อมูล ──
+  QCX.configPath = 'xchart/config.json';
+  QCX.monthPath = m => 'xchart/' + m + '.json';
+  QCX.emptyMonth = m => ({ version: 1, month: m, points: [], reviews: {} });
+  QCX.loadConfig = async function () {
+    const f = await QCX.getFile(QCX.configPath);
+    return f.json || JSON.parse(JSON.stringify(QCX.DEFAULT_CONFIG));
+  };
+  QCX.loadMonth = async function (m) {
+    const f = await QCX.getFile(QCX.monthPath(m));
+    return f.json || QCX.emptyMonth(m);
+  };
+  QCX.saveConfig = (mutate, message) => QCX.update(QCX.configPath, QCX.DEFAULT_CONFIG, mutate, message);
+
+  // จุดข้อมูล: { k, qc, par, d, v, run, src, by, at, lab?, note? }
+  QCX.sameSlot = (a, b) => a.k === b.k && a.par === b.par && a.d === b.d && (a.run || 1) === (b.run || 1);
+  // ตรวจว่าจุดใหม่ชนกับของเดิมไหม → [{p, old}] เฉพาะที่ค่าต่างกัน
+  QCX.findConflicts = function (monthsData, pts) {
+    const out = [];
+    pts.forEach(p => {
+      const md = monthsData[QCX.monthOf(p.d)];
+      const old = md && md.points.find(o => o.k === p.k && o.par === p.par && o.d === p.d);
+      if (old && Math.abs(old.v - p.v) > 1e-9) out.push({ p, old });
+    });
+    return out;
+  };
+  // เพิ่มจุด: policy เมื่อวันเดียวกันมีค่าอยู่แล้วและค่าต่างกัน = 'replace' | 'add' (เป็นรอบที่ 2) | 'skip'
+  QCX.addPoints = async function (pts, policy, message) {
+    const byMonth = {};
+    pts.forEach(p => { const m = QCX.monthOf(p.d); (byMonth[m] = byMonth[m] || []).push(p); });
+    const sum = { added: 0, replaced: 0, same: 0, skipped: 0, months: Object.keys(byMonth).sort() };
+    const at = new Date().toISOString(), by = QCX.user();
+    for (const m of sum.months) {
+      const s = { added: 0, replaced: 0, same: 0, skipped: 0 };
+      await QCX.update(QCX.monthPath(m), () => QCX.emptyMonth(m), md => {
+        Object.assign(s, { added: 0, replaced: 0, same: 0, skipped: 0 });
+        byMonth[m].forEach(p0 => {
+          const p = Object.assign({ run: 1, src: 'report', by, at }, p0);
+          const same = md.points.filter(o => o.k === p.k && o.par === p.par && o.d === p.d);
+          if (same.some(o => Math.abs(o.v - p.v) < 1e-9)) { s.same++; return; }
+          if (!same.length) { md.points.push(p); s.added++; return; }
+          if (policy === 'replace') {
+            const o = same[same.length - 1];
+            o.prev = (o.prev || []).concat([{ v: o.v, by: o.by, at: o.at }]);
+            Object.assign(o, { v: p.v, by, at, src: p.src, lab: p.lab || o.lab });
+            if (p.note) o.note = p.note;
+            s.replaced++;
+          } else if (policy === 'add') {
+            p.run = Math.max.apply(null, same.map(o => o.run || 1)) + 1; md.points.push(p); s.added++;
+          } else s.skipped++;
+        });
+        if (!s.added && !s.replaced) return false;
+        md.points.sort((a, b) => (a.k + a.par + a.d + (a.run || 1)).localeCompare(b.k + b.par + b.d + (b.run || 1)));
+      }, message || ('QC X-Chart ' + m));
+      ['added', 'replaced', 'same', 'skipped'].forEach(k => { sum[k] += s[k]; });
+    }
+    return sum;
+  };
+
+  global.QCX = QCX;
+  if (typeof module !== 'undefined') module.exports = QCX;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
 <style>
 :root{
   --bg:#f4f5f7; --panel:#ffffff; --border:#d7dae0; --text:#1c2230; --muted:#6b7280;
@@ -131,29 +408,19 @@ select.diffmode-sel{font-size:11px; padding:2px 3px; border:1px solid #999; bord
     <button id="controlChartBtn" class="primary" style="background:#7c3aed; border-color:#5b21b6; white-space:nowrap;">📊 Control Chart</button>
   </div>
 
-  <div id="ccModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:50; align-items:center; justify-content:center; padding:16px;">
-    <div style="background:#fff; color:#1c2230; border-radius:12px; max-width:520px; width:100%; padding:20px 22px; box-shadow:0 10px 30px rgba(0,0,0,.25);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <h2 style="margin:0; font-size:16px;">📊 ไปที่ Control Chart (X-Chart)</h2>
-        <button id="ccModalClose" style="border:none; background:none; font-size:18px; cursor:pointer; padding:2px 6px;">✕</button>
+  <div id="qcOv" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9995; align-items:flex-start; justify-content:center; padding:40px 16px; overflow:auto;">
+    <div style="background:#fff; color:#1c2230; border-radius:14px; max-width:860px; width:100%; padding:20px 22px; box-shadow:0 10px 30px rgba(0,0,0,.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <h2 style="margin:0; font-size:16px;">📈 บันทึกค่า QC ลง X-Chart</h2>
+        <button id="qcClose" style="border:none; background:none; font-size:20px; cursor:pointer; padding:2px 6px;">✕</button>
       </div>
-      <div style="font-size:13px; line-height:1.7; color:#374151;">
-        หน้านี้เปิดไฟล์ X-Chart ให้อัตโนมัติไม่ได้ (เบราว์เซอร์บล็อกการเปิดไฟล์ในเครื่องจากหน้าเว็บ) ทำตามขั้นตอนนี้แทน:
-        <ol style="padding-left:18px; margin:8px 0;">
-          <li>กดปุ่มด้านล่าง "📋 คัดลอกค่า QC จากรายงานนี้" (ถ้ามีรายงานที่มีแถว QC อยู่แล้ว)</li>
-          <li>เปิดไฟล์ <b>NIR_XChart_Sync.html</b> ที่เก็บไว้ในเครื่อง (ดับเบิลคลิกเปิดตรงๆ)</li>
-          <li>ในไฟล์นั้น กดปุ่ม "📋 วางข้อมูลจาก Report Tool" — จะซิงก์ค่าขึ้นระบบกลางให้ทันที</li>
-        </ol>
+      <div id="qcMode" style="font-size:12px; color:#6b7280; margin-bottom:10px;"></div>
+      <div id="qcBody"></div>
+      <div id="qcMsg" style="margin-top:10px;"></div>
+      <div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+        <button id="qcOpen">เปิด X-Chart</button>
+        <button class="primary" id="qcSave">บันทึกลง X-Chart</button>
       </div>
-      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="primary" id="ccModalCopyBtn">📋 คัดลอกค่า QC จากรายงานนี้</button>
-      </div>
-      <div id="ccManualBox" style="display:none; margin-top:10px;">
-        <div style="font-size:12.5px; color:#b91c1c; margin-bottom:4px;">คัดลอกอัตโนมัติไม่สำเร็จ (เบราว์เซอร์บล็อก) — กดเลือกข้อความทั้งหมดด้านล่างนี้ แล้วกด Ctrl+C (หรือคลิกขวา → Copy) ด้วยตัวเองแทน</div>
-        <textarea id="ccManualTextarea" readonly style="width:100%; min-height:60px; font-family:monospace; font-size:11px;" onclick="this.select()"></textarea>
-        <div style="margin-top:6px;"><button id="ccSelectAllBtn">เลือกข้อความทั้งหมด</button></div>
-      </div>
-      <div class="status ok" id="ccModalStatus" style="margin-top:10px;"></div>
     </div>
   </div>
 
@@ -235,9 +502,10 @@ select.diffmode-sel{font-size:11px; padding:2px 3px; border:1px solid #999; bord
     <div class="rowbtns">
       <button class="primary" id="printBtn">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
       <button id="exportXlsxBtn">📊 บันทึกเป็น Excel (Interface)</button>
-      <button id="sendQcBtn">📈 ส่งค่า QC ไปที่ X-Chart</button>
+      <button id="sendQcBtn">📈 บันทึกค่า QC ลง X-Chart</button>
       <button id="addRowBtn">+ เพิ่มแถวว่าง</button>
     </div>
+    <div id="qcStrip"></div>
     <div id="reportHolder"></div>
   </div>
 
@@ -470,13 +738,13 @@ function renderReport(){
     const r1 = g.rows[0];
     const pair = g.rows.length>=2 ? g.rows[1] : null;
     const rowClass = g.isQC ? ' class="qcrow"' : '';
-    bodyRows += `<tr${rowClass}>`
+    bodyRows += `<tr${rowClass} data-gi="${gi}" data-kind="r1">`
       + `<td>${no}</td><td class="namecell">${esc(g.labNo)}</td><td class="left namecell">${esc(g.sampleName)}</td>`
       + PARAMS.map(p=>`<td contenteditable="true">${formatValue(p.code, r1.values[p.code], g.sampleName, g.isQC)}</td>`).join('')
       + `<td contenteditable="true"></td></tr>`;
 
     if(pair){
-      bodyRows += `<tr${rowClass}>`
+      bodyRows += `<tr${rowClass} data-gi="${gi}" data-kind="r2">`
         + `<td>-</td><td class="namecell">${esc(g.labNo)}</td><td class="left namecell">${esc(g.sampleName)}</td>`
         + PARAMS.map(p=>`<td contenteditable="true">${formatValue(p.code, pair.values[p.code], g.sampleName, g.isQC)}</td>`).join('')
         + `<td contenteditable="true"></td></tr>`;
@@ -490,7 +758,7 @@ function renderReport(){
         else if(a!==null || b!==null){ avg[p.code]=(a!==null?a:b); }
         else { avg[p.code]=null; }
       });
-      bodyRows += `<tr class="avgrow"><td>-</td><td>-</td><td class="left">AVG</td>`
+      bodyRows += `<tr class="avgrow" data-gi="${gi}" data-kind="avg"><td>-</td><td>-</td><td class="left">AVG</td>`
         + PARAMS.map(p=>`<td contenteditable="true">${formatValue(p.code, avg[p.code], g.sampleName, g.isQC)}</td>`).join('')
         + `<td contenteditable="true"></td></tr>`;
       if(g.diffMode===undefined) g.diffMode = 'diff';
@@ -552,6 +820,7 @@ function renderReport(){
   </div>`;
   holder.innerHTML = html;
   document.getElementById('reportPanel').style.display='block';
+  setTimeout(qcStrip, 0);
 }
 
 function esc(s){
@@ -789,104 +1058,114 @@ async function doDownload(filename, dataBlob){
   setTimeout(()=>URL.revokeObjectURL(url), 4000);
 }
 
-// ---------- copy QC readings for the standalone X-Chart Sync tool ----------
-// This page (Claude Artifact) is blocked from reaching external hosts, so it cannot push
-// straight to the Worker/KV that the X-Chart Sync tool syncs through, and it can't open a
-// local file on the user's machine either (browsers block that from an https page).
-// Instead: copy the encoded payload to the clipboard; open NIR_XChart_Sync.html directly
-// (double-click the file, not a link) and use its "วางข้อมูลจาก Report Tool" button to
-// paste it in — that file CAN reach the Worker and will sync it for everyone.
-async function copyQcPayloadToClipboard(){
-  if(!groups.length){ return {ok:false, msg:'ยังไม่มีข้อมูลรายงาน'}; }
+// ---------- QC → X-Chart (บันทึกตรงขึ้นระบบ ไม่ต้องคัดลอก-วาง) ----------
+// อ่านค่า QC จากตารางรายงานที่แสดงอยู่ (รวมค่าที่แก้มือในตาราง) — แถว AVG ถ้ามีสองครั้ง ไม่งั้นแถวเดียว
+QCX.connect().then(() => { const m = document.getElementById('qcMode'); if (m) m.textContent = QCX.MODE_TEXT[QCX.mode] || ''; });
+let qcCfg = null, qcItems = [];
+function qcPills(st) { const c = { pass: ['#e6f6ec', '#15803d'], warn: ['#fff1d6', '#b45309'], fail: ['#fde4e4', '#dc2626'] }[st]; return c ? `<span style="background:${c[0]};color:${c[1]};border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">${QCX.STATUS_TEXT[st]}</span>` : '<span style="color:#9ca3af;font-size:11.5px">ไม่มีเกณฑ์</span>'; }
+function readQcFromReport() {
+  const out = [];
   const testDate = document.getElementById('testDate').value || '';
-  const docNo = 'F-LAB-17-27', useDate = '24/09/2026', rev = '04'; // report header (informational only)
-  const pts = [];
-  groups.forEach(g=>{
-    if(!g.isQC || !g._final) return;
-    PARAMS.forEach(p=>{
-      const v = g._final[p.code];
-      if(v===null || v===undefined || isTxt(v)) return;
-      pts.push({ qcNo: g.sampleName || g.labNo, param: p.label, date: testDate || '', value: v });
+  groups.forEach((g, gi) => {
+    if (!g.isQC) return;
+    const tr = document.querySelector(`#reportEl tr[data-gi="${gi}"][data-kind="avg"]`) || document.querySelector(`#reportEl tr[data-gi="${gi}"][data-kind="r1"]`);
+    if (!tr) return;
+    const tds = tr.querySelectorAll('td');
+    const vals = {};
+    QCX.PARAMS.forEach(P => {
+      const idx = PARAMS.findIndex(p => p.code === P.code);
+      if (idx < 0) return;
+      const td = tds[3 + idx];
+      const v = td ? parseFloat(String(td.textContent).replace(/,/g, '').trim()) : NaN;
+      if (!isNaN(v)) vals[P.code] = v;
     });
+    if (Object.keys(vals).length) out.push({ gi, name: (g.sampleName || g.labNo || '').trim(), labNo: g.labNo, date: testDate, vals });
   });
-  if(!pts.length){ return {ok:false, msg:'ไม่พบแถว QC (CheckSample) ที่มีค่าในรายงานนี้'}; }
-  const payload = { docNo, useDate, rev, points: pts };
-  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))))
-    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-  // Claude Artifact pages run in a sandboxed iframe that commonly blocks the programmatic
-  // Clipboard API (navigator.clipboard.writeText) even though it resolves/rejects inconsistently
-  // across browsers. Verify it actually landed before claiming success; if not, fall back to a
-  // real on-screen textarea the user selects and copies manually (Ctrl+C) — that's a genuine
-  // user-initiated browser copy, which is NOT subject to the same API restriction.
-  try{
-    await navigator.clipboard.writeText(b64);
-    const check = await navigator.clipboard.readText().catch(()=>null);
-    if(check === b64){
-      return {ok:true, count: pts.length, manual:false};
-    }
-    throw new Error('verify-failed');
-  }catch(e){
-    return {ok:false, manual:true, b64, count: pts.length};
-  }
+  return out;
 }
-
-function showManualCopyBox(b64){
-  const box = document.getElementById('ccManualBox');
-  const ta = document.getElementById('ccManualTextarea');
-  ta.value = b64;
-  box.style.display = 'block';
-  ta.focus(); ta.select();
+async function qcLoadCfg() { if (!qcCfg) { try { qcCfg = await QCX.loadConfig(); } catch (e) { qcCfg = JSON.parse(JSON.stringify(QCX.DEFAULT_CONFIG)); } } return qcCfg; }
+// แถบสรุปใต้ปุ่ม: QC ในรายงานนี้ผ่านเกณฑ์ไหม (เห็นทันทีตอนทำรายงาน)
+async function qcStrip() {
+  const el = document.getElementById('qcStrip'); if (!el) return;
+  const items = readQcFromReport();
+  if (!items.length) { el.innerHTML = ''; return; }
+  const cfg = await qcLoadCfg();
+  el.innerHTML = '<div style="margin:10px 0;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;background:#fafafa;font-size:12.5px;line-height:1.9">' + items.map(it => {
+    const k = QCX.qcKey(it.name);
+    return `<b>QC ${esc(it.name)}</b> (${esc(QCX.dmy(it.date))}): ` + QCX.PARAMS.filter(P => P.code in it.vals).map(P => {
+      const st = QCX.status(it.vals[P.code], QCX.limitsFor(cfg, k, P.code, it.date));
+      return `${P.short} ${it.vals[P.code].toFixed(P.dec)} ${qcPills(st)}`;
+    }).join(' &nbsp; ') + (cfg.qc[k] ? '' : ' <span style="color:#b45309">· ยังไม่มีเกณฑ์ของ QC นี้ (ตั้งได้ในหน้า X-Chart)</span>');
+  }).join('<br>') + '</div>';
 }
-document.getElementById('ccSelectAllBtn').addEventListener('click', ()=>{
-  const ta = document.getElementById('ccManualTextarea');
-  ta.focus(); ta.select();
-});
+async function openQcModal() {
+  if (!groups.length || !document.getElementById('reportEl')) { setStatus('ยังไม่มีรายงาน กรุณาสร้างรายงานก่อน', false); return; }
+  qcItems = readQcFromReport();
+  const ov = document.getElementById('qcOv'), body = document.getElementById('qcBody');
+  document.getElementById('qcMsg').innerHTML = '';
+  document.getElementById('qcMode').textContent = QCX.MODE_TEXT[QCX.mode] || 'กำลังเชื่อมต่อ…';
+  if (!qcItems.length) { body.innerHTML = '<div style="padding:12px;background:#fef3c7;border-radius:8px">ไม่พบแถว QC (Sample Type = CheckSample) ที่มีค่า M / CP / AH / FIB / ASH ในรายงานนี้</div>'; document.getElementById('qcSave').disabled = true; ov.style.display = 'flex'; return; }
+  if (!document.getElementById('testDate').value) { setStatus('ใส่ Test Date ก่อน', false); return; }
+  ov.style.display = 'flex';
+  body.innerHTML = 'กำลังตรวจกับเกณฑ์และข้อมูลเดิม…';
+  const cfg = await qcLoadCfg();
+  const months = {};
+  try { for (const m of [...new Set(qcItems.map(i => QCX.monthOf(i.date)))]) months[m] = await QCX.loadMonth(m); } catch (e) { }
+  const draw = () => {
+    let anyConf = false;
+    body.innerHTML = qcItems.map((it, n) => {
+      const k = QCX.qcKey(it.name), known = !!cfg.qc[k];
+      const pts = QCX.PARAMS.filter(P => P.code in it.vals).map(P => ({ k, par: P.code, d: it.date, v: it.vals[P.code] }));
+      const conf = QCX.findConflicts(months, pts); if (conf.length) anyConf = true;
+      const rows = QCX.PARAMS.filter(P => P.code in it.vals).map(P => {
+        const l = QCX.limitsFor(cfg, k, P.code, it.date), v = it.vals[P.code], c = conf.find(x => x.p.par === P.code);
+        return `<tr><td style="padding:5px 8px"><b>${P.short}</b> <span style="color:#6b7280;font-size:12px">${P.name}</span></td><td style="padding:5px 8px;font-weight:700">${v.toFixed(P.dec)}</td><td style="padding:5px 8px;color:#6b7280;font-size:12px">${l ? 'X̄ ' + l.mean + ' · ' + l.m3 + ' – ' + l.p3 : '-'}</td><td style="padding:5px 8px">${qcPills(QCX.status(v, l))}</td><td style="padding:5px 8px;font-size:12px;color:#b45309">${c ? 'มีค่าวันนี้แล้ว ' + c.old.v : ''}</td></tr>`;
+      }).join('');
+      return `<div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin-bottom:10px">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+          <label style="font-size:12px;color:#6b7280">Control Sample</label><input data-qcname="${n}" value="${esc(it.name)}" style="width:150px">
+          <span style="font-size:12px;color:#6b7280">วันที่ ${esc(QCX.dmy(it.date))} · Lab No. ${esc(it.labNo)}</span>
+          ${known ? '' : '<span style="font-size:12px;color:#b45309">QC ใหม่ — ยังไม่มีเกณฑ์ (บันทึกค่าได้ ตั้งเกณฑ์ภายหลังในหน้า X-Chart)</span>'}
+        </div>
+        <table style="border-collapse:collapse;width:100%;font-size:13px">${rows}</table></div>`;
+    }).join('') + (anyConf ? `<div style="margin-top:6px;font-size:13px;padding:10px 12px;background:#fff7ed;border-radius:8px">บางค่ามีอยู่แล้วในวันเดียวกัน (ค่าไม่ตรงกัน):
+      <label><input type="radio" name="qcPol" value="replace" checked> แทนที่ค่าเดิม (เก็บค่าเดิมไว้ในประวัติ)</label> &nbsp;
+      <label><input type="radio" name="qcPol" value="add"> เพิ่มเป็นรอบที่ 2</label> &nbsp;
+      <label><input type="radio" name="qcPol" value="skip"> ข้ามค่าที่ซ้ำ</label></div>` : '');
+    body.querySelectorAll('[data-qcname]').forEach(inp => inp.onchange = () => { qcItems[+inp.dataset.qcname].name = inp.value.trim(); draw(); });
+  };
+  draw();
+  document.getElementById('qcSave').disabled = !QCX.canWrite();
+  if (!QCX.canWrite()) document.getElementById('qcMsg').innerHTML = '<div style="padding:10px 12px;background:#fde4e4;border-radius:8px;font-size:13px">ยังบันทึกไม่ได้ — เครื่องนี้ต่อ Worker ไม่ได้ (ตรวจที่หน้า NIR Data Import → ⚙️ ตั้งค่า)</div>';
+}
+document.getElementById('sendQcBtn').addEventListener('click', openQcModal);
+document.getElementById('qcClose').onclick = () => { document.getElementById('qcOv').style.display = 'none'; };
+document.getElementById('qcSave').onclick = async () => {
+  const btn = document.getElementById('qcSave'), msg = document.getElementById('qcMsg');
+  const pol = (document.querySelector('input[name=qcPol]:checked') || {}).value || 'replace';
+  const pts = [];
+  qcItems.forEach(it => { if (!it.name) return; const k = QCX.qcKey(it.name); QCX.PARAMS.forEach(P => { if (P.code in it.vals) pts.push({ k, qc: it.name, par: P.code, d: it.date, v: it.vals[P.code], src: 'report', lab: it.labNo }); }); });
+  if (!pts.length) return;
+  btn.disabled = true; msg.innerHTML = 'กำลังบันทึก…';
+  try {
+    const cfg = await qcLoadCfg();
+    const newQc = [...new Set(pts.map(p => p.k))].filter(k => !cfg.qc[k]);
+    if (newQc.length) qcCfg = (await QCX.saveConfig(c => { c.qc = c.qc || {}; newQc.forEach(k => { if (!c.qc[k]) c.qc[k] = { name: pts.find(p => p.k === k).qc, active: true, params: {} }; }); }, 'QC add ' + newQc.join(', '))).obj;
+    const sum = await QCX.addPoints(pts, pol, 'QC from report ' + (document.getElementById('testDate').value || ''));
+    msg.innerHTML = `<div style="padding:10px 12px;background:#e6f6ec;color:#14532d;border-radius:8px;font-size:13px">✅ บันทึกลง X-Chart แล้ว: เพิ่ม ${sum.added}${sum.replaced ? ' · แทนที่ ' + sum.replaced : ''}${sum.same ? ' · มีอยู่แล้ว ' + sum.same : ''}${sum.skipped ? ' · ข้าม ' + sum.skipped : ''}</div>`;
+    setStatus('บันทึกค่า QC ลง X-Chart แล้ว', true);
+  } catch (e) { msg.innerHTML = `<div style="padding:10px 12px;background:#fde4e4;border-radius:8px;font-size:13px">❌ ${esc(e.message)}</div>`; }
+  btn.disabled = !QCX.canWrite();
+};
+function xchartUrl() {
+  const it = (qcItems.length ? qcItems : readQcFromReport())[0];
+  const u = new URL(QCX.PAGE_URL);
+  if (it) { u.searchParams.set('qc', QCX.qcKey(it.name)); if (it.date) u.searchParams.set('month', QCX.monthOf(it.date)); }
+  return u.toString();
+}
+document.getElementById('qcOpen').onclick = () => window.open(xchartUrl(), '_blank');
+document.getElementById('controlChartBtn').addEventListener('click', () => window.open(xchartUrl(), '_blank'));
 
-document.getElementById('sendQcBtn').addEventListener('click', async function(){
-  const r = await copyQcPayloadToClipboard();
-  if(r.manual){
-    showManualCopyBox(r.b64);
-    setStatus(`คัดลอกอัตโนมัติไม่สำเร็จ — เลือกข้อความในช่องด้านล่างแล้ว Ctrl+C ด้วยตัวเอง แล้วไปวางที่ NIR_XChart_Sync.html`, false);
-    return;
-  }
-  if(!r.ok){ setStatus(r.msg, false); return; }
-  setStatus(`คัดลอกค่า QC ${r.count} รายการแล้ว — เปิดไฟล์ NIR_XChart_Sync.html แล้วกด "วางข้อมูลจาก Report Tool"`, true);
-});
-
-// ---------- top "Control Chart" button: now a real hosted link (GitHub Pages) ----------
-// NIR_XChart_Sync.html is hosted in the same repo/site as the other portal tools, so this
-// page CAN open it directly - no more copy/paste modal needed. Best-effort copy the current
-// report's QC values to the clipboard first (X-Chart Sync's "วางข้อมูลจาก Report Tool" button
-// can use it), then open the tool in a new tab either way.
-const XCHART_URL = 'https://central-lab-pcg.github.io/NIR-Running-Performance-Check/NIR_XChart_Sync.html';
-document.getElementById('controlChartBtn').addEventListener('click', async ()=>{
-  const r = await copyQcPayloadToClipboard();
-  window.open(XCHART_URL, '_blank');
-  if(r.manual){
-    document.getElementById('ccModalStatus').className = 'status';
-    document.getElementById('ccModalStatus').textContent = '';
-    document.getElementById('ccModalOverlay').style.display = 'flex';
-    showManualCopyBox(r.b64);
-    setStatus('เปิด Control Chart แล้ว — แต่คัดลอกอัตโนมัติไม่สำเร็จ เลือกข้อความในหน้าต่างที่เปิดขึ้นแล้ว Ctrl+C ด้วยตัวเอง', false);
-  } else if(r.ok){
-    setStatus(`คัดลอกค่า QC ${r.count} รายการแล้ว และเปิด Control Chart ในแท็บใหม่`, true);
-  }
-  // r.ok===false (no report data yet) — just open the tool, nothing to copy
-});
-document.getElementById('ccModalClose')?.addEventListener('click', ()=>{ document.getElementById('ccModalOverlay').style.display = 'none'; });
-document.getElementById('ccModalCopyBtn')?.addEventListener('click', async ()=>{
-  const r = await copyQcPayloadToClipboard();
-  const box = document.getElementById('ccModalStatus');
-  if(r.manual){
-    showManualCopyBox(r.b64);
-    box.className = 'status err';
-    box.textContent = 'คัดลอกอัตโนมัติไม่สำเร็จ — เลือกข้อความด้านล่างแล้ว Ctrl+C ด้วยตัวเอง';
-    return;
-  }
-  document.getElementById('ccManualBox').style.display = 'none';
-  box.className = 'status ' + (r.ok ? 'ok' : 'err');
-  box.textContent = r.ok ? `คัดลอกค่า QC ${r.count} รายการแล้ว` : r.msg;
-});
 
 document.getElementById('exportXlsxBtn').addEventListener('click', async function(){
   if(!groups.length){ setStatus('ยังไม่มีข้อมูลรายงาน', false); return; }

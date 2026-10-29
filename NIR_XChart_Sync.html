@@ -2,863 +2,888 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>NIR X-Chart Tool (Sync)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QC Control Chart (X-Chart)</title>
+<script>var NIR_TOOL_ID = "xchart";</script>
+<script src="nir_auth.js"></script>
+<script src="https://central-lab-pcg.github.io/NIR-Running-Performance-Check/nir_sidebar.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+/* ถ้ามีข้อผิดพลาด ให้แสดงบนหน้าเว็บ (ไม่เงียบ) */
+window.addEventListener('error', function (e) {
+  var box = document.getElementById('nirErrBox');
+  if (!box) { box = document.createElement('div'); box.id = 'nirErrBox';
+    box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:#fff1f1;color:#b42318;border-bottom:2px solid #f3c4c4;padding:10px 16px;font:13px sans-serif';
+    (document.body || document.documentElement).appendChild(box); }
+  box.textContent = '⚠️ หน้าเว็บทำงานผิดพลาด: ' + (e.message || e) + ' — ถ้าเปิดไฟล์จาก zip ให้แตก zip ก่อน หรือเปิดจากลิงก์บนเว็บ';
+});
+</script>
+<script>
+/* ===== nir_qc_core.js (รวมไว้ในไฟล์นี้ ไม่ต้องอัปโหลดแยก) ===== */
+/* ═══════════════════════════════════════════════════════════════════
+ * NIR QC Core — ข้อมูล X-Chart (Control Sample) ใช้ร่วมกันระหว่าง
+ *   NIR_Interface_Report_Tool.html (ส่งค่า QC) และ NIR_XChart_Sync.html (กราฟรายเดือน)
+ * เก็บบน GitHub repo เดียวกับข้อมูล NIR:
+ *   xchart/config.json    เกณฑ์ (X̄, ±2SD, ±3SD) ของแต่ละ QC sample แยกพารามิเตอร์ มีวันที่มีผล
+ *   xchart/YYYY-MM.json   ค่าที่วัดได้ของเดือนนั้น + บันทึกการทบทวนประจำเดือน
+ * เขียนผ่าน Cloudflare Worker (nir-import) หรือ GitHub token ในเครื่อง (ถ้ามี)
+ * ═══════════════════════════════════════════════════════════════════ */
+(function (global) {
+  'use strict';
+  const QCX = {};
+  QCX.REPO = { owner: 'central-lab-pcg', repo: 'NIR-Running-Performance-Check', branch: 'main' };
+  QCX.PAGES = 'https://central-lab-pcg.github.io/NIR-Running-Performance-Check/';
+  QCX.RELAY_URL = 'https://nir-import.imguy2727.workers.dev';
+  QCX.PAGE_URL = QCX.PAGES + 'NIR_XChart_Sync.html';
+
+  // พารามิเตอร์ที่ทำ X-Chart (โค้ดตรงกับ Report Tool)
+  QCX.PARAMS = [
+    { code: 'M',   name: 'Moisture',        short: 'M',   dec: 2 },
+    { code: 'CP',  name: 'Crude Protein',   short: 'CP',  dec: 2 },
+    { code: 'AH',  name: 'Acid Hydrolysis', short: 'AH',  dec: 2 },
+    { code: 'FIB', name: 'Fiber',           short: 'FIB', dec: 2 },
+    { code: 'ASH', name: 'Ash',             short: 'ASH', dec: 1 },
+  ];
+  QCX.PAR = Object.fromEntries(QCX.PARAMS.map(p => [p.code, p]));
+  // ชื่อพารามิเตอร์แบบอื่นที่อาจพบ (ข้อมูลเก่า) → โค้ด
+  QCX.PAR_ALIAS = {
+    'moisture': 'M', 'm': 'M', 'm-nir': 'M',
+    'crude protein': 'CP', 'protein': 'CP', 'cp': 'CP', 'cp-nir': 'CP',
+    'acid hydrolysis': 'AH', 'fat-ah': 'AH', 'fat ah': 'AH', 'ah': 'AH', 'ah-nir': 'AH',
+    'fiber': 'FIB', 'fibre': 'FIB', 'crude fiber': 'FIB', 'fib': 'FIB', 'fib-nir': 'FIB',
+    'ash': 'ASH', 'ash-nir': 'ASH',
+  };
+  QCX.parCode = s => QCX.PAR[s] ? s : (QCX.PAR_ALIAS[String(s || '').trim().toLowerCase()] || null);
+
+  // ชื่อ QC: "NIR02/25", "nir 02/25" → key เดียวกัน "NIR02/25"
+  QCX.qcKey = s => String(s || '').toUpperCase().replace(/\s+/g, '');
+  QCX.qcName = (cfg, key) => (cfg && cfg.qc && cfg.qc[key] && cfg.qc[key].name) || key;
+
+  QCX.DEFAULT_CONFIG = {
+    version: 1,
+    doc: { lab: 'ห้องปฏิบัติการทดสอบ บริษัท เพอร์เฟค คอมพาเนียน กรุ๊ป จำกัด', docNo: 'F-LAB-20-11', useDate: '01/05/2025', rev: '06' },
+    qc: {
+      'NIR02/25': {
+        name: 'NIR 02/25', active: true,
+        params: {
+          M:   [{ from: '2025-05-01', mean: 7.76,  p3: 7.94,  p2: 7.88,  m2: 7.63,  m3: 7.57 }],
+          CP:  [{ from: '2025-05-01', mean: 32.45, p3: 33.06, p2: 32.86, m2: 32.05, m3: 31.84 }],
+          AH:  [{ from: '2025-05-01', mean: 10.30, p3: 10.90, p2: 10.70, m2: 9.89,  m3: 9.69 }],
+          FIB: [{ from: '2025-05-01', mean: 2.29,  p3: 2.66,  p2: 2.54,  m2: 2.05,  m3: 1.93 }],
+          ASH: [{ from: '2025-05-01', mean: 6.3,   p3: 7.3,   p2: 7.0,   m2: 5.6,   m3: 5.3 }],
+        },
+      },
+    },
+  };
+
+  // ── วันที่ ──
+  QCX.monthOf = d => /^\d{4}-\d{2}/.test(d || '') ? String(d).slice(0, 7) : '';
+  QCX.todayISO = () => { const t = new Date(); return new Date(t.getTime() - t.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+  QCX.thisMonth = () => QCX.todayISO().slice(0, 7);
+  QCX.monthLabel = m => {
+    if (!/^\d{4}-\d{2}$/.test(m || '')) return '';
+    return new Date(m + '-01T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase();
+  };
+  QCX.monthTh = m => {
+    if (!/^\d{4}-\d{2}$/.test(m || '')) return '';
+    return new Date(m + '-01T00:00:00').toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+  };
+  QCX.addMonth = (m, n) => { const [y, mo] = m.split('-').map(Number); const d = new Date(y, mo - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+  QCX.dmy = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : (d || '');
+
+  // ── เกณฑ์ ──
+  // เวอร์ชันที่มีผล ณ วันที่ (ล่าสุดที่ from <= date) ถ้าก่อนเวอร์ชันแรก ใช้เวอร์ชันแรก
+  QCX.limitsFor = (cfg, key, par, date) => {
+    const q = cfg && cfg.qc && cfg.qc[key];
+    const vs = q && q.params && q.params[par];
+    if (!vs || !vs.length) return null;
+    const sorted = vs.slice().sort((a, b) => a.from.localeCompare(b.from));
+    let hit = null;
+    sorted.forEach(v => { if (!date || v.from <= date) hit = v; });
+    return hit || sorted[0];
+  };
+  QCX.fromMeanSd = (mean, sd, dec) => {
+    const r = x => +x.toFixed(dec === undefined ? 3 : dec + 1);
+    return { mean: +mean, p3: r(mean + 3 * sd), p2: r(mean + 2 * sd), m2: r(mean - 2 * sd), m3: r(mean - 3 * sd), sd: +sd };
+  };
+  // pass / warn (เกิน 2SD) / fail (เกิน 3SD)
+  QCX.status = (v, lim) => {
+    if (v === null || v === undefined || isNaN(v) || !lim) return '';
+    if (v > lim.p3 || v < lim.m3) return 'fail';
+    if (v > lim.p2 || v < lim.m2) return 'warn';
+    return 'pass';
+  };
+  QCX.STATUS_TEXT = { pass: 'Pass', warn: 'Warning', fail: 'Fail', '': '-' };
+
+  // กฎ Westgard แบบย่อ (ใช้กับจุดเรียงตามวันที่ในเดือนเดียวกัน)
+  //   1-3s  : จุดเดียวเกิน ±3SD                    → Fail (ต้องแก้ไข)
+  //   2-2s  : 2 จุดติดกันเกิน 2SD ด้านเดียวกัน        → Fail
+  //   7-T   : 7 จุดติดกันอยู่ด้านเดียวกันของ X̄         → แนวโน้ม (เฝ้าระวัง)
+  QCX.evaluate = (pts, limOf) => {
+    const flags = pts.map(() => []);
+    const side = (v, l) => v > l.mean ? 1 : v < l.mean ? -1 : 0;
+    pts.forEach((p, i) => {
+      const l = limOf(p); if (!l) return;
+      if (p.v > l.p3 || p.v < l.m3) flags[i].push('1-3s');
+      if (i > 0) {
+        const q = pts[i - 1], lq = limOf(q);
+        if (lq) {
+          const hi = p.v > l.p2 && q.v > lq.p2, lo = p.v < l.m2 && q.v < lq.m2;
+          if (hi || lo) { flags[i].push('2-2s'); if (!flags[i - 1].includes('2-2s')) flags[i - 1].push('2-2s'); }
+        }
+      }
+      if (i >= 6) {
+        const s = side(p.v, l);
+        if (s !== 0 && pts.slice(i - 6, i + 1).every(x => { const lx = limOf(x); return lx && side(x.v, lx) === s; })) {
+          for (let k = i - 6; k <= i; k++) if (!flags[k].includes('7-T')) flags[k].push('7-T');
+        }
+      }
+    });
+    return flags;
+  };
+  QCX.RULE_TEXT = {
+    '1-3s': 'เกิน ±3SD (Action limit)',
+    '2-2s': '2 จุดติดกันเกิน 2SD ด้านเดียวกัน',
+    '7-T': '7 จุดติดกันอยู่ด้านเดียวกันของค่าเฉลี่ย (แนวโน้ม)',
+  };
+
+  // ── ผู้ใช้ / ที่เก็บค่าในเครื่อง ──
+  const lsGet = (k, d) => { try { const v = localStorage.getItem(k); if (v === null) return d; try { return JSON.parse(v); } catch (e) { return v; } } catch (e) { return d; } };
+  QCX.user = () => { const u = lsGet('nir_user', {}) || {}; return u.name || u.username || ''; };
+  const token = () => lsGet('nir_gh_token', '') || '';
+  const relayUrl = () => (lsGet('nir_relay_url', '') || QCX.RELAY_URL || '').replace(/\/+$/, '');
+  const relayKey = () => lsGet('nir_import_key', '') || '';
+
+  // ── GitHub client (ผ่าน Worker หรือ token) ──
+  const b64 = s => { const bytes = new TextEncoder().encode(s); let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(bin); };
+  const unb64 = s => new TextDecoder().decode(Uint8Array.from(atob(String(s).replace(/\s/g, '')), c => c.charCodeAt(0)));
+
+  QCX.mode = null;   // 'token' | 'relay' | 'readonly'
+  QCX.relayInfo = null;
+  QCX.connect = async function () {
+    if (token()) { QCX.mode = 'token'; return QCX.mode; }
+    try {
+      const res = await fetch(relayUrl() + '/health', { headers: relayKey() ? { 'X-Import-Key': relayKey() } : {} });
+      QCX.relayInfo = res.ok ? await res.json() : null;
+    } catch (e) { QCX.relayInfo = null; }
+    QCX.mode = QCX.relayInfo && QCX.relayInfo.ok && QCX.relayInfo.keyOk ? 'relay' : 'readonly';
+    return QCX.mode;
+  };
+  QCX.canWrite = () => QCX.mode === 'token' || QCX.mode === 'relay';
+  QCX.MODE_TEXT = { token: 'บันทึกขึ้นระบบ ✓ (token เครื่องนี้)', relay: 'บันทึกขึ้นระบบอัตโนมัติ ✓', readonly: 'ดูได้อย่างเดียว — ต่อ Worker ไม่ได้' };
+
+  function api() {
+    const R = QCX.REPO;
+    if (QCX.mode === 'token') return { base: 'https://api.github.com/repos/' + R.owner + '/' + R.repo + '/contents/', h: { Authorization: 'Bearer ' + token(), 'X-GitHub-Api-Version': '2022-11-28' } };
+    const h = {}; if (relayKey()) h['X-Import-Key'] = relayKey(); if (QCX.user()) h['X-NIR-User'] = QCX.user();
+    return { base: relayUrl() + '/contents/', h };
+  }
+  // อ่านไฟล์ JSON + sha (null ถ้ายังไม่มี)
+  QCX.getFile = async function (path) {
+    if (!QCX.canWrite()) {   // อ่านจากเว็บสาธารณะ (อาจช้ากว่าจริง 1–10 นาที)
+      const res = await fetch(QCX.PAGES + path + '?_=' + Date.now(), { cache: 'no-store' });
+      if (res.status === 404) return { json: null, sha: null };
+      if (!res.ok) throw new Error('โหลด ' + path + ' ไม่ได้ (' + res.status + ')');
+      return { json: await res.json(), sha: null };
+    }
+    const a = api();
+    const res = await fetch(a.base + path + '?ref=' + QCX.REPO.branch + '&_cb=' + Date.now(), { headers: Object.assign({ Accept: 'application/vnd.github+json' }, a.h), cache: 'no-store' });
+    if (res.status === 404) return { json: null, sha: null };
+    if (!res.ok) throw new Error('โหลด ' + path + ' ไม่ได้ (GitHub ' + res.status + '): ' + (await res.text()).slice(0, 160));
+    const j = await res.json();
+    let text;
+    if (j.content && j.encoding === 'base64') text = unb64(j.content);
+    else {   // ไฟล์ใหญ่ >1MB: ขอแบบ raw
+      const r2 = await fetch(a.base + path + '?ref=' + QCX.REPO.branch + '&_cb=' + Date.now(), { headers: Object.assign({ Accept: 'application/vnd.github.raw+json' }, a.h) });
+      text = await r2.text();
+    }
+    return { json: JSON.parse(text), sha: j.sha };
+  };
+  QCX.putFile = async function (path, obj, sha, message) {
+    if (!QCX.canWrite()) throw new Error('ยังบันทึกไม่ได้ — ต่อ Worker ไม่ได้ (ดูหน้า NIR Data Import → ⚙️ ตั้งค่า)');
+    const a = api();
+    const body = { message, content: b64(JSON.stringify(obj, null, 1) + '\n'), branch: QCX.REPO.branch };
+    if (sha) body.sha = sha;
+    const res = await fetch(a.base + path, { method: 'PUT', headers: Object.assign({ Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' }, a.h), body: JSON.stringify(body) });
+    if (res.status === 409 || res.status === 422) { const e = new Error('CONFLICT'); e.conflict = true; throw e; }
+    if (!res.ok) throw new Error('บันทึก ' + path + ' ไม่สำเร็จ (GitHub ' + res.status + '): ' + (await res.text()).slice(0, 200));
+    return res.json();
+  };
+  // อ่าน → แก้ → เขียน (ถ้ามีคนบันทึกพร้อมกัน โหลดใหม่แล้วลองซ้ำ)
+  QCX.update = async function (path, empty, mutate, message) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const f = await QCX.getFile(path);
+      const obj = f.json || (typeof empty === 'function' ? empty() : JSON.parse(JSON.stringify(empty)));
+      const out = await mutate(obj);
+      if (out === false) return { obj, skipped: true };
+      try { await QCX.putFile(path, obj, f.sha, message); return { obj }; }
+      catch (e) { if (!e.conflict || attempt === 2) throw e; }
+    }
+  };
+
+  // ── ไฟล์ข้อมูล ──
+  QCX.configPath = 'xchart/config.json';
+  QCX.monthPath = m => 'xchart/' + m + '.json';
+  QCX.emptyMonth = m => ({ version: 1, month: m, points: [], reviews: {} });
+  QCX.loadConfig = async function () {
+    const f = await QCX.getFile(QCX.configPath);
+    return f.json || JSON.parse(JSON.stringify(QCX.DEFAULT_CONFIG));
+  };
+  QCX.loadMonth = async function (m) {
+    const f = await QCX.getFile(QCX.monthPath(m));
+    return f.json || QCX.emptyMonth(m);
+  };
+  QCX.saveConfig = (mutate, message) => QCX.update(QCX.configPath, QCX.DEFAULT_CONFIG, mutate, message);
+
+  // จุดข้อมูล: { k, qc, par, d, v, run, src, by, at, lab?, note? }
+  QCX.sameSlot = (a, b) => a.k === b.k && a.par === b.par && a.d === b.d && (a.run || 1) === (b.run || 1);
+  // ตรวจว่าจุดใหม่ชนกับของเดิมไหม → [{p, old}] เฉพาะที่ค่าต่างกัน
+  QCX.findConflicts = function (monthsData, pts) {
+    const out = [];
+    pts.forEach(p => {
+      const md = monthsData[QCX.monthOf(p.d)];
+      const old = md && md.points.find(o => o.k === p.k && o.par === p.par && o.d === p.d);
+      if (old && Math.abs(old.v - p.v) > 1e-9) out.push({ p, old });
+    });
+    return out;
+  };
+  // เพิ่มจุด: policy เมื่อวันเดียวกันมีค่าอยู่แล้วและค่าต่างกัน = 'replace' | 'add' (เป็นรอบที่ 2) | 'skip'
+  QCX.addPoints = async function (pts, policy, message) {
+    const byMonth = {};
+    pts.forEach(p => { const m = QCX.monthOf(p.d); (byMonth[m] = byMonth[m] || []).push(p); });
+    const sum = { added: 0, replaced: 0, same: 0, skipped: 0, months: Object.keys(byMonth).sort() };
+    const at = new Date().toISOString(), by = QCX.user();
+    for (const m of sum.months) {
+      const s = { added: 0, replaced: 0, same: 0, skipped: 0 };
+      await QCX.update(QCX.monthPath(m), () => QCX.emptyMonth(m), md => {
+        Object.assign(s, { added: 0, replaced: 0, same: 0, skipped: 0 });
+        byMonth[m].forEach(p0 => {
+          const p = Object.assign({ run: 1, src: 'report', by, at }, p0);
+          const same = md.points.filter(o => o.k === p.k && o.par === p.par && o.d === p.d);
+          if (same.some(o => Math.abs(o.v - p.v) < 1e-9)) { s.same++; return; }
+          if (!same.length) { md.points.push(p); s.added++; return; }
+          if (policy === 'replace') {
+            const o = same[same.length - 1];
+            o.prev = (o.prev || []).concat([{ v: o.v, by: o.by, at: o.at }]);
+            Object.assign(o, { v: p.v, by, at, src: p.src, lab: p.lab || o.lab });
+            if (p.note) o.note = p.note;
+            s.replaced++;
+          } else if (policy === 'add') {
+            p.run = Math.max.apply(null, same.map(o => o.run || 1)) + 1; md.points.push(p); s.added++;
+          } else s.skipped++;
+        });
+        if (!s.added && !s.replaced) return false;
+        md.points.sort((a, b) => (a.k + a.par + a.d + (a.run || 1)).localeCompare(b.k + b.par + b.d + (b.run || 1)));
+      }, message || ('QC X-Chart ' + m));
+      ['added', 'replaced', 'same', 'skipped'].forEach(k => { sum[k] += s[k]; });
+    }
+    return sum;
+  };
+
+  global.QCX = QCX;
+  if (typeof module !== 'undefined') module.exports = QCX;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
 <style>
 :root{
-  --bg:#f4f5f7; --panel:#ffffff; --border:#d7dae0; --text:#1c2230; --muted:#6b7280;
-  --accent:#2563eb; --accent-dark:#1d4ed8; --shade:#eceff3;
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  --bg:#f6f4ef; --card:#fff; --line:#e7e3da; --ink:#18181b; --t2:#52525b; --t3:#8a8a93;
+  --pink:#db2777; --pinkbg:#fdf2f8; --pinkline:#fbe0ee;
+  --pass:#15803d; --passbg:#e6f6ec; --warn:#b45309; --warnbg:#fff1d6; --fail:#dc2626; --failbg:#fde4e4;
 }
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#15171c; --panel:#1d2027; --border:#333844; --text:#e7e9ee; --muted:#9aa1ad;
-    --accent:#5b8def; --accent-dark:#4a75cc; --shade:#262a33;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#15171c; --panel:#1d2027; --border:#333844; --text:#e7e9ee; --muted:#9aa1ad;
-  --accent:#5b8def; --accent-dark:#4a75cc; --shade:#262a33;
-}
-html{scroll-padding-top: env(safe-area-inset-top, 0px);}
-*{box-sizing:border-box;}
-body{
-  margin:0; background:var(--bg); color:var(--text);
-  font-family:"Sarabun","Segoe UI",Tahoma,Arial,sans-serif; font-size:14px;
-}
-.wrap{max-width:1400px; margin:0 auto; padding:20px 16px 60px;}
-h1{font-size:19px; margin:4px 0 2px;}
-.sub{color:var(--muted); font-size:13px; margin-bottom:16px;}
-.panel{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:18px;}
-.panel h2{font-size:15px; margin:0 0 10px;}
-.row{display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;}
-.field{display:flex; flex-direction:column; gap:4px;}
-.field label{font-size:12px; color:var(--muted);}
-input[type=text], input[type=number], select{
-  border:1px solid var(--border); border-radius:8px; padding:8px 10px;
-  background:var(--bg); color:var(--text); font-family:inherit; font-size:13px;
-}
-button{
-  font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;
-  border-radius:8px; border:1px solid var(--border); background:var(--panel); color:var(--text);
-  padding:9px 16px;
-}
-button.primary{background:var(--accent); border-color:var(--accent-dark); color:#fff;}
-button.primary:hover{background:var(--accent-dark);}
-button.small{padding:4px 9px; font-size:12px;}
-button:hover:not(:disabled){filter:brightness(1.05);}
-.status{font-size:12.5px; margin-top:8px; padding:8px 10px; border-radius:8px; display:none;}
-.status.ok{display:block; background:#16803317; color:#16803350; border:1px solid #16803340;}
-.status.err{display:block; background:#dc262617; color:#b91c1c; border:1px solid #dc262640;}
-
-/* ---- printable chart sheet ---- */
-#chartHolder{overflow-x:auto;}
-.sheet{
-  background:#fff; color:#111; width:1500px; max-width:none; margin:0 auto;
-  padding:16px 20px 22px; font-family:"Sarabun","Segoe UI",Tahoma,Arial,sans-serif;
-  border:1px solid #ccc;
-}
-.sh-top{position:relative; min-height:60px; font-size:12.5px;}
-.sh-top .center{font-weight:700; font-size:13.5px; text-align:center; position:absolute; left:50%; top:0; transform:translateX(-50%); white-space:nowrap;}
-.sh-top .right{text-align:right; line-height:1.55; position:absolute; top:0; right:0; outline:none;}
-.sh-top .right[contenteditable="true"]:focus{background:#fff7d6;}
-.sh-title{text-align:center; font-weight:700; font-size:16px; margin:4px 0 8px;}
-.sh-meta{display:flex; flex-wrap:wrap; gap:6px 28px; font-size:12.5px; margin:4px 0 10px; border-top:1px solid #ccc; border-bottom:1px solid #ccc; padding:6px 0;}
-.sh-meta span{white-space:nowrap;}
-.sh-meta b{font-weight:700;}
-.sh-meta input[type=text], .sh-meta input[type=number]{
-  border:none; border-bottom:1px dotted #888; background:transparent; font-family:inherit;
-  font-size:12.5px; padding:0 2px; color:#111;
-}
-table.dt{border-collapse:collapse; width:100%; font-size:11px; margin-top:4px;}
-table.dt th, table.dt td{border:1px solid #333; padding:3px 4px; text-align:center; min-width:26px;}
-table.dt th.rowlabel, table.dt td.rowlabel{text-align:left; font-weight:700; min-width:110px; white-space:nowrap; background:#f2f2f2;}
-table.dt td[contenteditable="true"]{outline:none;}
-table.dt td[contenteditable="true"]:focus{background:#fff7d6;}
-td.pass{color:#146c2e;}
-td.fail{color:#b91c1c; font-weight:700;}
-.chartwrap{margin-top:14px;}
-svg text{font-family:"Sarabun","Segoe UI",Tahoma,Arial,sans-serif;}
-.legend{display:flex; gap:18px; font-size:11.5px; margin-top:4px; flex-wrap:wrap;}
-.legend span{display:inline-flex; align-items:center; gap:5px;}
-.legend i{width:16px; height:0; border-top:2px solid; display:inline-block;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Sarabun","Segoe UI",Tahoma,sans-serif;font-size:14px}
+.wrap{max-width:1560px;margin:0 auto;padding:22px 18px 70px}
+h1{font-size:22px;margin:0;color:var(--pink);font-weight:700}
+.sub{color:var(--t2);font-size:13px;margin:2px 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin-bottom:16px;box-shadow:0 1px 2px rgba(60,50,20,.04)}
+.card-h{font-size:13px;font-weight:700;color:var(--pink);margin:0 0 12px;padding-bottom:10px;border-bottom:1px solid var(--pinkline);display:flex;align-items:center;gap:8px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.f{display:flex;flex-direction:column;gap:4px}
+.f label{font-size:12px;color:var(--t2);font-weight:500}
+input,select,textarea{font:inherit;font-size:13.5px;border:1px solid #d6d3cc;border-radius:9px;padding:7px 10px;background:#fff;color:var(--ink)}
+input[type=number]{width:96px}
+textarea{width:100%;min-height:60px}
+button{font:inherit;font-size:13px;font-weight:600;border:1px solid #d6d3cc;background:#fff;color:var(--ink);border-radius:9px;padding:8px 14px;cursor:pointer}
+button:hover:not(:disabled){border-color:#a1a1aa}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--pink);border-color:var(--pink);color:#fff}
+button.primary:hover:not(:disabled){background:#be185d}
+button.ghost{border-color:transparent;background:transparent;padding:6px 8px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid #d6d3cc;background:#fff;border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--t2)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.mode{font-size:12px;color:var(--t2);margin-left:auto}
+.mode.ok{color:var(--pass)} .mode.ro{color:var(--warn)}
+.note{font-size:12.5px;border-radius:10px;padding:9px 12px;background:#f4f4f5;color:var(--t2);line-height:1.6}
+.note.ok{background:var(--passbg);color:#14532d} .note.warn{background:var(--warnbg);color:#78350f} .note.err{background:var(--failbg);color:#7f1d1d}
+/* summary */
+.sum{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.sc{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:#fff;cursor:pointer}
+.sc:hover{border-color:#d4d4d8}
+.sc .t{display:flex;justify-content:space-between;align-items:center;font-weight:700}
+.sc .t small{font-weight:500;color:var(--t3)}
+.sc .big{font-size:22px;font-weight:700;margin:4px 0 2px}
+.sc .meta{font-size:12px;color:var(--t2);line-height:1.6}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700}
+.pill.pass{background:var(--passbg);color:var(--pass)} .pill.warn{background:var(--warnbg);color:var(--warn)} .pill.fail{background:var(--failbg);color:var(--fail)} .pill.none{background:#f1f1f4;color:var(--t3)}
+/* review */
+.rev-ok{display:flex;gap:10px;align-items:flex-start}
+/* sheets (เหมือนแบบฟอร์ม F-LAB-20-11) */
+#sheets{overflow-x:auto}
+.sheet{background:#fff;color:#111;width:100%;min-width:1100px;margin:0 auto 18px;padding:16px 20px 18px;border:1px solid #d4d4d4;border-radius:6px}
+.sh-top{position:relative;min-height:62px;font-size:12.5px}
+.sh-top .center{font-weight:700;font-size:13.5px;text-align:center;position:absolute;left:50%;top:0;transform:translateX(-50%);white-space:nowrap}
+.sh-top .right{text-align:right;line-height:1.55;position:absolute;top:0;right:0}
+.sh-title{text-align:center;font-weight:700;font-size:16px;margin:4px 0 8px}
+.sh-meta{display:flex;flex-wrap:wrap;gap:6px 30px;font-size:12.5px;margin:4px 0 8px;border-top:1px solid #ccc;border-bottom:1px solid #ccc;padding:6px 0}
+.sh-meta b{font-weight:700}
+table.dt{border-collapse:collapse;width:100%;font-size:11px}
+table.dt td{border:1px solid #333;padding:3px 2px;text-align:center;min-width:30px}
+table.dt td.rl{text-align:left;font-weight:700;min-width:140px;white-space:nowrap;background:#f2f2f2;padding:3px 6px}
+table.dt td.v{cursor:pointer}
+table.dt td.v:hover{background:#fff7d6}
+td.s-pass{color:var(--pass)} td.s-warn{color:var(--warn);font-weight:700} td.s-fail{color:var(--fail);font-weight:700}
+.legend{display:flex;gap:18px;font-size:11.5px;margin-top:4px;flex-wrap:wrap;color:#333}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:18px;height:0;border-top:2px solid;display:inline-block}
+.viol{font-size:11.5px;margin-top:6px;line-height:1.6}
+.viol b{color:var(--fail)}
+.sh-sign{display:flex;justify-content:space-around;margin-top:16px;font-size:12px;text-align:center}
+.sh-sign div{min-width:260px}
+.sh-sign .ln{border-bottom:1px dotted #333;height:26px;margin-bottom:4px;display:flex;align-items:flex-end;justify-content:center;font-weight:600}
+svg text{font-family:"Sarabun","Segoe UI",Tahoma,sans-serif}
+.empty-sheet{padding:30px;text-align:center;color:var(--t3)}
+/* modal */
+.ov{position:fixed;inset:0;background:rgba(15,15,20,.42);display:none;align-items:flex-start;justify-content:center;z-index:9995;padding:40px 14px;overflow:auto}
+.ov.on{display:flex}
+.md{background:#fff;border-radius:18px;max-width:920px;width:100%;padding:20px 22px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.md h3{margin:0 0 12px;font-size:16px;color:var(--pink)}
+.md .x{float:right;border:0;background:none;font-size:20px;color:var(--t3);padding:0 4px}
+table.lt{border-collapse:collapse;width:100%;font-size:13px}
+table.lt th{font-size:11.5px;color:var(--pink);text-align:left;padding:6px 6px;border-bottom:1px solid var(--pinkline)}
+table.lt td{padding:5px 6px;border-bottom:1px solid #f1ede4;vertical-align:middle}
+table.lt input[type=number]{width:84px}
+.hist{font-size:11.5px;color:var(--t3)}
+.busy{position:fixed;inset:0;background:rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;z-index:9999;font-weight:600}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#18181b;color:#fff;padding:10px 18px;border-radius:10px;z-index:9999;font-size:13px;max-width:90vw}
+.pr-only{display:none}
 @media print{
-  body *{visibility:hidden;}
-  #chartHolder, #chartHolder *{visibility:visible;}
-  #chartHolder{position:absolute; left:0; top:0; width:auto; overflow:visible;}
-  .sheet{border:none; width:auto;}
+  @page{size:A4 landscape;margin:7mm}
+  body{background:#fff}
+  body *{visibility:hidden}
+  #sheets,#sheets *{visibility:visible}
+  #sheets{position:absolute;left:0;top:0;width:100%;overflow:visible}
+  .sheet{border:none;width:100%;margin:0;padding:0;page-break-after:always;break-after:page;zoom:.72}
+  .sheet:last-child{page-break-after:auto;break-after:auto}
+  table.dt td.v:hover{background:none}
+  .no-print{display:none!important}
+  .pr-only{display:block}
+  #nir-sb,#nir-sb-btn{display:none!important}
 }
+@media (max-width:700px){ .wrap{padding:14px 10px 60px} .card{padding:14px 12px} }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>NIR X-Chart (Control Chart) Tool</h1>
-  <div class="sub">Plot กราฟควบคุมคุณภาพ (X-Chart) ของ Control Sample (QC) แยกตามแต่ละ Parameter</div>
+  <h1>📈 QC Control Chart (X-Chart)</h1>
+  <div class="sub">ค่า Control Sample จาก NIR Interface Report Tool ถูกบันทึกและ plot ให้อัตโนมัติ แยกรายเดือน · F-LAB-20-11</div>
 
-  <div class="panel">
-    <h2>ตั้งค่า Chart</h2>
+  <div class="card no-print">
     <div class="row">
-      <div class="field"><label>Parameter</label><input type="text" id="fParam" value="Moisture"></div>
-      <div class="field"><label>เลือกพารามิเตอร์ที่ตั้งไว้ล่วงหน้า</label><select id="presetSelect" style="min-width:220px;"></select></div>
-      <div class="field"><label>Control Sample (QC) No.</label><input type="text" id="fQcNo" value="NIR 02/25"></div>
-      <div class="field"><label>MONTH</label><input type="month" id="fMonthKey"></div>
-      <div class="field"><label>เริ่มใช้วันที่</label><input type="text" id="fUseDate" value="01/05/2025"></div>
-      <div class="field"><label>เลขที่เอกสาร</label><input type="text" id="fDocNo" value="F-LAB-20-11"></div>
-      <div class="field"><label>แก้ไขครั้งที่</label><input type="text" id="fRev" value="06"></div>
-    </div>
-    <div class="row" style="margin-top:10px;">
-      <div class="field"><label>X̄ (Center Line)</label><input type="number" step="any" id="fMean" value="7.76"></div>
-      <div class="field"><label>X + 3SD</label><input type="number" step="any" id="fP3" value="7.94"></div>
-      <div class="field"><label>X + 2SD</label><input type="number" step="any" id="fP2" value="7.88"></div>
-      <div class="field"><label>X - 2SD</label><input type="number" step="any" id="fM2" value="7.63"></div>
-      <div class="field"><label>X - 3SD</label><input type="number" step="any" id="fM3" value="7.57"></div>
-      <div class="field"><label>จำนวนวัน (คอลัมน์)</label><input type="number" min="1" max="31" id="fDays" value="24" style="width:80px;"></div>
-    </div>
-    <div class="hint" style="font-size:12px; color:var(--muted); margin-top:8px;">
-      หมายเหตุ: เกณฑ์ ±2SD / ±3SD ด้านบนยังเป็นค่าเริ่มต้น พิมพ์ทับเป็นค่าจริงของแต่ละ Parameter ได้เลย ระบบจะตัดสิน Pass/Fail จากค่าที่กรอกไว้ตรงนี้ (เกินขอบ 3SD = Fail)
-    </div>
-    <div class="row" style="margin-top:12px;">
-      <button class="primary" id="btnBuild">สร้าง / อัปเดต Chart</button>
-      <button id="btnAddCol">+ เพิ่มวัน</button>
-      <button id="btnRemoveCol">- ลบวันสุดท้าย</button>
-      <button id="btnPrint">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
-    </div>
-    <div class="row" style="margin-top:10px; position:relative;">
-      <button id="btnMoreOptions">⋯ More Options</button>
-      <div id="moreOptionsPanel" style="display:none; position:absolute; top:100%; left:0; margin-top:6px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px; box-shadow:0 8px 24px rgba(0,0,0,.15); z-index:10; min-width:280px;">
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <button id="btnSaveDb" class="primary" style="background:#146c2e; border-color:#0f5323; width:100%;">☁️ บันทึก (ซิงก์ขึ้นระบบกลาง)</button>
-          <button id="btnRefresh" style="width:100%;">🔄 ดึงข้อมูลล่าสุด</button>
-          <button id="btnPasteFromReport" style="width:100%;">📋 วางข้อมูลจาก Report Tool</button>
-          <hr style="width:100%; border:none; border-top:1px solid var(--border); margin:2px 0;">
-          <button id="btnAddPresets" class="primary" style="background:#7c3aed; border-color:#5b21b6; width:100%;">➕ เพิ่มพารามิเตอร์ตามเกณฑ์ที่ตั้งไว้</button>
-          <button id="btnExportXlsx" style="width:100%;">📤 สำรองเป็นไฟล์ (.xlsx)</button>
-          <button class="filebtn" style="position:relative; overflow:hidden; width:100%;">📥 นำเข้าจากไฟล์สำรอง (.xlsx)
-            <input type="file" id="importXlsxInput" accept=".xlsx,.xls" style="position:absolute; inset:0; opacity:0; cursor:pointer;">
-          </button>
-        </div>
+      <div class="f"><label>Control Sample (QC)</label><select id="qcSel" style="min-width:170px"></select></div>
+      <div class="f"><label>เดือน</label>
+        <div style="display:flex;gap:4px"><button class="ghost" id="prevM" title="เดือนก่อน">◀</button><input type="month" id="month"><button class="ghost" id="nextM" title="เดือนถัดไป">▶</button></div>
+      </div>
+      <div class="f"><label>พารามิเตอร์</label><div class="chips" id="parChips"></div></div>
+      <div class="row" style="margin-left:auto">
+        <button id="btnAdd">➕ เพิ่มค่าเอง</button>
+        <button id="btnLimits">⚙️ เกณฑ์ (X̄ / SD)</button>
+        <button class="primary" id="btnPrint">🖨️ พิมพ์ / PDF</button>
       </div>
     </div>
-    <div class="row" style="margin-top:10px; align-items:center;">
-      <div class="field" style="min-width:280px;">
-        <label>QC / Parameter ที่มีข้อมูลอยู่แล้ว</label>
-        <select id="qcSelect"><option value="">— เลือก QC / Parameter —</option></select>
-      </div>
-      <div class="field" style="min-width:200px;">
-        <label>ดูย้อนหลังเดือน</label>
-        <select id="monthSelect"><option value="">— เลือกเดือน —</option></select>
-      </div>
+    <div class="row" style="margin-top:10px">
+      <span class="mode" id="mode">กำลังเชื่อมต่อ…</span>
+      <button class="ghost" id="btnRefresh" title="โหลดล่าสุด">🔄</button>
     </div>
-    <div id="pasteBox" style="display:none; margin-top:10px;">
-      <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">วางข้อความที่คัดลอกจากปุ่ม "ส่งค่า QC ไปที่ X-Chart" ของ Report Tool ที่นี่ (Ctrl+V) แล้วกดยืนยัน</label>
-      <textarea id="pasteBoxArea" style="width:100%; min-height:70px; font-family:monospace; font-size:11px;"></textarea>
-      <div style="margin-top:6px;"><button class="primary" id="pasteBoxSubmit">ยืนยันข้อมูลที่วาง</button></div>
-    </div>
-    <div class="hint" style="font-size:12px; color:var(--muted); margin-top:6px; line-height:1.5;">
-      ไฟล์นี้ซิงก์ผ่านระบบกลาง (Cloudflare Worker) เดียวกับเครื่องมือ Bias — ต้องเปิดไฟล์นี้ตรงๆ (ดับเบิลคลิก หรือโฮสต์เอง) ไม่ใช่ผ่านลิงก์ claude.ai/artifact ถึงจะเชื่อมต่อได้<br>
-      ข้อมูลเก็บแยกเป็นรายเดือนต่อ QC/Parameter อัตโนมัติ (ตามวันที่ทดสอบ) — เลือก "QC / Parameter" แล้วเลือก "ดูย้อนหลังเดือน" เพื่อดูข้อมูลเดือนก่อนๆ ได้
-    </div>
-    <div class="status ok" id="statusBox"></div>
   </div>
 
-  <div class="panel" id="chartHolder">
-    <div class="sheet" id="sheetEl"><!-- built by JS --></div>
+  <div id="note"></div>
+
+  <div class="card no-print">
+    <div class="card-h">สรุปเดือนนี้ <span id="sumTitle" style="color:var(--t2);font-weight:500"></span></div>
+    <div class="sum" id="summary"></div>
   </div>
+
+  <div class="card no-print" id="reviewCard">
+    <div class="card-h">✅ ทบทวนประจำเดือน <span style="color:var(--t3);font-weight:500;font-size:12px">(บันทึกผู้ทบทวน วันที่ และการแก้ไข สำหรับ ISO/IEC 17025 ข้อ 7.7)</span></div>
+    <div id="review"></div>
+  </div>
+
+  <div id="sheets"></div>
+
+  <details class="card no-print" style="margin-top:16px">
+    <summary style="cursor:pointer;font-weight:600;color:var(--t2)">ย้ายข้อมูลจาก X-Chart เดิม (ครั้งเดียว)</summary>
+    <div style="margin-top:10px" class="note">ดึงค่าที่เคยบันทึกในหน้า X-Chart แบบเดิม (เก็บบน Cloudflare KV) มารวมในระบบใหม่ ค่าที่มีอยู่แล้วจะไม่ถูกเขียนทับ</div>
+    <div class="row" style="margin-top:10px"><button id="btnMig">ตรวจข้อมูลเดิม</button></div>
+    <div id="migOut" style="margin-top:10px"></div>
+  </details>
 </div>
 
+<!-- เพิ่ม/แก้ค่า -->
+<div class="ov" id="ovAdd"><div class="md" style="max-width:620px">
+  <button class="x" data-close>×</button><h3 id="addTitle">เพิ่มค่า QC เอง</h3>
+  <div class="row">
+    <div class="f"><label>วันที่ทดสอบ</label><input type="date" id="aDate"></div>
+    <div class="f"><label>Control Sample</label><input id="aQc" style="width:150px"></div>
+  </div>
+  <table class="lt" style="margin-top:12px"><thead><tr><th>พารามิเตอร์</th><th>ค่าที่วัดได้</th><th>เกณฑ์</th><th>ผล</th></tr></thead><tbody id="aBody"></tbody></table>
+  <div class="f" style="margin-top:10px"><label>หมายเหตุ (เช่น เหตุผลที่กรอกเอง)</label><textarea id="aNote"></textarea></div>
+  <div class="row" style="margin-top:12px;justify-content:flex-end"><button data-close>ยกเลิก</button><button class="primary" id="aSave">บันทึก</button></div>
+</div></div>
+
+<div class="ov" id="ovEdit"><div class="md" style="max-width:520px">
+  <button class="x" data-close>×</button><h3 id="eTitle">แก้ไขค่า</h3>
+  <div id="eInfo" class="note" style="margin-bottom:10px"></div>
+  <div class="row"><div class="f"><label>ค่าที่วัดได้</label><input type="number" step="any" id="eVal"></div></div>
+  <div class="f" style="margin-top:10px"><label>เหตุผลที่แก้ไข / ลบ (บังคับ)</label><textarea id="eNote"></textarea></div>
+  <div class="row" style="margin-top:12px;justify-content:space-between">
+    <button id="eDel" style="color:var(--fail)">🗑️ ลบจุดนี้</button>
+    <div class="row"><button data-close>ยกเลิก</button><button class="primary" id="eSave">บันทึก</button></div>
+  </div>
+</div></div>
+
+<!-- เกณฑ์ -->
+<div class="ov" id="ovLim"><div class="md">
+  <button class="x" data-close>×</button><h3>⚙️ เกณฑ์ X-Chart</h3>
+  <div class="row">
+    <div class="f"><label>Control Sample</label><select id="lQc" style="min-width:170px"></select></div>
+    <div class="f"><label>หรือ เพิ่ม QC ใหม่</label><input id="lNew" placeholder="เช่น NIR 03/26" style="width:150px"></div>
+    <div class="f"><label>มีผลตั้งแต่</label><input type="date" id="lFrom"></div>
+  </div>
+  <div class="note" style="margin-top:10px">ใส่ <b>X̄</b> กับ <b>SD</b> แล้วกด "คำนวณ" ระบบเติม ±2SD / ±3SD ให้ หรือพิมพ์ขอบเขตเองได้ · บันทึกเป็นเวอร์ชันใหม่ตามวันที่มีผล ค่าก่อนหน้ายังใช้เกณฑ์เดิม (ไม่ย้อนหลัง)</div>
+  <table class="lt" style="margin-top:10px"><thead><tr><th>พารามิเตอร์</th><th>X̄</th><th>SD</th><th></th><th>+3SD</th><th>+2SD</th><th>−2SD</th><th>−3SD</th></tr></thead><tbody id="lBody"></tbody></table>
+  <details style="margin-top:12px"><summary style="cursor:pointer;font-size:12.5px;color:var(--t2)">หัวแบบฟอร์ม (เลขที่เอกสาร / เริ่มใช้ / แก้ไขครั้งที่)</summary>
+    <div class="row" style="margin-top:8px">
+      <div class="f"><label>เลขที่เอกสาร</label><input id="dNo" style="width:130px"></div>
+      <div class="f"><label>เริ่มใช้วันที่</label><input id="dUse" style="width:120px"></div>
+      <div class="f"><label>แก้ไขครั้งที่</label><input id="dRev" style="width:70px"></div>
+    </div>
+  </details>
+  <div id="lMsg" style="margin-top:10px"></div>
+  <div class="row" style="margin-top:12px;justify-content:flex-end"><button data-close>ปิด</button><button class="primary" id="lSave">บันทึกเกณฑ์</button></div>
+</div></div>
+
 <script>
-let dates = [];   // array of {date:'1', value: number|null}
-let built = false;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const S = { cfg: null, md: null, month: QCX.thisMonth(), qc: '', par: 'all' };
+const fmt = (v, par) => v === null || v === undefined || isNaN(v) ? '' : (+v).toFixed(QCX.PAR[par] ? QCX.PAR[par].dec : 2);
+const fl = (v, d = 2) => v === null || v === undefined || isNaN(v) ? '-' : (+v).toFixed(d);
+function toast(m, ms = 3500) { document.querySelectorAll('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), ms); }
+function busy(on, msg) { let b = $('busyEl'); if (!on) { b && b.remove(); return; } if (!b) { b = document.createElement('div'); b.id = 'busyEl'; b.className = 'busy'; document.body.appendChild(b); } b.textContent = msg || 'กำลังทำงาน…'; }
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('.ov').classList.remove('on'));
 
-function initDates(n){
-  dates = [];
-  for(let i=1;i<=n;i++) dates.push({date:String(i), value:null});
+// ── โหลด ──
+async function loadAll() {
+  busy(true, 'กำลังโหลด…');
+  try {
+    S.cfg = await QCX.loadConfig();
+    S.md = await QCX.loadMonth(S.month);
+  } catch (e) { S.cfg = S.cfg || JSON.parse(JSON.stringify(QCX.DEFAULT_CONFIG)); S.md = QCX.emptyMonth(S.month); $('note').innerHTML = '<div class="note err" style="margin-bottom:14px">❌ ' + esc(e.message) + '</div>'; }
+  busy(false);
+  fillQc(); render();
 }
-initDates(parseInt(document.getElementById('fDays').value,10) || 24);
-
-function esc(s){ return String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-
-function getLimits(){
-  return {
-    mean: parseFloat(document.getElementById('fMean').value),
-    p3: parseFloat(document.getElementById('fP3').value),
-    p2: parseFloat(document.getElementById('fP2').value),
-    m2: parseFloat(document.getElementById('fM2').value),
-    m3: parseFloat(document.getElementById('fM3').value)
-  };
+async function loadMonth() {
+  busy(true, 'กำลังโหลด ' + QCX.monthTh(S.month) + '…');
+  try { S.md = await QCX.loadMonth(S.month); } catch (e) { S.md = QCX.emptyMonth(S.month); toast('❌ ' + e.message); }
+  busy(false); fillQc(); render();
 }
-
-function statusOf(v, lim){
-  if(v===null || v===undefined || isNaN(v)) return '';
-  if(v > lim.p3 || v < lim.m3) return 'Fail';
-  return 'Pass';
+function qcKeys() {
+  const ks = new Set(Object.keys(S.cfg.qc || {}).filter(k => S.cfg.qc[k].active !== false));
+  (S.md.points || []).forEach(p => ks.add(p.k));
+  return [...ks].sort();
 }
-
-function buildChartSVG(lim){
-  const w = 1440, h = 420, padL = 60, padR = 20, padT = 16, padB = 10;
-  const n = dates.length;
-  const plotW = w - padL - padR;
-  const stepX = n>1 ? plotW/(n-1) : plotW;
-
-  // y-range: pad a bit beyond the 3SD lines and beyond actual data
-  const vals = dates.map(d=>d.value).filter(v=>v!==null && !isNaN(v));
-  let yMin = Math.min(lim.m3, ...(vals.length?vals:[lim.m3]));
-  let yMax = Math.max(lim.p3, ...(vals.length?vals:[lim.p3]));
-  const span = (yMax - yMin) || 1;
-  yMin -= span*0.15; yMax += span*0.15;
-  const plotH = h - padT - padB;
-  const yToPx = v => padT + (yMax - v) / (yMax - yMin) * plotH;
-  const xToPx = i => padL + i*stepX;
-
-  const refLine = (v, color, dash, label) => {
-    const y = yToPx(v);
-    return `<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="${color}" stroke-width="1.4" ${dash?`stroke-dasharray="${dash}"`:''}/>
-      <text x="${padL-6}" y="${y+4}" text-anchor="end" font-size="11" fill="#333">${esc(label)}</text>`;
-  };
-
-  let refs = '';
-  refs += refLine(lim.p3, '#c0392b', '', lim.p3.toFixed(2));
-  refs += refLine(lim.p2, '#d4ac0d', '4,3', lim.p2.toFixed(2));
-  refs += refLine(lim.mean, '#1c2230', '', lim.mean.toFixed(2));
-  refs += refLine(lim.m2, '#d4ac0d', '4,3', lim.m2.toFixed(2));
-  refs += refLine(lim.m3, '#c0392b', '', lim.m3.toFixed(2));
-
-  // gridlines (vertical, one per column)
-  let grid = '';
-  for(let i=0;i<n;i++){
-    const x = xToPx(i);
-    grid += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${h-padB}" stroke="#e5e5e5" stroke-width="1"/>`;
+function fillQc() {
+  const ks = qcKeys();
+  if (!S.qc || !ks.includes(S.qc)) {
+    const withData = ks.find(k => S.md.points.some(p => p.k === k));
+    S.qc = S.qc && !ks.length ? S.qc : (withData || ks[0] || '');
   }
+  $('qcSel').innerHTML = ks.map(k => '<option value="' + esc(k) + '"' + (k === S.qc ? ' selected' : '') + '>' + esc(QCX.qcName(S.cfg, k)) +
+    (S.md.points.some(p => p.k === k) ? '' : ' (ไม่มีค่าเดือนนี้)') + '</option>').join('');
+}
+function syncUrl() { const u = new URL(location.href); u.searchParams.set('qc', S.qc); u.searchParams.set('month', S.month); history.replaceState(null, '', u); }
 
-  // data polyline + points + value labels
-  let points = [];
-  dates.forEach((d,i)=>{
-    if(d.value!==null && !isNaN(d.value)) points.push([xToPx(i), yToPx(d.value), d.value]);
-  });
-  let poly = '';
-  if(points.length>1){
-    poly = `<polyline points="${points.map(p=>p[0]+','+p[1]).join(' ')}" fill="none" stroke="#2f3fae" stroke-width="1.6"/>`;
-  }
-  let dots = points.map(p=>{
-    const out = (p[2] > lim.p3 || p[2] < lim.m3);
-    return `<circle cx="${p[0]}" cy="${p[1]}" r="3.2" fill="${out?'#c0392b':'#2f3fae'}"/>
-      <text x="${p[0]}" y="${p[1]-7}" text-anchor="middle" font-size="10" fill="#333">${p[2]}</text>`;
+// ── ข้อมูลของ QC + พารามิเตอร์ ในเดือนที่เลือก ──
+function series(par) {
+  const pts = S.md.points.filter(p => p.k === S.qc && p.par === par).sort((a, b) => (a.d + (a.run || 1)).localeCompare(b.d + (b.run || 1)));
+  const limOf = p => QCX.limitsFor(S.cfg, S.qc, par, p.d);
+  const flags = QCX.evaluate(pts, limOf);
+  const st = pts.map((p, i) => { let s = QCX.status(p.v, limOf(p)); if (flags[i].includes('2-2s') && s !== 'fail') s = 'fail'; return s; });
+  return { pts, flags, st, limOf, limEnd: QCX.limitsFor(S.cfg, S.qc, par, S.month + '-31') };
+}
+const statsOf = vs => { if (!vs.length) return null; const m = vs.reduce((a, b) => a + b, 0) / vs.length; const sd = vs.length > 1 ? Math.sqrt(vs.reduce((a, b) => a + (b - m) ** 2, 0) / (vs.length - 1)) : null; return { m, sd }; };
+
+// ── แสดงผล ──
+function render() {
+  syncUrl();
+  $('month').value = S.month;
+  $('parChips').innerHTML = ['all'].concat(QCX.PARAMS.map(p => p.code)).map(c => '<span class="chip' + (S.par === c ? ' on' : '') + '" data-p="' + c + '">' + (c === 'all' ? 'ทั้งหมด' : QCX.PAR[c].short) + '</span>').join('');
+  $('parChips').querySelectorAll('.chip').forEach(el => el.onclick = () => { S.par = el.dataset.p; render(); });
+  const ro = !QCX.canWrite();
+  $('mode').textContent = QCX.MODE_TEXT[QCX.mode] || '';
+  $('mode').className = 'mode ' + (ro ? 'ro' : 'ok');
+  ['btnAdd'].forEach(id => $(id).disabled = ro || !S.qc);
+  $('sumTitle').textContent = '· ' + QCX.qcName(S.cfg, S.qc) + ' · ' + QCX.monthTh(S.month);
+  renderSummary(); renderReview(); renderSheets();
+}
+
+function renderSummary() {
+  if (!S.qc) { $('summary').innerHTML = '<div class="note">ยังไม่มี Control Sample — กด ⚙️ เกณฑ์ เพื่อเพิ่ม</div>'; return; }
+  $('summary').innerHTML = QCX.PARAMS.map(P => {
+    const s = series(P.code), vs = s.pts.map(p => p.v), stt = statsOf(vs);
+    const c = k => s.st.filter(x => x === k).length;
+    const worst = c('fail') ? 'fail' : (c('warn') || s.flags.some(f => f.includes('7-T'))) ? 'warn' : s.pts.length ? 'pass' : 'none';
+    const label = { fail: 'ผิดเกณฑ์', warn: 'เฝ้าระวัง', pass: 'ในเกณฑ์', none: 'ยังไม่มีค่า' }[worst];
+    const last = s.pts[s.pts.length - 1];
+    return '<div class="sc" data-p="' + P.code + '"><div class="t"><span>' + P.short + ' <small>' + P.name + '</small></span><span class="pill ' + worst + '">' + label + '</span></div>' +
+      '<div class="big">' + (last ? fmt(last.v, P.code) : '–') + '</div>' +
+      '<div class="meta">' + (last ? 'ล่าสุด ' + QCX.dmy(last.d) + ' · ' : '') + s.pts.length + ' จุด' +
+      (stt ? '<br>เฉลี่ยเดือนนี้ ' + fl(stt.m, P.dec + 1) + (stt.sd !== null ? ' · SD ' + fl(stt.sd, 3) : '') : '') +
+      (s.limEnd ? '<br>X̄ ' + s.limEnd.mean + ' · ±3SD ' + s.limEnd.m3 + '–' + s.limEnd.p3 : '<br><span style="color:var(--warn)">ยังไม่มีเกณฑ์</span>') +
+      (c('fail') || c('warn') ? '<br><b style="color:var(--fail)">' + (c('fail') ? c('fail') + ' Fail ' : '') + '</b><b style="color:var(--warn)">' + (c('warn') ? c('warn') + ' Warning' : '') + '</b>' : '') +
+      '</div></div>';
   }).join('');
-
-  // x-axis date labels
-  let xlabels = dates.map((d,i)=>`<text x="${xToPx(i)}" y="${h-padB+13}" text-anchor="middle" font-size="10" fill="#333">${esc(d.date)}</text>`).join('');
-
-  return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="max-width:${w}px; display:block; margin:0 auto;">
-    <rect x="0" y="0" width="${w}" height="${h}" fill="#fff"/>
-    ${grid}
-    ${refs}
-    ${poly}
-    ${dots}
-    ${xlabels}
-  </svg>`;
+  $('summary').querySelectorAll('.sc').forEach(el => el.onclick = () => { S.par = el.dataset.p; render(); $('sheets').scrollIntoView({ behavior: 'smooth' }); });
 }
 
-function buildSheet(){
-  const lim = getLimits();
-  const param = document.getElementById('fParam').value;
-  const qcNo = document.getElementById('fQcNo').value;
-  const month = monthKeyToLabel(document.getElementById('fMonthKey').value);
-  const useDate = document.getElementById('fUseDate').value;
-  const docNo = document.getElementById('fDocNo').value;
-  const rev = document.getElementById('fRev').value;
-
-  const dateCells = dates.map((d,i)=>`<td contenteditable="true" data-idx="${i}" data-field="date">${esc(d.date)}</td>`).join('');
-  const valCells = dates.map((d,i)=>`<td contenteditable="true" data-idx="${i}" data-field="value">${d.value===null?'':d.value}</td>`).join('');
-  const statCells = dates.map(d=>{
-    const st = statusOf(d.value, lim);
-    const cls = st==='Fail' ? 'fail' : (st==='Pass' ? 'pass' : '');
-    return `<td class="${cls}">${st}</td>`;
-  }).join('');
-
-  const sheet = document.getElementById('sheetEl');
-  sheet.innerHTML = `
-    <div class="sh-top">
-      <div class="center">ห้องปฏิบัติการทดสอบ บริษัท เพอร์เฟค คอมพาเนียน กรุ๊ป จำกัด</div>
-      <div class="right" contenteditable="true">
-        เลขที่เอกสาร &nbsp;${esc(docNo)}<br>
-        เริ่มใช้วันที่ &nbsp;${esc(useDate)}<br>
-        แก้ไขครั้งที่ : ${esc(rev)}<br>
-        1/1
-      </div>
-    </div>
-    <div class="sh-title">X - CHART</div>
-    <div class="sh-meta">
-      <span>แบบฟอร์ม : เผยแพร่ผลควบคุมคุณภาพ (Control Chart)</span>
-      <span>PARAMETER : <b>${esc(param)}</b></span>
-      <span>Control Sample (QC) No. : <b>${esc(qcNo)}</b></span>
-      <span>MONTH : <b>${esc(month)}</b></span>
-    </div>
-    <div class="sh-meta">
-      <span>X + 3SD : <b>${lim.p3}</b></span>
-      <span>X + 2SD : <b>${lim.p2}</b></span>
-      <span>X&#772; : <b>${lim.mean}</b></span>
-      <span>X - 2SD : <b>${lim.m2}</b></span>
-      <span>X - 3SD : <b>${lim.m3}</b></span>
-    </div>
-    <table class="dt">
-      <tr><td class="rowlabel">DATE</td>${dateCells}</tr>
-      <tr><td class="rowlabel">SAMPLE MEASUREMENT</td>${valCells}</tr>
-      <tr><td class="rowlabel">STATUS</td>${statCells}</tr>
-    </table>
-    <div class="chartwrap">${buildChartSVG(lim)}</div>
-    <div class="legend">
-      <span><i style="border-color:#c0392b;"></i> ±3SD (Action limit)</span>
-      <span><i style="border-color:#d4ac0d; border-top-style:dashed;"></i> ±2SD (Warning limit)</span>
-      <span><i style="border-color:#1c2230;"></i> X&#772; (Center line)</span>
-      <span><i style="border-color:#c0392b; border-top-style:none; background:#c0392b; height:2px; width:16px;"></i> จุดข้อมูลเกิน ±3SD</span>
-    </div>
-  `;
-
-  // re-attach edit listeners
-  sheet.querySelectorAll('table.dt td[contenteditable]').forEach(td=>{
-    td.addEventListener('blur', onCellEdit);
-    td.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } });
-  });
-
-  built = true;
-  showStatus('อัปเดต Chart แล้ว', true);
-}
-
-function onCellEdit(e){
-  const td = e.target;
-  const idx = parseInt(td.dataset.idx,10);
-  const field = td.dataset.field;
-  const raw = td.textContent.trim();
-  if(field==='date'){
-    dates[idx].date = raw;
-  } else {
-    const v = raw==='' ? null : parseFloat(raw);
-    dates[idx].value = (v===null || isNaN(v)) ? null : v;
-  }
-  buildSheet();
-}
-
-function showStatus(msg, ok){
-  const box = document.getElementById('statusBox');
-  box.textContent = msg;
-  box.className = 'status ' + (ok ? 'ok' : 'err');
-}
-
-document.getElementById('btnBuild').addEventListener('click', buildSheet);
-
-document.getElementById('btnAddCol').addEventListener('click', ()=>{
-  dates.push({date:String(dates.length+1), value:null});
-  document.getElementById('fDays').value = dates.length;
-  buildSheet();
-});
-
-document.getElementById('btnRemoveCol').addEventListener('click', ()=>{
-  if(dates.length>1) dates.pop();
-  document.getElementById('fDays').value = dates.length;
-  buildSheet();
-});
-
-document.getElementById('fDays').addEventListener('change', ()=>{
-  const n = Math.max(1, Math.min(31, parseInt(document.getElementById('fDays').value,10) || 24));
-  initDates(n);
-  buildSheet();
-});
-
-document.getElementById('btnPrint').addEventListener('click', ()=>{
-  window.print();
-});
-
-// ── ซิงก์ผ่าน Cloudflare Worker + KV เดียวกับที่ใช้ในเครื่องมือ Bias ──────────────
-// ไฟล์นี้ต้องเปิดโดยตรง (ดับเบิลคลิก หรือโฮสต์เอง) ไม่ใช่ผ่านลิงก์ claude.ai/artifact
-// เพราะหน้าที่เผยแพร่ผ่าน Claude Artifact จะถูกบล็อกไม่ให้เชื่อมต่อโดเมนภายนอกแบบนี้
-const WORKER_URL = 'https://silent-firefly-262f.imguy2727.workers.dev';
-const KV_SECRET  = 'nir-bias-kv-2026-change-me'; // ต้องตรงกับค่าที่ตั้งไว้ใน Cloudflare Worker
-const KV_KEY     = 'nir_xchart_store'; // คีย์ใหม่ แยกจากข้อมูล Bias เดิมโดยสิ้นเชิง
-function kvUrl(key){ return WORKER_URL + '/kv/' + key; }
-
-const LS_CACHE_KEY = 'nir_xchart_cache_v1'; // แคชไว้ในเครื่องเผื่อออฟไลน์/เชื่อมต่อไม่ได้ชั่วคราว
-const LAST_VIEW_KEY = 'nir_xchart_last_view_v1'; // จำ QC/Parameter/เดือนล่าสุดที่เปิดดู ไว้ใช้ครั้งถัดไป
-function saveLastView(){
-  try{
-    localStorage.setItem(LAST_VIEW_KEY, JSON.stringify({
-      qcNo: document.getElementById('fQcNo').value,
-      param: document.getElementById('fParam').value,
-      monthKey: document.getElementById('fMonthKey').value
-    }));
-  }catch(e){}
-}
-function loadLastView(){
-  try{ return JSON.parse(localStorage.getItem(LAST_VIEW_KEY) || 'null'); }catch(e){ return null; }
-}
-
-function sanitizeId(s){
-  return String(s||'').trim().replace(/[^a-zA-Z0-9_\-.~:@+]+/g,'_').slice(0,120) || 'x';
-}
-function docIdFor(qcNo, param, monthKey){ return sanitizeId(qcNo) + '__' + sanitizeId(param) + '__' + sanitizeId(monthKey||''); }
-function monthKeyNow(){ return new Date().toISOString().slice(0,7); }
-function monthKeyToLabel(key){
-  if(!key || !/^\d{4}-\d{2}$/.test(key)) return '';
-  const d = new Date(key + '-01T00:00:00');
-  return d.toLocaleDateString('en-US', {month:'short', year:'numeric'}).toUpperCase();
-}
-function monthKeyFromDate(dateStr){
-  if(!dateStr) return null;
-  const s = String(dateStr);
-  let m = s.match(/^(\d{4})-(\d{2})-\d{2}/); // ISO: yyyy-mm-dd
-  if(m) return `${m[1]}-${m[2]}`;
-  m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); // dd/mm/yyyy
-  if(m) return `${m[3]}-${m[2]}`;
-  return null;
-}
-
-async function kvGetAll(){
-  const res = await fetch(kvUrl(KV_KEY), {cache:'no-store', mode:'cors', headers:{'X-KV-Secret':KV_SECRET}});
-  if(res.status===404) return {};
-  if(!res.ok){
-    let detail=''; try{ const j=await res.json(); detail=j.message||''; }catch(e){}
-    throw new Error(`HTTP ${res.status}${detail?' — '+detail:''}`);
-  }
-  const j = await res.json();
-  return j.record || j || {};
-}
-async function kvPutAll(obj){
-  const res = await fetch(kvUrl(KV_KEY), {
-    method:'PUT',
-    headers:{'Content-Type':'application/json','X-KV-Secret':KV_SECRET},
-    body: JSON.stringify(obj)
-  });
-  if(!res.ok){
-    let detail=''; try{ const j=await res.json(); detail=j.message||''; }catch(e){}
-    throw new Error(`HTTP ${res.status}${detail?' — '+detail:''}`);
-  }
-}
-
-async function storeReadAll(){
-  try{
-    const all = await kvGetAll();
-    try{ localStorage.setItem(LS_CACHE_KEY, JSON.stringify(all)); }catch(e){}
-    return all;
-  }catch(e){
-    showStatus('เชื่อมระบบกลางไม่ได้ (' + e.message + ') — แสดงข้อมูลที่แคชไว้ล่าสุดในเครื่องนี้แทน', false);
-    try{ return JSON.parse(localStorage.getItem(LS_CACHE_KEY) || '{}'); }catch(e2){ return {}; }
-  }
-}
-async function storeReadOne(id){
-  const all = await storeReadAll();
-  return all[id] || null;
-}
-async function storeWriteOne(id, body){
-  const all = await kvGetAll();
-  all[id] = body;
-  await kvPutAll(all);
-  try{ localStorage.setItem(LS_CACHE_KEY, JSON.stringify(all)); }catch(e){}
-}
-function mergePoints(existingPoints, newPoints){
-  const map = new Map((existingPoints||[]).map(p=>[String(p.date), p.value]));
-  (newPoints||[]).forEach(p=>map.set(String(p.date), p.value));
-  return Array.from(map, ([date,value])=>({date,value})).sort((a,b)=> String(a.date).localeCompare(String(b.date)));
-}
-
-// ── พารามิเตอร์ที่ตั้งค่าไว้ล่วงหน้า (เกณฑ์ตามที่แจ้ง) ─────────────────────────
-const PRESETS = [
-  {param:'Moisture',        mean:7.76,  p3:7.94,  p2:7.88,  m2:7.63,  m3:7.57},
-  {param:'Crude Protein',   mean:32.45, p3:33.06, p2:32.86, m2:32.05, m3:31.84},
-  {param:'Acid Hydrolysis', mean:10.30, p3:10.90, p2:10.70, m2:9.89,  m3:9.69},
-  {param:'Fiber',           mean:2.29,  p3:2.66,  p2:2.54,  m2:2.05,  m3:1.93},
-  {param:'Ash',             mean:6.3,   p3:7.3,   p2:7.0,   m2:5.6,   m3:5.3}
-];
-
-function populatePresetSelect(){
-  const sel = document.getElementById('presetSelect');
-  sel.innerHTML = '<option value="">— เลือกพารามิเตอร์ที่ตั้งไว้ล่วงหน้า —</option>';
-  PRESETS.forEach((pr,i)=>{
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = pr.param;
-    sel.appendChild(opt);
-  });
-}
-document.getElementById('presetSelect').addEventListener('change', (e)=>{
-  const i = e.target.value;
-  if(i==='') return;
-  const pr = PRESETS[i];
-  document.getElementById('fParam').value = pr.param;
-  document.getElementById('fMean').value = pr.mean;
-  document.getElementById('fP3').value = pr.p3;
-  document.getElementById('fP2').value = pr.p2;
-  document.getElementById('fM2').value = pr.m2;
-  document.getElementById('fM3').value = pr.m3;
-  buildSheet();
-});
-
-document.getElementById('btnAddPresets').addEventListener('click', async ()=>{
-  const qcNo = document.getElementById('fQcNo').value || 'NIR 02/25';
-  const monthKey = document.getElementById('fMonthKey').value || monthKeyNow();
-  try{
-    const all = await kvGetAll();
-    PRESETS.forEach(pr=>{
-      const id = docIdFor(qcNo, pr.param, monthKey);
-      const existing = all[id] || {};
-      all[id] = {
-        qcNo, param: pr.param, monthKey,
-        useDate: existing.useDate || document.getElementById('fUseDate').value,
-        docNo: existing.docNo || document.getElementById('fDocNo').value,
-        rev: existing.rev || document.getElementById('fRev').value,
-        limits: {mean:pr.mean, p3:pr.p3, p2:pr.p2, m2:pr.m2, m3:pr.m3},
-        points: existing.points || [],
-        updatedAt: new Date().toISOString()
-      };
-    });
-    await kvPutAll(all);
-    try{ localStorage.setItem(LS_CACHE_KEY, JSON.stringify(all)); }catch(e){}
-    await refreshQcList();
-    showStatus(`เพิ่ม/อัปเดตเกณฑ์ ${PRESETS.length} พารามิเตอร์เข้าระบบกลางแล้ว สำหรับ QC No. ${qcNo} เดือน ${monthKeyToLabel(monthKey)} (ไม่กระทบจุดข้อมูลเดิมที่เคยมี)`, true);
-  }catch(err){
-    showStatus('เพิ่มไม่สำเร็จ: ' + err.message, false);
-  }
-});
-
-function applyDoc(id, data){
-  if(data.param) document.getElementById('fParam').value = data.param;
-  if(data.qcNo) document.getElementById('fQcNo').value = data.qcNo;
-  if(data.monthKey) document.getElementById('fMonthKey').value = data.monthKey;
-  if(data.useDate) document.getElementById('fUseDate').value = data.useDate;
-  if(data.docNo) document.getElementById('fDocNo').value = data.docNo;
-  if(data.rev) document.getElementById('fRev').value = data.rev;
-  if(data.limits){
-    const l = data.limits;
-    if(l.mean!=null) document.getElementById('fMean').value = l.mean;
-    if(l.p3!=null) document.getElementById('fP3').value = l.p3;
-    if(l.p2!=null) document.getElementById('fP2').value = l.p2;
-    if(l.m2!=null) document.getElementById('fM2').value = l.m2;
-    if(l.m3!=null) document.getElementById('fM3').value = l.m3;
-  }
-  dates = (Array.isArray(data.points) ? data.points : []).map(p=>({date:String(p.date), value:(p.value===null||p.value===undefined)?null:Number(p.value)}));
-  document.getElementById('fDays').value = Math.max(dates.length, 1);
-  if(!dates.length) initDates(parseInt(document.getElementById('fDays').value,10) || 24);
-  buildSheet();
-  saveLastView();
-}
-
-// ── รายการ QC/Parameter (คอมโบ) + รายการเดือนของคอมโบที่เลือก ────────────────
-async function listCombos(){
-  const all = await storeReadAll();
-  const combos = {}; // comboId -> {qcNo, param, months: [{id, monthKey}]}
-  Object.keys(all).forEach(id=>{
-    const v = all[id];
-    const comboId = sanitizeId(v.qcNo) + '__' + sanitizeId(v.param);
-    if(!combos[comboId]) combos[comboId] = {qcNo:v.qcNo, param:v.param, months:[]};
-    combos[comboId].months.push({id, monthKey: v.monthKey || ''});
-  });
-  Object.values(combos).forEach(c=> c.months.sort((a,b)=> b.monthKey.localeCompare(a.monthKey)));
-  return combos;
-}
-
-async function refreshQcList(){
-  const sel = document.getElementById('qcSelect');
-  const curCombo = sel.value;
-  const combos = await listCombos();
-  sel.innerHTML = '<option value="">— เลือก QC / Parameter —</option>';
-  Object.keys(combos).forEach(comboId=>{
-    const c = combos[comboId];
-    const opt = document.createElement('option');
-    opt.value = comboId;
-    opt.textContent = `${c.qcNo || comboId} — ${c.param || ''}`;
-    sel.appendChild(opt);
-  });
-  if(curCombo && combos[curCombo]) sel.value = curCombo;
-  await populateMonthSelect(combos);
-}
-
-async function populateMonthSelect(combos){
-  const qcSel = document.getElementById('qcSelect');
-  const moSel = document.getElementById('monthSelect');
-  const comboId = qcSel.value;
-  moSel.innerHTML = '<option value="">— เลือกเดือน —</option>';
-  if(!comboId || !combos[comboId]){ return; }
-  combos[comboId].months.forEach(m=>{
-    const opt = document.createElement('option');
-    opt.value = m.id;
-    opt.textContent = monthKeyToLabel(m.monthKey) || '(ไม่ระบุเดือน)';
-    moSel.appendChild(opt);
-  });
-}
-
-document.getElementById('qcSelect').addEventListener('change', async ()=>{
-  const combos = await listCombos();
-  await populateMonthSelect(combos);
-  const moSel = document.getElementById('monthSelect');
-  if(moSel.options.length > 1){
-    moSel.selectedIndex = 1; // most recent month (months are sorted desc)
-    moSel.dispatchEvent(new Event('change'));
-  }
-});
-
-document.getElementById('monthSelect').addEventListener('change', async (e)=>{
-  const id = e.target.value;
-  if(!id) return;
-  const data = await storeReadOne(id);
-  if(data) applyDoc(id, data);
-});
-
-// changing the MONTH field directly (not just the "ดูย้อนหลังเดือน" dropdown) also
-// loads that month's saved chart for the current QC/Parameter — or starts a blank
-// sheet (keeping current limits) if nothing's been saved for that month yet.
-document.getElementById('fMonthKey').addEventListener('change', async ()=>{
-  const qcNo = document.getElementById('fQcNo').value;
-  const param = document.getElementById('fParam').value;
-  const monthKey = document.getElementById('fMonthKey').value;
-  if(!qcNo || !param || !monthKey) return;
-  const id = docIdFor(qcNo, param, monthKey);
-  const data = await storeReadOne(id);
-  const moSel = document.getElementById('monthSelect');
-  if(data){
-    applyDoc(id, data);
-    if([...moSel.options].some(o=>o.value===id)) moSel.value = id;
-  } else {
-    initDates(parseInt(document.getElementById('fDays').value,10) || 24);
-    buildSheet();
-    moSel.value = '';
-    saveLastView();
-    showStatus(`ยังไม่มีข้อมูลบันทึกไว้สำหรับเดือน ${monthKeyToLabel(monthKey)} — เริ่มกรอกข้อมูลใหม่ได้เลย (กด "บันทึก" เพื่อเก็บ)`, true);
-  }
-});
-
-document.getElementById('btnSaveDb').addEventListener('click', async ()=>{
-  const lim = getLimits();
-  const qcNo = document.getElementById('fQcNo').value;
-  const param = document.getElementById('fParam').value;
-  const monthKey = document.getElementById('fMonthKey').value || monthKeyNow();
-  const id = docIdFor(qcNo, param, monthKey);
-  const body = {
-    qcNo, param, monthKey,
-    useDate: document.getElementById('fUseDate').value,
-    docNo: document.getElementById('fDocNo').value,
-    rev: document.getElementById('fRev').value,
-    limits: lim,
-    points: dates,
-    updatedAt: new Date().toISOString()
+function renderReview() {
+  const r = (S.md.reviews || {})[S.qc];
+  const all = QCX.PARAMS.map(P => series(P.code));
+  const nPts = all.reduce((a, s) => a + s.pts.length, 0);
+  const nBad = all.reduce((a, s) => a + s.st.filter(x => x === 'fail').length, 0);
+  const ro = !QCX.canWrite();
+  let h = '';
+  if (r) h += '<div class="note ok" style="margin-bottom:10px">✅ ทบทวนแล้วโดย <b>' + esc(r.by) + '</b> เมื่อ ' + esc(QCX.dmy(String(r.at).slice(0, 10))) + ' · ผล: <b>' + esc(r.result) + '</b>' + (r.note ? '<br>หมายเหตุ / การแก้ไข: ' + esc(r.note) : '') + '</div>';
+  else if (nPts) h += '<div class="note warn" style="margin-bottom:10px">ยังไม่ได้ทบทวน ' + esc(QCX.monthTh(S.month)) + ' · ' + nPts + ' จุด' + (nBad ? ' · <b>มี ' + nBad + ' จุดผิดเกณฑ์</b> ต้องระบุการแก้ไข' : ' · ทุกจุดอยู่ในเกณฑ์') + '</div>';
+  else { $('review').innerHTML = '<div class="note">ยังไม่มีค่าในเดือนนี้</div>'; return; }
+  const opts = ['ผ่าน — ทุกจุดอยู่ในเกณฑ์', 'มีจุดผิดเกณฑ์ — ตรวจสอบและแก้ไขแล้ว', 'มีจุดผิดเกณฑ์ — อยู่ระหว่างติดตาม'];
+  const cur = r ? r.result : (nBad ? opts[1] : opts[0]);
+  h += '<details' + (r ? '' : ' open') + '><summary style="cursor:pointer;font-size:12.5px;color:var(--t2)">' + (r ? 'แก้ไขบันทึกการทบทวน' : 'บันทึกการทบทวน') + '</summary>' +
+    '<div class="row" style="margin-top:8px"><div class="f"><label>ผลการทบทวน</label><select id="rRes">' + opts.map(o => '<option' + (o === cur ? ' selected' : '') + '>' + o + '</option>').join('') + '</select></div>' +
+    '<div class="f"><label>ผู้ทบทวน</label><input id="rBy" value="' + esc(r ? r.by : QCX.user()) + '" style="width:200px"></div></div>' +
+    '<div class="f" style="margin-top:8px"><label>หมายเหตุ / สาเหตุและการแก้ไข (ถ้ามีจุดผิดเกณฑ์)</label><textarea id="rNote">' + esc(r ? r.note : '') + '</textarea></div>' +
+    '<div class="row" style="margin-top:8px"><button class="primary" id="rSave"' + (ro ? ' disabled' : '') + '>บันทึกการทบทวน</button></div></details>';
+  $('review').innerHTML = h;
+  $('rSave').onclick = async () => {
+    const by = $('rBy').value.trim(), result = $('rRes').value, note = $('rNote').value.trim();
+    if (!by) { toast('ใส่ชื่อผู้ทบทวน'); return; }
+    if (nBad && !note) { toast('มีจุดผิดเกณฑ์ — กรุณาระบุสาเหตุและการแก้ไข'); return; }
+    busy(true, 'กำลังบันทึก…');
+    try {
+      const out = await QCX.update(QCX.monthPath(S.month), () => QCX.emptyMonth(S.month), md => {
+        md.reviews = md.reviews || {};
+        md.reviews[S.qc] = { by, at: new Date().toISOString(), result, note, points: nPts, fails: nBad };
+      }, 'QC review ' + QCX.qcName(S.cfg, S.qc) + ' ' + S.month);
+      S.md = out.obj; busy(false); toast('✅ บันทึกการทบทวนแล้ว'); render();
+    } catch (e) { busy(false); alert('บันทึกไม่สำเร็จ: ' + e.message); }
   };
-  try{
-    await storeWriteOne(id, body);
-    await refreshQcList();
-    const comboId = sanitizeId(qcNo) + '__' + sanitizeId(param);
-    document.getElementById('qcSelect').value = comboId;
-    const combos = await listCombos();
-    await populateMonthSelect(combos);
-    document.getElementById('monthSelect').value = id;
-    saveLastView();
-    showStatus(dbNs ? `บันทึกขึ้นระบบกลางแล้ว (เดือน ${monthKeyToLabel(monthKey)}) ทุกคนที่เปิดหน้านี้จะเห็นข้อมูลเดียวกัน`
-                     : `บันทึกในเครื่องนี้แล้ว (เดือน ${monthKeyToLabel(monthKey)}) ถ้าต้องแชร์ให้คนอื่น ใช้ปุ่ม "ส่งออกไฟล์รวม" แล้วส่งไฟล์ไปให้`, true);
-  }catch(err){
-    showStatus('บันทึกไม่สำเร็จ: ' + err.message, false);
-  }
-});
+}
 
-// ---- Excel import/export of the WHOLE store (all QC/parameters/months) ----
-// This is the shared-storage stand-in when the db capability isn't available:
-// export the file, put it on a shared drive; teammates import it to catch up,
-// then re-export after adding their own points.
-document.getElementById('btnExportXlsx').addEventListener('click', async ()=>{
-  const all = await storeReadAll();
-  const rows = [['QC No.','Parameter','Month','Date','Value','Mean','+3SD','+2SD','-2SD','-3SD','เลขที่เอกสาร','เริ่มใช้วันที่','แก้ไขครั้งที่']];
-  Object.values(all).forEach(v=>{
-    const l = v.limits || {};
-    (v.points||[]).forEach(p=>{
-      rows.push([v.qcNo||'', v.param||'', v.monthKey||'', p.date, p.value, l.mean??'', l.p3??'', l.p2??'', l.m2??'', l.m3??'', v.docNo||'', v.useDate||'', v.rev||'']);
+function chartSvg(s, par) {
+  const w = 1440, h = 380, padL = 64, padR = 52, padT = 18, padB = 26;
+  const N = Math.max(s.pts.length, 1);
+  const lims = s.pts.map(s.limOf).filter(Boolean).concat(s.limEnd ? [s.limEnd] : []);
+  if (!lims.length && !s.pts.length) return '';
+  const vals = s.pts.map(p => p.v);
+  let yMin = Math.min(...lims.map(l => l.m3), ...vals), yMax = Math.max(...lims.map(l => l.p3), ...vals);
+  const span = (yMax - yMin) || 1; yMin -= span * .12; yMax += span * .12;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+  const step = N > 1 ? plotW / (N - 1) : 0;
+  const X = i => N > 1 ? padL + i * step : padL + plotW / 2;
+  const Y = v => padT + (yMax - v) / (yMax - yMin) * plotH;
+  const dec = QCX.PAR[par].dec;
+  // เส้นเกณฑ์: ถ้าเปลี่ยนเวอร์ชันกลางเดือน เส้นจะเป็นขั้นบันได
+  const segs = []; // [{from i, to i, lim}]
+  if (s.pts.length) s.pts.forEach((p, i) => { const l = s.limOf(p); const last = segs[segs.length - 1]; if (last && last.lim === l) last.to = i; else segs.push({ from: i, to: i, lim: l }); });
+  else if (s.limEnd) segs.push({ from: 0, to: 0, lim: s.limEnd });
+  const L = [['p3', '#c0392b', ''], ['p2', '#d4a20d', '5,4'], ['mean', '#1c2230', ''], ['m2', '#d4a20d', '5,4'], ['m3', '#c0392b', '']];
+  let out = '';
+  for (let i = 0; i < N; i++) out += '<line x1="' + X(i) + '" y1="' + padT + '" x2="' + X(i) + '" y2="' + (h - padB) + '" stroke="#ececec"/>';
+  segs.forEach((g, si) => {
+    if (!g.lim) return;
+    const x1 = si === 0 ? padL : (X(g.from - 1) + X(g.from)) / 2, x2 = si === segs.length - 1 ? w - padR : (X(g.to) + X(g.to + 1)) / 2;
+    L.forEach(([k, c, d]) => {
+      out += '<line x1="' + x1 + '" y1="' + Y(g.lim[k]) + '" x2="' + x2 + '" y2="' + Y(g.lim[k]) + '" stroke="' + c + '" stroke-width="1.4"' + (d ? ' stroke-dasharray="' + d + '"' : '') + '/>';
+      if (si === 0) out += '<text x="' + (padL - 6) + '" y="' + (Y(g.lim[k]) + 4) + '" text-anchor="end" font-size="11" fill="#333">' + g.lim[k] + '</text>';
+      if (si > 0 && si === segs.length - 1) out += '<text x="' + (x2 + 4) + '" y="' + (Y(g.lim[k]) + 4) + '" font-size="11" fill="#b45309">' + g.lim[k] + '</text>';
     });
   });
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'XChart');
-  XLSX.writeFile(wb, 'NIR_XChart_master.xlsx');
-  showStatus('ส่งออกไฟล์รวมแล้ว เก็บไฟล์นี้ไว้ที่ไดรฟ์ที่ทีมเข้าถึงได้ร่วมกัน', true);
-});
-
-document.getElementById('importXlsxInput').addEventListener('change', async (e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  try{
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, {type:'array'});
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
-    const all = await storeReadAll();
-    let count = 0;
-    for(let r=1; r<rows.length; r++){
-      const row = rows[r];
-      if(!row || row[0]==null || row[1]==null) continue;
-      const [qcNo, param, monthCol, date, value, mean, p3, p2, m2, m3, docNo, useDate, rev] = row;
-      const monthKey = monthCol || monthKeyFromDate(date) || monthKeyNow();
-      const id = docIdFor(qcNo, param, monthKey);
-      const existing = all[id] || {qcNo, param, monthKey, points:[], limits:null};
-      existing.points = mergePoints(existing.points, [{date, value}]);
-      if(mean!=null || p3!=null || p2!=null || m2!=null || m3!=null){
-        existing.limits = {mean, p3, p2, m2, m3};
-      }
-      existing.qcNo = qcNo; existing.param = param; existing.monthKey = monthKey;
-      if(docNo) existing.docNo = docNo;
-      if(useDate) existing.useDate = useDate;
-      if(rev) existing.rev = rev;
-      all[id] = existing;
-      count++;
-    }
-    lsWriteAll(all); // always cache locally too
-    if(dbNs){
-      for(const id of Object.keys(all)) await storeWriteOne(id, all[id]);
-    }
-    await refreshQcList();
-    showStatus(`นำเข้าแล้ว ${count} แถว จากไฟล์ ${file.name}`, true);
-  }catch(err){
-    showStatus('อ่านไฟล์ไม่สำเร็จ: ' + err.message, false);
-  }
-  e.target.value = '';
-});
-
-// merge incoming points (from the Report Tool's "ส่งค่า QC" button) into the store
-// — each point is filed under the month its own test date falls in, so history across
-// months builds up automatically without any extra manual step.
-async function ingestFromUrl(){
-  const params = new URLSearchParams(location.search);
-  const b64 = params.get('data');
-  if(!b64) return;
-  history.replaceState(null, '', location.pathname);
-  await ingestPayloadText(b64);
-}
-
-async function ingestPayloadTextCommon(payload){
-  if(!payload || !Array.isArray(payload.points) || !payload.points.length){ showStatus('ไม่พบค่า QC ในข้อมูลที่วางมา', false); return; }
-
-  const groups = {};
-  payload.points.forEach(p=>{
-    const monthKey = monthKeyFromDate(p.date) || document.getElementById('fMonthKey').value || monthKeyNow();
-    const id = docIdFor(p.qcNo, p.param, monthKey);
-    if(!groups[id]) groups[id] = {qcNo:p.qcNo, param:p.param, monthKey, pts:[]};
-    groups[id].pts.push({date:p.date, value:p.value});
+  if (s.pts.length > 1) out += '<polyline points="' + s.pts.map((p, i) => X(i) + ',' + Y(p.v)).join(' ') + '" fill="none" stroke="#2f3fae" stroke-width="1.6"/>';
+  s.pts.forEach((p, i) => {
+    const c = s.st[i] === 'fail' ? '#dc2626' : s.st[i] === 'warn' ? '#d97706' : '#2f3fae';
+    out += '<circle cx="' + X(i) + '" cy="' + Y(p.v) + '" r="' + (s.st[i] === 'pass' || !s.st[i] ? 3.4 : 4.6) + '" fill="' + c + '"/>' +
+      '<text x="' + X(i) + '" y="' + (Y(p.v) - 8) + '" text-anchor="middle" font-size="10" fill="#333">' + fmt(p.v, par) + '</text>' +
+      '<text x="' + X(i) + '" y="' + (h - padB + 15) + '" text-anchor="middle" font-size="10" fill="#333">' + p.d.slice(8, 10) + (p.run > 1 ? '/' + p.run : '') + '</text>';
   });
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" style="display:block"><rect width="' + w + '" height="' + h + '" fill="#fff"/>' + out + '</svg>';
+}
 
-  try{
-    const all = await kvGetAll();
-    let firstId = null;
-    Object.keys(groups).forEach(id=>{
-      const g = groups[id];
-      const existing = all[id] || {};
-      all[id] = {
-        qcNo: g.qcNo, param: g.param, monthKey: g.monthKey,
-        useDate: payload.useDate || existing.useDate || document.getElementById('fUseDate').value,
-        docNo: payload.docNo || existing.docNo || document.getElementById('fDocNo').value,
-        rev: payload.rev || existing.rev || document.getElementById('fRev').value,
-        limits: existing.limits || null,
-        points: mergePoints(existing.points, g.pts),
-        updatedAt: new Date().toISOString()
-      };
-      if(!firstId) firstId = id;
+function renderSheets() {
+  if (!S.qc) { $('sheets').innerHTML = ''; return; }
+  const doc = S.cfg.doc || QCX.DEFAULT_CONFIG.doc;
+  const pars = S.par === 'all' ? QCX.PARAMS : [QCX.PAR[S.par]];
+  const r = (S.md.reviews || {})[S.qc];
+  $('sheets').innerHTML = pars.map(P => {
+    const s = series(P.code), l = s.limEnd;
+    const cols = Math.max(s.pts.length, 20);
+    const cell = (i, f) => i < s.pts.length ? f(s.pts[i], i) : '<td></td>';
+    let dRow = '', vRow = '', sRow = '';
+    for (let i = 0; i < cols; i++) {
+      dRow += cell(i, p => '<td>' + p.d.slice(8, 10) + '/' + p.d.slice(5, 7) + (p.run > 1 ? ' (' + p.run + ')' : '') + '</td>');
+      vRow += cell(i, (p, k) => '<td class="v" data-par="' + P.code + '" data-i="' + k + '" title="' + esc((p.src === 'manual' ? 'กรอกเอง' : p.src === 'report' ? 'จาก Report' : p.src || '') + (p.by ? ' · ' + p.by : '') + (p.note ? ' · ' + p.note : '')) + '">' + fmt(p.v, P.code) + (p.src === 'manual' ? '*' : '') + '</td>');
+      sRow += cell(i, (p, k) => '<td class="s-' + s.st[k] + '">' + QCX.STATUS_TEXT[s.st[k]] + '</td>');
+    }
+    const viol = [];
+    s.pts.forEach((p, i) => s.flags[i].forEach(f => { if (f !== '7-T' || !viol.some(v => v.f === '7-T')) viol.push({ f, p }); }));
+    const versions = [...new Set(s.pts.map(s.limOf))].filter(Boolean);
+    return '<div class="sheet">' +
+      '<div class="sh-top"><div class="center">' + esc(doc.lab || QCX.DEFAULT_CONFIG.doc.lab) + '</div><div class="right">เลขที่เอกสาร &nbsp;' + esc(doc.docNo) + '<br>เริ่มใช้วันที่ &nbsp;' + esc(doc.useDate) + '<br>แก้ไขครั้งที่ : ' + esc(doc.rev) + '<br>1/1</div></div>' +
+      '<div class="sh-title">X - CHART</div>' +
+      '<div class="sh-meta"><span>แบบฟอร์ม : เผยแพร่ผลควบคุมคุณภาพ (Control Chart)</span><span>PARAMETER : <b>' + esc(P.name) + '</b></span><span>Control Sample (QC) No. : <b>' + esc(QCX.qcName(S.cfg, S.qc)) + '</b></span><span>MONTH : <b>' + esc(QCX.monthLabel(S.month)) + '</b></span></div>' +
+      (l ? '<div class="sh-meta"><span>X + 3SD : <b>' + l.p3 + '</b></span><span>X + 2SD : <b>' + l.p2 + '</b></span><span>X&#772; : <b>' + l.mean + '</b></span><span>X - 2SD : <b>' + l.m2 + '</b></span><span>X - 3SD : <b>' + l.m3 + '</b></span>' +
+        (versions.length > 1 ? '<span style="color:#b45309">* เกณฑ์เปลี่ยนระหว่างเดือน (เส้นเป็นขั้นบันได)</span>' : '') + '</div>'
+        : '<div class="sh-meta" style="color:#b45309">ยังไม่มีเกณฑ์ของพารามิเตอร์นี้ — กด ⚙️ เกณฑ์</div>') +
+      '<table class="dt"><tr><td class="rl">DATE</td>' + dRow + '</tr><tr><td class="rl">SAMPLE MEASUREMENT</td>' + vRow + '</tr><tr><td class="rl">STATUS</td>' + sRow + '</tr></table>' +
+      (s.pts.length || l ? chartSvg(s, P.code) : '<div class="empty-sheet">ยังไม่มีค่า</div>') +
+      '<div class="legend"><span><i style="border-color:#c0392b"></i> ±3SD (Action limit)</span><span><i style="border-color:#d4a20d;border-top-style:dashed"></i> ±2SD (Warning limit)</span><span><i style="border-color:#1c2230"></i> X&#772; (Center line)</span><span style="color:#dc2626">● Fail</span><span style="color:#d97706">● Warning</span><span>* = กรอกเอง</span></div>' +
+      '<div class="viol">' + (viol.length ? viol.map(v => '<b>' + QCX.dmy(v.p.d) + '</b> ' + v.f + ': ' + QCX.RULE_TEXT[v.f]).join(' &nbsp;·&nbsp; ') : (s.pts.length ? 'ไม่พบจุดผิดเกณฑ์ (1-3s, 2-2s, 7-T)' : '')) + '</div>' +
+      (r && r.note ? '<div class="viol" style="margin-top:8px">ผลการทบทวน: ' + esc(r.result) + ' — ' + esc(r.note) + '</div>' : '') +
+      '</div>';
+  }).join('');
+  $('sheets').querySelectorAll('td.v').forEach(td => td.onclick = () => openEdit(td.dataset.par, +td.dataset.i));
+}
+
+// ── แก้ไข / ลบจุด ──
+let editing = null;
+function openEdit(par, i) {
+  if (!QCX.canWrite()) { toast('ดูได้อย่างเดียว — ยังบันทึกไม่ได้'); return; }
+  const p = series(par).pts[i]; if (!p) return;
+  editing = p;
+  $('eTitle').textContent = 'แก้ไขค่า ' + QCX.PAR[par].name;
+  $('eInfo').innerHTML = esc(QCX.qcName(S.cfg, S.qc)) + ' · ' + QCX.dmy(p.d) + (p.run > 1 ? ' (รอบ ' + p.run + ')' : '') + '<br>ค่าปัจจุบัน <b>' + fmt(p.v, par) + '</b> · ' + esc(p.src === 'manual' ? 'กรอกเอง' : 'จาก Report') + (p.by ? ' โดย ' + esc(p.by) : '') +
+    (p.prev && p.prev.length ? '<br>ค่าก่อนแก้: ' + p.prev.map(x => esc(fmt(x.v, par)) + ' (' + esc(x.by || '') + ')').join(', ') : '');
+  $('eVal').value = p.v; $('eNote').value = '';
+  $('ovEdit').classList.add('on');
+}
+async function changePoint(del) {
+  const reason = $('eNote').value.trim();
+  if (!reason) { toast('ใส่เหตุผลก่อน (เก็บไว้เป็นหลักฐานการแก้ไข)'); return; }
+  const v = parseFloat($('eVal').value);
+  if (!del && isNaN(v)) { toast('ใส่ค่าตัวเลข'); return; }
+  if (del && !confirm('ลบจุดนี้? (ยังดูย้อนหลังได้ในประวัติ GitHub)')) return;
+  const tgt = editing;
+  busy(true, 'กำลังบันทึก…');
+  try {
+    const out = await QCX.update(QCX.monthPath(S.month), () => QCX.emptyMonth(S.month), md => {
+      const idx = md.points.findIndex(o => QCX.sameSlot(o, tgt));
+      if (idx < 0) throw new Error('ไม่พบจุดนี้แล้ว (อาจมีคนแก้ไปก่อน) — กด 🔄');
+      const o = md.points[idx], by = QCX.user(), at = new Date().toISOString();
+      if (del) { md.deleted = md.deleted || []; md.deleted.push(Object.assign({}, o, { delBy: by, delAt: at, reason })); md.points.splice(idx, 1); }
+      else { o.prev = (o.prev || []).concat([{ v: o.v, by: o.by, at: o.at }]); Object.assign(o, { v, by, at, note: reason }); }
+    }, (del ? 'QC delete ' : 'QC edit ') + QCX.qcName(S.cfg, S.qc) + ' ' + tgt.par + ' ' + tgt.d);
+    S.md = out.obj; busy(false); $('ovEdit').classList.remove('on'); toast(del ? 'ลบแล้ว' : '✅ แก้ไขแล้ว'); render();
+  } catch (e) { busy(false); alert('ไม่สำเร็จ: ' + e.message); }
+}
+$('eSave').onclick = () => changePoint(false);
+$('eDel').onclick = () => changePoint(true);
+
+// ── เพิ่มค่าเอง ──
+$('btnAdd').onclick = () => {
+  $('aDate').value = S.month === QCX.thisMonth() ? QCX.todayISO() : S.month + '-01';
+  $('aQc').value = QCX.qcName(S.cfg, S.qc); $('aNote').value = '';
+  const rowsFn = () => {
+    const d = $('aDate').value, k = QCX.qcKey($('aQc').value);
+    return QCX.PARAMS.map(P => { const l = QCX.limitsFor(S.cfg, k, P.code, d); return '<tr><td>' + P.short + ' <span class="hist">' + P.name + '</span></td><td><input type="number" step="any" data-p="' + P.code + '"></td><td class="hist">' + (l ? l.m3 + ' – ' + l.p3 : 'ไม่มีเกณฑ์') + '</td><td data-st="' + P.code + '"></td></tr>'; }).join('');
+  };
+  $('aBody').innerHTML = rowsFn();
+  const upd = () => $('aBody').querySelectorAll('input').forEach(inp => {
+    const P = inp.dataset.p, v = parseFloat(inp.value), st = QCX.status(v, QCX.limitsFor(S.cfg, QCX.qcKey($('aQc').value), P, $('aDate').value));
+    $('aBody').querySelector('[data-st="' + P + '"]').innerHTML = st ? '<span class="pill ' + st + '">' + QCX.STATUS_TEXT[st] + '</span>' : '';
+  });
+  $('aBody').oninput = upd;
+  $('aDate').onchange = $('aQc').onchange = () => { const keep = {}; $('aBody').querySelectorAll('input').forEach(i => keep[i.dataset.p] = i.value); $('aBody').innerHTML = rowsFn(); $('aBody').querySelectorAll('input').forEach(i => i.value = keep[i.dataset.p] || ''); upd(); };
+  $('ovAdd').classList.add('on');
+};
+$('aSave').onclick = async () => {
+  const d = $('aDate').value, name = $('aQc').value.trim(), note = $('aNote').value.trim();
+  if (!d || !name) { toast('ใส่วันที่และชื่อ QC'); return; }
+  const k = QCX.qcKey(name);
+  const pts = []; $('aBody').querySelectorAll('input').forEach(i => { const v = parseFloat(i.value); if (!isNaN(v)) pts.push({ k, qc: name, par: i.dataset.p, d, v, src: 'manual', note: note || undefined }); });
+  if (!pts.length) { toast('ใส่ค่าอย่างน้อย 1 พารามิเตอร์'); return; }
+  busy(true, 'กำลังตรวจ…');
+  try {
+    const md = await QCX.loadMonth(QCX.monthOf(d));
+    const conf = QCX.findConflicts({ [QCX.monthOf(d)]: md }, pts);
+    busy(false);
+    let policy = 'replace';
+    if (conf.length) {
+      const msg = 'วันที่นี้มีค่าอยู่แล้ว: ' + conf.map(c => c.p.par + ' ' + c.old.v + ' → ' + c.p.v).join(', ') + '\n\nOK = แทนที่ค่าเดิม (เก็บค่าเดิมไว้ในประวัติ)\nCancel = เพิ่มเป็นรอบที่ 2';
+      policy = confirm(msg) ? 'replace' : 'add';
+    }
+    busy(true, 'กำลังบันทึก…');
+    if (!S.cfg.qc[k]) await QCX.saveConfig(c => { c.qc = c.qc || {}; if (!c.qc[k]) c.qc[k] = { name, active: true, params: {} }; }, 'QC add ' + name).then(o => S.cfg = o.obj);
+    const sum = await QCX.addPoints(pts, policy, 'QC manual ' + name + ' ' + d);
+    busy(false); $('ovAdd').classList.remove('on');
+    toast('✅ เพิ่ม ' + sum.added + (sum.replaced ? ' · แทนที่ ' + sum.replaced : '') + (sum.same ? ' · ซ้ำ ' + sum.same : ''));
+    S.qc = k; S.month = QCX.monthOf(d); await loadMonth();
+  } catch (e) { busy(false); alert('ไม่สำเร็จ: ' + e.message); }
+};
+
+// ── เกณฑ์ ──
+function limRows() {
+  const k = $('lNew').value.trim() ? QCX.qcKey($('lNew').value) : $('lQc').value;
+  const from = $('lFrom').value;
+  $('lBody').innerHTML = QCX.PARAMS.map(P => {
+    const l = QCX.limitsFor(S.cfg, k, P.code, from) || {};
+    const vs = ((S.cfg.qc[k] || {}).params || {})[P.code] || [];
+    const hist = vs.slice().sort((a, b) => b.from.localeCompare(a.from)).map(v => QCX.dmy(v.from) + ': X̄ ' + v.mean + ' (' + v.m3 + '–' + v.p3 + ')').join('<br>');
+    const inp = (f, v) => '<input type="number" step="any" data-p="' + P.code + '" data-f="' + f + '" value="' + (v ?? '') + '">';
+    return '<tr><td><b>' + P.short + '</b> <span class="hist">' + P.name + '</span>' + (hist ? '<div class="hist">' + hist + '</div>' : '') + '</td><td>' + inp('mean', l.mean) + '</td><td>' + inp('sd', l.sd) + '</td>' +
+      '<td><button class="ghost" data-calc="' + P.code + '" title="คำนวณ ±2SD/±3SD จาก X̄ และ SD">คำนวณ →</button></td><td>' + inp('p3', l.p3) + '</td><td>' + inp('p2', l.p2) + '</td><td>' + inp('m2', l.m2) + '</td><td>' + inp('m3', l.m3) + '</td></tr>';
+  }).join('');
+  $('lBody').querySelectorAll('[data-calc]').forEach(b => b.onclick = () => {
+    const P = b.dataset.calc, g = f => parseFloat($('lBody').querySelector('[data-p="' + P + '"][data-f="' + f + '"]').value);
+    const m = g('mean'), sd = g('sd'); if (isNaN(m) || isNaN(sd)) { toast('ใส่ X̄ และ SD ก่อน'); return; }
+    const c = QCX.fromMeanSd(m, sd, QCX.PAR[P].dec);
+    ['p3', 'p2', 'm2', 'm3'].forEach(f => $('lBody').querySelector('[data-p="' + P + '"][data-f="' + f + '"]').value = c[f]);
+  });
+}
+$('btnLimits').onclick = () => {
+  const ks = Object.keys(S.cfg.qc || {}).sort();
+  $('lQc').innerHTML = ks.map(k => '<option value="' + esc(k) + '"' + (k === S.qc ? ' selected' : '') + '>' + esc(QCX.qcName(S.cfg, k)) + '</option>').join('');
+  $('lNew').value = ''; $('lFrom').value = QCX.todayISO(); $('lMsg').innerHTML = '';
+  const d = S.cfg.doc || {}; $('dNo').value = d.docNo || ''; $('dUse').value = d.useDate || ''; $('dRev').value = d.rev || '';
+  limRows(); $('lSave').disabled = !QCX.canWrite();
+  $('ovLim').classList.add('on');
+};
+$('lQc').onchange = $('lNew').oninput = $('lFrom').onchange = limRows;
+$('lSave').onclick = async () => {
+  const newName = $('lNew').value.trim();
+  const k = newName ? QCX.qcKey(newName) : $('lQc').value, from = $('lFrom').value;
+  if (!k || !from) { toast('เลือก QC และวันที่มีผล'); return; }
+  const changes = {}, errs = [];
+  QCX.PARAMS.forEach(P => {
+    const g = f => { const v = parseFloat($('lBody').querySelector('[data-p="' + P.code + '"][data-f="' + f + '"]').value); return isNaN(v) ? null : v; };
+    const v = { mean: g('mean'), p3: g('p3'), p2: g('p2'), m2: g('m2'), m3: g('m3') }; const sd = g('sd');
+    if (Object.values(v).every(x => x === null)) return;
+    if (Object.values(v).some(x => x === null)) { errs.push(P.short + ': กรอกให้ครบ 5 ช่อง'); return; }
+    if (!(v.m3 < v.m2 && v.m2 < v.mean && v.mean < v.p2 && v.p2 < v.p3)) { errs.push(P.short + ': ลำดับต้องเป็น −3SD < −2SD < X̄ < +2SD < +3SD'); return; }
+    const cur = QCX.limitsFor(S.cfg, k, P.code, from);
+    if (cur && ['mean', 'p3', 'p2', 'm2', 'm3'].every(f => cur[f] === v[f])) return;
+    if (sd !== null) v.sd = sd;
+    changes[P.code] = v;
+  });
+  if (errs.length) { $('lMsg').innerHTML = '<div class="note err">' + errs.map(esc).join('<br>') + '</div>'; return; }
+  const doc = { docNo: $('dNo').value.trim(), useDate: $('dUse').value.trim(), rev: $('dRev').value.trim() };
+  const docChanged = JSON.stringify(doc) !== JSON.stringify({ docNo: (S.cfg.doc || {}).docNo, useDate: (S.cfg.doc || {}).useDate, rev: (S.cfg.doc || {}).rev });
+  if (!Object.keys(changes).length && !newName && !docChanged) { toast('ไม่มีอะไรเปลี่ยน'); return; }
+  busy(true, 'กำลังบันทึกเกณฑ์…');
+  try {
+    const by = QCX.user(), at = new Date().toISOString();
+    const out = await QCX.saveConfig(c => {
+      c.qc = c.qc || {}; c.doc = Object.assign({}, c.doc || QCX.DEFAULT_CONFIG.doc, doc);
+      const q = c.qc[k] = c.qc[k] || { name: newName || k, active: true, params: {} };
+      Object.keys(changes).forEach(par => {
+        const list = q.params[par] = q.params[par] || [];
+        const i = list.findIndex(x => x.from === from);
+        const ver = Object.assign({ from }, changes[par], { by, at });
+        if (i >= 0) list[i] = ver; else list.push(ver);
+        list.sort((a, b) => a.from.localeCompare(b.from));
+      });
+    }, 'QC limits ' + (newName || QCX.qcName(S.cfg, k)) + ' from ' + from);
+    S.cfg = out.obj; busy(false); $('ovLim').classList.remove('on');
+    toast('✅ บันทึกเกณฑ์แล้ว (' + Object.keys(changes).length + ' พารามิเตอร์)');
+    S.qc = k; fillQc(); render();
+  } catch (e) { busy(false); $('lMsg').innerHTML = '<div class="note err">❌ ' + esc(e.message) + '</div>'; }
+};
+
+// ── ย้ายข้อมูลจาก X-Chart เดิม (Cloudflare KV) ──
+const OLD_WORKER = 'https://silent-firefly-262f.imguy2727.workers.dev', OLD_SECRET = 'nir-bias-kv-2026-change-me', OLD_KEY = 'nir_xchart_store';
+$('btnMig').onclick = async () => {
+  $('migOut').innerHTML = '<div class="note">กำลังดึง…</div>';
+  try {
+    const res = await fetch(OLD_WORKER + '/kv/' + OLD_KEY, { cache: 'no-store', headers: { 'X-KV-Secret': OLD_SECRET } });
+    if (res.status === 404) { $('migOut').innerHTML = '<div class="note">ไม่พบข้อมูลเดิม</div>'; return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const j = await res.json(); const all = j.record || j || {};
+    const pts = [], lims = [], skipped = new Set();
+    const toDate = (d, mk) => {
+      const s = String(d ?? '').trim(); let m;
+      if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})/))) return m[1] + '-' + m[2] + '-' + m[3];
+      if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
+      if ((m = s.match(/^(\d{1,2})$/)) && /^\d{4}-\d{2}$/.test(mk || '')) return mk + '-' + m[1].padStart(2, '0');
+      return null;
+    };
+    Object.values(all).forEach(doc => {
+      if (!doc || !doc.qcNo) return;
+      const par = QCX.parCode(doc.param); if (!par) { skipped.add(doc.param); return; }
+      const k = QCX.qcKey(doc.qcNo);
+      (doc.points || []).forEach(p => { const v = p.value === null || p.value === '' ? NaN : Number(p.value); const d = toDate(p.date, doc.monthKey); if (!isNaN(v) && d) pts.push({ k, qc: String(doc.qcNo).trim(), par, d, v, src: 'migrate' }); });
+      const l = doc.limits;
+      if (l && [l.mean, l.p3, l.p2, l.m2, l.m3].every(x => x !== null && x !== '' && !isNaN(x)) && /^\d{4}-\d{2}$/.test(doc.monthKey || ''))
+        lims.push({ k, name: String(doc.qcNo).trim(), par, from: doc.monthKey + '-01', v: { mean: +l.mean, p3: +l.p3, p2: +l.p2, m2: +l.m2, m3: +l.m3 } });
     });
-    await kvPutAll(all);
-    try{ localStorage.setItem(LS_CACHE_KEY, JSON.stringify(all)); }catch(e){}
-    await refreshQcList();
-    if(firstId){
-      const comboId = sanitizeId(all[firstId].qcNo) + '__' + sanitizeId(all[firstId].param);
-      document.getElementById('qcSelect').value = comboId;
-      const combos = await listCombos();
-      await populateMonthSelect(combos);
-      document.getElementById('monthSelect').value = firstId;
-      applyDoc(firstId, all[firstId]);
-    }
-    document.getElementById('pasteBox').style.display = 'none';
-    const monthsTouched = [...new Set(Object.values(groups).map(g=>monthKeyToLabel(g.monthKey)))].join(', ');
-    showStatus(`รับค่า QC จาก Report Tool แล้ว (${payload.points.length} ค่า, เดือน ${monthsTouched}) ซิงก์ขึ้นระบบกลางเรียบร้อย — เกณฑ์ ±SD ยังต้องกรอกเพิ่มแล้วกด "บันทึก"`, true);
-  }catch(err){
-    showStatus('ซิงก์ไม่สำเร็จ: ' + err.message, false);
-  }
-}
+    // ตัดซ้ำ (จุดเดียวกันจากหลายรายการ)
+    const seen = new Set(); const uniq = pts.filter(p => { const s = p.k + p.par + p.d + p.v; if (seen.has(s)) return false; seen.add(s); return true; });
+    const months = [...new Set(uniq.map(p => QCX.monthOf(p.d)))].sort();
+    $('migOut').innerHTML = '<div class="note ok">พบ <b>' + uniq.length + '</b> ค่า · ' + months.length + ' เดือน (' + (months[0] || '-') + ' → ' + (months[months.length - 1] || '-') + ') · เกณฑ์ ' + lims.length + ' ชุด' +
+      (skipped.size ? '<br>ข้ามพารามิเตอร์ที่ไม่ได้ทำ X-Chart: ' + esc([...skipped].join(', ')) : '') + '</div>' +
+      '<div class="row" style="margin-top:8px"><button class="primary" id="migGo"' + (QCX.canWrite() && uniq.length ? '' : ' disabled') + '>ย้ายเข้าระบบใหม่</button></div>';
+    $('migGo') && ($('migGo').onclick = async () => {
+      busy(true, 'กำลังย้ายข้อมูล…');
+      try {
+        if (lims.length) {
+          const o = await QCX.saveConfig(c => {
+            c.qc = c.qc || {}; let changed = false;
+            lims.forEach(x => {
+              const q = c.qc[x.k] = c.qc[x.k] || { name: x.name, active: true, params: {} };
+              const list = q.params[x.par] = q.params[x.par] || [];
+              const cur = QCX.limitsFor(c, x.k, x.par, x.from);
+              if (cur && ['mean', 'p3', 'p2', 'm2', 'm3'].every(f => +cur[f] === x.v[f])) return;
+              if (!list.some(v => v.from === x.from)) { list.push(Object.assign({ from: x.from }, x.v, { by: 'migrate' })); list.sort((a, b) => a.from.localeCompare(b.from)); changed = true; }
+            });
+            if (!changed) return false;
+          }, 'QC migrate limits from old X-Chart');
+          S.cfg = o.obj;
+        }
+        const sum = await QCX.addPoints(uniq, 'skip', 'QC migrate from old X-Chart');
+        busy(false); toast('✅ ย้ายแล้ว: เพิ่ม ' + sum.added + ' · มีอยู่แล้ว ' + sum.same + ' · ข้าม (ค่าไม่ตรง) ' + sum.skipped, 6000);
+        await loadMonth();
+      } catch (e) { busy(false); alert('ไม่สำเร็จ: ' + e.message); }
+    });
+  } catch (e) { $('migOut').innerHTML = '<div class="note err">❌ ดึงข้อมูลเดิมไม่ได้: ' + esc(e.message) + '</div>'; }
+};
 
-async function ingestPayloadText(text){
-  text = (text||'').trim();
-  if(!text){
-    showStatus('คลิปบอร์ดว่างเปล่า — เบราว์เซอร์อาจบล็อกการคัดลอกอัตโนมัติจากหน้า Report Tool ให้กลับไปที่ Report Tool แล้วคัดลอกด้วยมือ (เลือกข้อความทั้งหมดแล้ว Ctrl+C) จากนั้นวางในช่องด้านล่างนี้แทน', false);
-    promptPasteBox();
-    return;
-  }
-  let payload;
-  try{
-    const norm = text.replace(/-/g,'+').replace(/_/g,'/');
-    payload = JSON.parse(decodeURIComponent(escape(atob(norm))));
-  }catch(e){ showStatus('ข้อมูลที่วางมาอ่านไม่ได้ ตรวจว่าคัดลอกมาครบหรือไม่', false); return; }
-  await ingestPayloadTextCommon(payload);
-}
+// ── ปุ่มทั่วไป ──
+$('qcSel').onchange = () => { S.qc = $('qcSel').value; render(); };
+$('month').onchange = () => { if ($('month').value) { S.month = $('month').value; loadMonth(); } };
+$('prevM').onclick = () => { S.month = QCX.addMonth(S.month, -1); loadMonth(); };
+$('nextM').onclick = () => { S.month = QCX.addMonth(S.month, 1); loadMonth(); };
+$('btnRefresh').onclick = loadAll;
+$('btnPrint').onclick = () => window.print();
 
-async function pasteFromReportTool(){
-  let text = '';
-  try{ text = await navigator.clipboard.readText(); }
-  catch(e){ showStatus('อ่านคลิปบอร์ดไม่ได้ (เบราว์เซอร์ไม่อนุญาต) — วางด้วย Ctrl+V ในช่องที่ปรากฏแทน', false); promptPasteBox(); return; }
-  await ingestPayloadText(text);
-}
-function promptPasteBox(){
-  const box = document.getElementById('pasteBox');
-  box.style.display = 'block';
-  box.querySelector('textarea').focus();
-}
-document.getElementById('btnPasteFromReport').addEventListener('click', pasteFromReportTool);
-document.getElementById('pasteBoxSubmit').addEventListener('click', ()=>{
-  ingestPayloadText(document.getElementById('pasteBoxArea').value);
-});
-
-document.getElementById('btnRefresh').addEventListener('click', async ()=>{
-  await refreshQcList();
-  const id = document.getElementById('monthSelect').value;
-  if(id){ const data = await storeReadOne(id); if(data) applyDoc(id, data); }
-  showStatus('ดึงข้อมูลล่าสุดจากระบบกลางแล้ว', true);
-});
-
-// ---- "More Options" dropdown (presets / xlsx backup, used rarely — kept out of the way) ----
-const moreBtn = document.getElementById('btnMoreOptions');
-const morePanel = document.getElementById('moreOptionsPanel');
-moreBtn.addEventListener('click', (e)=>{
-  e.stopPropagation();
-  morePanel.style.display = morePanel.style.display === 'none' ? 'block' : 'none';
-});
-document.addEventListener('click', (e)=>{
-  if(morePanel.style.display !== 'none' && !morePanel.contains(e.target) && e.target !== moreBtn){
-    morePanel.style.display = 'none';
-  }
-});
-morePanel.addEventListener('click', (e)=>{
-  // close after choosing an action, except clicks on the file input itself (needs to stay open while picking)
-  if(e.target.tagName === 'BUTTON') morePanel.style.display = 'none';
-});
-
-(async function initStore(){
-  const last = loadLastView();
-  if(last && last.monthKey){
-    // restore whatever QC/Parameter/Month the person had open last time, rather than
-    // always jumping to the current month
-    document.getElementById('fQcNo').value = last.qcNo || document.getElementById('fQcNo').value;
-    document.getElementById('fParam').value = last.param || document.getElementById('fParam').value;
-    document.getElementById('fMonthKey').value = last.monthKey;
-  } else if(!document.getElementById('fMonthKey').value){
-    document.getElementById('fMonthKey').value = monthKeyNow();
-  }
-  populatePresetSelect();
-  await refreshQcList();
-  if(last && last.monthKey){
-    const id = docIdFor(last.qcNo, last.param, last.monthKey);
-    const data = await storeReadOne(id);
-    if(data){
-      applyDoc(id, data);
-      const moSel = document.getElementById('monthSelect');
-      if([...moSel.options].some(o=>o.value===id)) moSel.value = id;
-    }
-  }
-  await ingestFromUrl();
+(async function init() {
+  const q = new URLSearchParams(location.search);
+  if (/^\d{4}-\d{2}$/.test(q.get('month') || '')) S.month = q.get('month');
+  if (q.get('qc')) S.qc = QCX.qcKey(q.get('qc'));
+  if (q.get('par') && QCX.PAR[q.get('par')]) S.par = q.get('par');
+  await QCX.connect();
+  if (!QCX.canWrite()) $('note').innerHTML = '<div class="note warn" style="margin-bottom:14px">ดูได้อย่างเดียว — เครื่องนี้ยังต่อ Worker ไม่ได้ (ข้อมูลที่เห็นอาจช้ากว่าจริงไม่กี่นาที) ตรวจที่หน้า NIR Data Import → ⚙️ ตั้งค่า</div>';
+  await loadAll();
 })();
-
-
-buildSheet();
 </script>
 </body>
 </html>
