@@ -117,36 +117,58 @@ window.addEventListener('error', function (e) {
   };
   QCX.STATUS_TEXT = { pass: 'Pass', warn: 'Warning', fail: 'Fail', '': '-' };
 
-  // กฎ Westgard แบบย่อ (ใช้กับจุดเรียงตามวันที่ในเดือนเดียวกัน)
-  //   1-3s  : จุดเดียวเกิน ±3SD                    → Fail (ต้องแก้ไข)
-  //   2-2s  : 2 จุดติดกันเกิน 2SD ด้านเดียวกัน        → Fail
-  //   7-T   : 7 จุดติดกันอยู่ด้านเดียวกันของ X̄         → แนวโน้ม (เฝ้าระวัง)
+  // กฎตัดสินของห้องปฏิบัติการ (เรียงจุดตามวันที่)
+  //   1-3s : ออกนอก ±3SD 1 จุด                                   → Fail
+  //   2of3 : ใน 3 จุดติดกัน มี 2 จุดออกนอก ±2SD (Warning) ด้านเดียวกัน → Fail
+  //   9x   : 9 จุดติดกันอยู่ฝั่งเดียวกันของ X̄                       → Fail
+  //   จุดเดียวอยู่ระหว่าง 2SD–3SD (ยังไม่เข้ากฎ) = Pass (แสดงจุดสีส้มในกราฟให้เห็นว่าเกินเส้น Warning)
+  QCX.FAIL_RULES = ['1-3s', '2of3', '9x'];
   QCX.evaluate = (pts, limOf) => {
     const flags = pts.map(() => []);
-    const side = (v, l) => v > l.mean ? 1 : v < l.mean ? -1 : 0;
+    const add = (k, f) => { if (!flags[k].includes(f)) flags[k].push(f); };
+    const side2 = (p, l) => !l ? 0 : p.v > l.p2 ? 1 : p.v < l.m2 ? -1 : 0;
+    const sideM = (p, l) => !l ? 0 : p.v > l.mean ? 1 : p.v < l.mean ? -1 : 0;
+    let run = 0, runSide = 0;
     pts.forEach((p, i) => {
-      const l = limOf(p); if (!l) return;
-      if (p.v > l.p3 || p.v < l.m3) flags[i].push('1-3s');
-      if (i > 0) {
-        const q = pts[i - 1], lq = limOf(q);
-        if (lq) {
-          const hi = p.v > l.p2 && q.v > lq.p2, lo = p.v < l.m2 && q.v < lq.m2;
-          if (hi || lo) { flags[i].push('2-2s'); if (!flags[i - 1].includes('2-2s')) flags[i - 1].push('2-2s'); }
-        }
+      const l = limOf(p);
+      if (l && (p.v > l.p3 || p.v < l.m3)) add(i, '1-3s');
+      const s2 = side2(p, l);
+      if (s2 !== 0) {
+        const win = [];
+        for (let k = Math.max(0, i - 2); k <= i; k++) if (side2(pts[k], limOf(pts[k])) === s2) win.push(k);
+        if (win.length >= 2) win.forEach(k => add(k, '2of3'));
       }
-      if (i >= 6) {
-        const s = side(p.v, l);
-        if (s !== 0 && pts.slice(i - 6, i + 1).every(x => { const lx = limOf(x); return lx && side(x.v, lx) === s; })) {
-          for (let k = i - 6; k <= i; k++) if (!flags[k].includes('7-T')) flags[k].push('7-T');
-        }
-      }
+      const sm = sideM(p, l);
+      if (sm !== 0 && sm === runSide) run++; else { run = sm !== 0 ? 1 : 0; runSide = sm; }
+      if (run >= 9) { add(i, '9x'); if (run === 9) for (let k = i - 8; k < i; k++) add(k, '9x-run'); }
     });
     return flags;
   };
+  QCX.isFail = flags => flags.some(f => QCX.FAIL_RULES.includes(f));
   QCX.RULE_TEXT = {
-    '1-3s': 'เกิน ±3SD (Action limit)',
-    '2-2s': '2 จุดติดกันเกิน 2SD ด้านเดียวกัน',
-    '7-T': '7 จุดติดกันอยู่ด้านเดียวกันของค่าเฉลี่ย (แนวโน้ม)',
+    '1-3s': 'ออกนอก ±3SD',
+    '2of3': '2 ใน 3 จุดออกนอก ±2SD ด้านเดียวกัน',
+    '9x': '9 จุดติดกันอยู่ฝั่งเดียวกันของ X̄',
+    '9x-run': 'อยู่ในชุด 9 จุดฝั่งเดียวกัน',
+  };
+  // ตัดสินทั้งชุดของเดือน โดยดูจุดท้ายของเดือนก่อนประกอบด้วย (กฎ 2 ใน 3 และ 9 จุดข้ามเดือนได้)
+  QCX.evalSeries = (cfg, k, par, pts, prevPts) => {
+    const ctx = (prevPts || []).filter(p => p.k === k && p.par === par).sort((a, b) => (a.d + (a.run || 1)).localeCompare(b.d + (b.run || 1))).slice(-8);
+    const all = ctx.concat(pts), limOf = p => QCX.limitsFor(cfg, k, par, p.d);
+    const flags = QCX.evaluate(all, limOf).slice(ctx.length);
+    const st = pts.map((p, i) => QCX.isFail(flags[i]) ? 'fail' : limOf(p) ? 'pass' : '');
+    const out2 = pts.map(p => QCX.status(p.v, limOf(p)) === 'warn');   // เกิน ±2SD แต่ยังผ่าน
+    return { flags, st, out2, limOf };
+  };
+  // ตัดสินค่าใหม่ 1 ค่า เทียบกับจุดก่อนหน้า (เดือนนี้ + ท้ายเดือนก่อน)
+  QCX.judgePoint = (cfg, ctxPts, k, par, d, v) => {
+    const lim = QCX.limitsFor(cfg, k, par, d);
+    if (!lim || v === null || v === undefined || isNaN(v)) return { lim, st: '', flags: [], z: null };
+    const before = (ctxPts || []).filter(p => p.k === k && p.par === par && p.d < d).sort((a, b) => (a.d + (a.run || 1)).localeCompare(b.d + (b.run || 1))).slice(-8);
+    const arr = before.concat([{ k, par, d, v }]);
+    const flags = QCX.evaluate(arr, p => QCX.limitsFor(cfg, k, par, p.d))[arr.length - 1].filter(f => f !== '9x-run');
+    const sd = (lim.p3 - lim.mean) / 3;
+    return { lim, st: QCX.isFail(flags) ? 'fail' : 'pass', out2: QCX.status(v, lim) === 'warn', flags, z: sd ? (v - lim.mean) / sd : null };
   };
 
   // ── ผู้ใช้ / ที่เก็บค่าในเครื่อง ──
@@ -162,15 +184,33 @@ window.addEventListener('error', function (e) {
 
   QCX.mode = null;   // 'token' | 'relay' | 'readonly'
   QCX.relayInfo = null;
-  QCX.connect = async function () {
+  // need = โฟลเดอร์ที่หน้านั้นต้องเขียน เช่น ['xchart'] — ถ้า Worker ยังเป็นโค้ดเก่าจะบอกให้อัปเดต
+  QCX.connect = async function (need) {
+    QCX.problem = '';
     if (token()) { QCX.mode = 'token'; return QCX.mode; }
+    const url = relayUrl() + '/health';
     try {
-      const res = await fetch(relayUrl() + '/health', { headers: relayKey() ? { 'X-Import-Key': relayKey() } : {} });
-      QCX.relayInfo = res.ok ? await res.json() : null;
-    } catch (e) { QCX.relayInfo = null; }
-    QCX.mode = QCX.relayInfo && QCX.relayInfo.ok && QCX.relayInfo.keyOk ? 'relay' : 'readonly';
+      const res = await fetch(url, { headers: relayKey() ? { 'X-Import-Key': relayKey() } : {}, cache: 'no-store' });
+      let j = null; try { j = await res.json(); } catch (e) { }
+      QCX.relayInfo = j;
+      if (!res.ok) QCX.problem = (j && j.error ? j.error : 'Worker ตอบกลับ HTTP ' + res.status) + (res.status === 500 ? ' (Cloudflare → nir-import → Settings → Variables and Secrets)' : '');
+      else if (!j || !j.ok) QCX.problem = 'Worker ตอบกลับไม่ถูกต้อง — ตรวจว่าวางโค้ด nir-import-worker.js แล้วกด Deploy';
+      else if (need && need.some(f => !(j.folders || []).includes(f))) QCX.problem = 'Worker ยังเป็นโค้ดเก่า (ยังไม่รองรับโฟลเดอร์ ' + need.filter(f => !(j.folders || []).includes(f)).join(', ') + ') — วางโค้ดชุดใหม่จาก zip แล้วกด Deploy';
+      else if (j.needKey && !j.keyOk) QCX.problem = 'ต้องใส่รหัสนำเข้าก่อน (หน้า NIR Data Import → ⚙️ ตั้งค่า)';
+    } catch (e) {
+      QCX.relayInfo = null;
+      QCX.problem = location.hostname !== 'central-lab-pcg.github.io'
+        ? 'หน้านี้เปิดจาก ' + (location.hostname || 'ไฟล์ในเครื่อง') + ' — ต้องเปิดจากลิงก์บนเว็บ central-lab-pcg.github.io ถึงจะบันทึกได้'
+        : 'เรียก ' + url + ' ไม่ได้ — ตรวจว่าสร้าง Worker ชื่อ nir-import แล้ว (ลองเปิดลิงก์นี้ในเบราว์เซอร์)';
+    }
+    QCX.mode = QCX.problem ? 'readonly' : 'relay';
+    QCX.MODE_TEXT.readonly = 'ดูได้อย่างเดียว — ' + (QCX.problem || 'ต่อ Worker ไม่ได้');
     return QCX.mode;
   };
+  // หน้านี้บนเว็บ (ใช้เมื่อเปิดจากไฟล์ในเครื่อง)
+  QCX.isLocal = () => typeof location !== 'undefined' && location.hostname !== 'central-lab-pcg.github.io';
+  QCX.webUrl = () => QCX.PAGES + (location.pathname.split('/').pop() || 'index.html') + location.search;
+  QCX.webLinkHtml = () => QCX.isLocal() ? ' <a href="' + QCX.webUrl() + '" style="display:inline-block;margin-left:8px;padding:3px 12px;border-radius:8px;background:#db2777;color:#fff;text-decoration:none;font-weight:700">เปิดหน้านี้บนเว็บ →</a>' : '';
   QCX.canWrite = () => QCX.mode === 'token' || QCX.mode === 'relay';
   QCX.MODE_TEXT = { token: 'บันทึกขึ้นระบบ ✓ (token เครื่องนี้)', relay: 'บันทึกขึ้นระบบอัตโนมัติ ✓', readonly: 'ดูได้อย่างเดียว — ต่อ Worker ไม่ได้' };
 
@@ -193,6 +233,7 @@ window.addEventListener('error', function (e) {
     if (res.status === 404) return { json: null, sha: null };
     if (!res.ok) throw new Error('โหลด ' + path + ' ไม่ได้ (GitHub ' + res.status + '): ' + (await res.text()).slice(0, 160));
     const j = await res.json();
+    if (Array.isArray(j)) return { json: j, sha: null };   // โฟลเดอร์ → รายชื่อไฟล์
     let text;
     if (j.content && j.encoding === 'base64') text = unb64(j.content);
     else {   // ไฟล์ใหญ่ >1MB: ขอแบบ raw
@@ -390,12 +431,14 @@ table.ft th,table.ft td{border:1px solid #333;padding:3px 3px;text-align:center;
 table.ft th{background:#f2f2f2;font-weight:700}
 table.ft td.l{text-align:left;padding-left:6px;white-space:nowrap}
 table.ft td.ck{color:#111;font-weight:700;line-height:1.1} table.ft .sv{font-size:9px;font-weight:500;color:#333;white-space:nowrap} table.ft td.bad .sv{color:#dc2626;font-weight:700} table.ft td.bad{color:#dc2626} table.ft td.pass{color:#15803d;font-weight:700} table.ft td.fail{color:#dc2626;font-weight:700}
-table.ft tr.rw{cursor:pointer} table.ft tr.rw:hover td{background:#fff7d6}
+table.ft tr.rw{cursor:pointer} table.ft .act{white-space:nowrap;border-color:#ddd;background:#fafafa} table.ft .act button{padding:2px 4px;font-size:13px} table.ft tr.rw:hover td{background:#fff7d6}
 .foot{display:flex;justify-content:center;flex-direction:column;align-items:center;margin-top:26px;font-size:12.5px;gap:14px}
 .foot .ln{border-bottom:1px dotted #333;width:240px;height:22px}
 .ov{position:fixed;inset:0;background:rgba(15,15,20,.42);display:none;align-items:flex-start;justify-content:center;z-index:9995;padding:40px 14px;overflow:auto}.ov.on{display:flex}
 .md{background:#fff;border-radius:18px;max-width:860px;width:100%;padding:20px 22px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
 .md h3{margin:0 0 12px;font-size:16px;color:var(--pink)}.md .x{float:right;border:0;background:none;font-size:20px;color:var(--t3);padding:0 4px}
+table.lt{border-collapse:collapse;width:100%;font-size:13px}table.lt th{font-size:11.5px;color:var(--pink);text-align:left;padding:6px;border-bottom:1px solid var(--pinkline)}table.lt td{padding:5px 6px;border-bottom:1px solid #f1ede4}table.lt input{width:90px}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700}.pill.pass{background:var(--passbg);color:var(--pass)}.pill.fail{background:var(--failbg);color:var(--fail)}
 .ticks{display:flex;flex-wrap:wrap;gap:6px}.tk{border:1px solid #d6d3cc;border-radius:8px;padding:5px 9px;font-size:12.5px;font-weight:600;cursor:pointer;user-select:none;color:var(--t3)}.tk.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .busy{position:fixed;inset:0;background:rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;z-index:9999;font-weight:600}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#18181b;color:#fff;padding:10px 18px;border-radius:10px;z-index:9999;font-size:13px}
@@ -408,6 +451,7 @@ table.ft tr.rw{cursor:pointer} table.ft tr.rw:hover td{background:#fff7d6}
   .sheet{border:0;min-width:0;margin:0;padding:0;page-break-after:always;break-after:page;zoom:.8}
   .sheet:last-child{page-break-after:auto;break-after:auto}
   table.ft tr.rw:hover td{background:none}
+  table.ft .act{display:none}
   #nir-sb,#nir-sb-btn{display:none!important}
 }
 </style>
@@ -421,7 +465,7 @@ table.ft tr.rw{cursor:pointer} table.ft tr.rw:hover td{background:#fff7d6}
     <div class="row">
       <div class="f"><label>เดือน</label><div style="display:flex;gap:4px"><button class="ghost" id="prevM">◀</button><input type="month" id="month"><button class="ghost" id="nextM">▶</button></div></div>
       <div class="f"><label>ค้นหา</label><input id="q" placeholder="Lab No. / Sample / ผู้ทดสอบ" style="width:220px"></div>
-      <div class="row" style="margin-left:auto"><button id="btnAdd">➕ เพิ่มรายการเอง</button><button class="primary" id="btnPrint">🖨️ พิมพ์ / PDF</button></div>
+      <div class="row" style="margin-left:auto"><button id="btnAdd">🔎 กรอกค่า / เช็คหน้าเครื่อง</button><button class="primary" id="btnPrint">🖨️ พิมพ์ / PDF</button></div>
     </div>
     <div class="row" style="margin-top:10px"><span class="mode" id="mode">กำลังเชื่อมต่อ…</span><button class="ghost" id="btnRefresh" title="โหลดล่าสุด">🔄</button></div>
   </div>
@@ -448,6 +492,12 @@ table.ft tr.rw{cursor:pointer} table.ft tr.rw:hover td{background:#fff7d6}
     <div class="f"><label>NIR Analyst</label><input id="rBy" style="width:120px"></div>
   </div>
   <div class="f" style="margin-top:12px"><label>พารามิเตอร์ที่ทำ Repeatability</label><div class="ticks" id="rTicks"></div></div>
+  <div class="row" style="margin-top:12px">
+    <div class="f"><label>เกณฑ์</label><select id="rMode"><option value="diff">%Repeatability Diff (±0.5 g/100g)</option><option value="rpd">%RPD</option></select></div>
+    <div class="f" id="rTypeF"><label>ประเภท</label><select id="rType"><option value="cat">Cat Food (1.07–42.70)</option><option value="dog">Dog Food (2.10–34.87)</option></select></div>
+    <div id="rResult" style="margin-left:auto;font-size:15px;font-weight:700"></div>
+  </div>
+  <div style="overflow-x:auto;margin-top:8px"><table class="lt" id="rCalc"></table></div>
   <div id="rVals" class="note" style="margin-top:10px;display:none"></div>
   <div class="f" style="margin-top:10px"><label id="rNoteL">หมายเหตุ</label><textarea id="rNote"></textarea></div>
   <div class="row" style="margin-top:12px;justify-content:space-between"><button id="rDel" style="color:var(--fail)">🗑️ ลบรายการ</button><div class="row"><button data-close>ยกเลิก</button><button class="primary" id="rSave">บันทึก</button></div></div>
@@ -476,7 +526,7 @@ function render() {
   $('month').value = S.month;
   const ro = !QCX.canWrite();
   $('mode').textContent = QCX.MODE_TEXT[QCX.mode] || ''; $('mode').className = 'mode ' + (ro ? 'ro' : 'ok');
-  $('btnAdd').disabled = ro;
+  $('btnAdd').disabled = false;
   const rows = S.md.rows || [];
   const byA = {}; rows.forEach(r => { byA[r.by || '-'] = (byA[r.by || '-'] || 0) + 1; });
   const days = new Set(rows.map(r => r.d)).size;
@@ -496,7 +546,7 @@ function renderSheets() {
     let body = '';
     for (let i = 0; i < ROWS_PER_PAGE; i++) {
       const r = chunk[i], no = pg * ROWS_PER_PAGE + i + 1;
-      if (!r) { body += '<tr><td>' + (rows.length ? '' : no) + '</td><td></td><td></td><td></td>' + QCX.IQC_PARAMS.map(() => '<td></td>').join('') + '<td></td><td></td></tr>'; continue; }
+      if (!r) { body += '<tr><td>' + (rows.length ? '' : no) + '</td><td></td><td></td><td></td>' + QCX.IQC_PARAMS.map(() => '<td></td>').join('') + '<td></td><td></td><td class="act"></td></tr>'; continue; }
       body += '<tr class="rw" data-id="' + esc(r.id) + '"><td>' + no + '</td><td>' + esc(QCX.dmy(r.d)) + '</td><td class="l">' + esc(r.lab) + '</td><td class="l">' + esc(r.smp) + '</td>' +
         QCX.IQC_PARAMS.map(c => {
           const on = (r.pars || []).includes(c), v = r.vals && r.vals[c], e = r.res && r.res[c], bad = on && e && e.ok === false;
@@ -505,27 +555,68 @@ function renderSheets() {
           return '<td class="' + (on ? 'ck' : '') + (bad ? ' bad' : '') + '"' + (tip ? ' title="' + esc(tip.replace(/^ · /, '')) + '"' : '') + '>' + (on ? (bad ? '✗' : '✓') : '-') + num + '</td>';
         }).join('') +
         '<td>' + esc(r.by) + '</td><td class="' + (r.result || '') + '">' + (r.result === 'pass' ? 'Pass' : r.result === 'fail' ? 'Fail' : '') +
-        (r.result ? '<div class="sv">' + (r.mode === 'rpd' ? '%RPD' : 'Diff' + (QCX.REP_TYPES[r.type] ? ' ' + QCX.REP_TYPES[r.type].label.split(' ')[0] : '')) + '</div>' : '') + '</td></tr>';
+        (r.result ? '<div class="sv">' + (r.mode === 'rpd' ? '%RPD' : 'Diff' + (QCX.REP_TYPES[r.type] ? ' ' + QCX.REP_TYPES[r.type].label.split(' ')[0] : '')) + '</div>' : '') + '</td><td class="act"><button class="ghost" data-ed="' + esc(r.id) + '" title="แก้ไข">✏️</button><button class="ghost" data-dl="' + esc(r.id) + '" title="ลบ" style="color:var(--fail)">🗑️</button></td></tr>';
     }
     h += '<div class="sheet"><div class="hd"><div><b>' + esc(d.lab) + '</b></div><div>เลขที่เอกสาร &nbsp; ' + esc(d.docNo) + '</div><div>' + (pg + 1) + '/' + pages + '</div>' +
       '<div class="r2">แบบฟอร์ม : &nbsp;' + esc(d.form) + '</div><div class="r2">เริ่มใช้วันที่ &nbsp;' + esc(d.useDate) + '</div><div class="r2">แก้ไขครั้งที่ : ' + esc(d.rev) + '</div></div>' +
       '<div class="mline"><span>Month ......<b>' + esc(QCX.monthLabel(S.month).replace(/^(\w)(\w+)/, (m, a, b) => a + b.toLowerCase())) + '</b>......</span><span>Page ....' + (pg + 1) + '/' + pages + '....</span></div>' +
-      '<table class="ft"><tr><th rowspan="2" style="width:34px">No.</th><th rowspan="2" style="width:92px">Testing Date</th><th rowspan="2">Lab No.</th><th rowspan="2">Sample name</th><th colspan="' + QCX.IQC_PARAMS.length + '">Parameters</th><th rowspan="2" style="width:90px">NIR Analyst</th><th rowspan="2" style="width:56px">Result</th></tr>' +
+      '<table class="ft"><tr><th rowspan="2" style="width:34px">No.</th><th rowspan="2" style="width:92px">Testing Date</th><th rowspan="2">Lab No.</th><th rowspan="2">Sample name</th><th colspan="' + QCX.IQC_PARAMS.length + '">Parameters</th><th rowspan="2" style="width:90px">NIR Analyst</th><th rowspan="2" style="width:56px">Result</th><th rowspan="2" class="act" style="width:70px">แก้ไข</th></tr>' +
       '<tr>' + QCX.IQC_PARAMS.map(c => '<th style="width:36px">' + c + '</th>').join('') + '</tr>' + body + '</table>' +
       '<div style="font-size:10.5px;margin-top:6px;color:#333">✓ = ทำ Repeatability แล้ว (ผ่านเกณฑ์ ถ้ามีผลใน Result) · ✗ = ไม่ผ่านเกณฑ์ · ตัวเลขใต้เครื่องหมาย = Diff (ครั้งที่ 1 − ครั้งที่ 2, g/100g) หรือ %RPD · * = ค่าอยู่นอกช่วงการทดสอบ · เกณฑ์: %Repeatability Diff — Cat Food (1.07–42.70) / Dog Food (2.10–34.87) |ครั้งที่ 1 − ครั้งที่ 2| ≤ 0.5 g/100g · %RPD — NIR ≤ 20 g/100g → %RPD ≤ 10%, NIR &gt; 20 g/100g → %RPD &lt; 5%</div>' +
       '<div class="foot"><div class="ln"></div><div>Technical NIR Team</div><div>Date…………………………………….......</div></div></div>';
   }
   $('sheets').innerHTML = h;
-  $('sheets').querySelectorAll('tr.rw').forEach(tr => tr.onclick = () => openRow(tr.dataset.id));
+  $('sheets').querySelectorAll('tr.rw').forEach(tr => tr.onclick = e => { if (e.target.closest('.act')) return; openRow(tr.dataset.id); });
+  $('sheets').querySelectorAll('[data-ed]').forEach(b => b.onclick = () => openRow(b.dataset.ed));
+  $('sheets').querySelectorAll('[data-dl]').forEach(b => b.onclick = () => openRow(b.dataset.dl, true));
 }
 
 // ── เพิ่ม / แก้ / ลบ ──
-let editId = null, tick = [];
-function drawTicks() { $('rTicks').innerHTML = QCX.IQC_PARAMS.map(c => '<span class="tk' + (tick.includes(c) ? ' on' : '') + '" data-c="' + c + '">' + c + '</span>').join(''); $('rTicks').querySelectorAll('.tk').forEach(t => t.onclick = () => { const c = t.dataset.c; tick = tick.includes(c) ? tick.filter(x => x !== c) : QCX.IQC_PARAMS.filter(x => x === c || tick.includes(x)); drawTicks(); }); }
-function openRow(id) {
-  if (!QCX.canWrite()) { toast('ดูได้อย่างเดียว'); return; }
-  const r = id ? S.md.rows.find(x => x.id === id) : null; editId = r ? r.id : null;
-  $('rTitle').textContent = r ? 'แก้ไขรายการ' : 'เพิ่มรายการเอง';
+let editId = null, tick = [], inVals = {};
+function drawTicks() { $('rTicks').innerHTML = QCX.IQC_PARAMS.map(c => '<span class="tk' + (tick.includes(c) ? ' on' : '') + '" data-c="' + c + '">' + c + '</span>').join(''); $('rTicks').querySelectorAll('.tk').forEach(t => t.onclick = () => { const c = t.dataset.c; tick = tick.includes(c) ? tick.filter(x => x !== c) : QCX.IQC_PARAMS.filter(x => x === c || tick.includes(x)); drawTicks(); }); drawCalc(); }
+// ── คำนวณ Diff / %RPD จากค่าที่กรอก แล้วตัดสิน Pass/Fail ทันที ──
+const decOf = x => { const m = String(x).match(/\.(\d+)/); return m ? m[1].length : 0; };
+function calcRow() {
+  const mode = $('rMode').value, type = $('rType').value, vals = {}, diff = {};
+  tick.forEach(c => {
+    const v = inVals[c] || [], a = parseFloat(v[0]), b = parseFloat(v[1]);
+    if (isNaN(a) || isNaN(b)) return;
+    vals[c] = [a, b];
+    if (mode === 'rpd') { const avg = (a + b) / 2; diff[c] = avg ? +(Math.abs(a - b) / Math.abs(avg) * 100).toFixed(2) : 0; }
+    else diff[c] = +(a - b).toFixed(Math.max(decOf(v[0]), decOf(v[1]), 1));
+  });
+  const row = { pars: tick.slice(), vals, diff, mode, type };
+  return Object.assign(row, Object.keys(vals).length ? QCX.repEvaluate(row) : { res: {}, result: '' });
+}
+function drawCalc() {
+  $('rTypeF').style.display = $('rMode').value === 'rpd' ? 'none' : '';
+  const row = calcRow(), unit = $('rMode').value === 'rpd' ? '%RPD' : 'Diff (1−2)';
+  $('rCalc').innerHTML = tick.length ? '<tr><th>พารามิเตอร์</th><th>ครั้งที่ 1</th><th>ครั้งที่ 2</th><th>' + unit + '</th><th>ผล</th><th></th></tr>' + tick.map(c => {
+    const v = inVals[c] || ['', ''], e = row.res[c];
+    return '<tr><td><b>' + c + '</b></td><td><input type="number" step="any" data-c="' + c + '" data-i="0" value="' + esc(v[0] ?? '') + '"></td><td><input type="number" step="any" data-c="' + c + '" data-i="1" value="' + esc(v[1] ?? '') + '"></td>' +
+      '<td data-out="' + c + '">' + (e ? e.v + ($('rMode').value === 'rpd' ? '%' : '') : '') + '</td><td data-pill="' + c + '">' + (e ? '<span class="pill ' + (e.ok ? 'pass' : 'fail') + '">' + (e.ok ? 'Pass' : 'Fail') + '</span>' : '') + '</td><td data-crit="' + c + '" style="font-size:11.5px;color:var(--t3)">' + (e ? esc(e.crit + (e.note ? ' · ' + e.note : '')) : '') + '</td></tr>';
+  }).join('') : '<tr><td style="color:var(--t3)">ติ๊กพารามิเตอร์ด้านบน แล้วกรอกค่าครั้งที่ 1 / 2 เพื่อเช็ค Pass / Fail</td></tr>';
+  $('rCalc').querySelectorAll('input').forEach(inp => inp.oninput = () => { const c = inp.dataset.c; inVals[c] = inVals[c] || ['', '']; inVals[c][+inp.dataset.i] = inp.value; refreshCalc(); });
+  refreshCalc();
+}
+function refreshCalc() {   // อัปเดตผลโดยไม่วาดช่องกรอกใหม่ (เคอร์เซอร์ไม่หลุด)
+  const row = calcRow();
+  tick.forEach(c => { const e = row.res[c], o = $('rCalc').querySelector('[data-out="' + c + '"]'); if (!o) return;
+    o.textContent = e ? e.v + (row.mode === 'rpd' ? '%' : '') : '';
+    $('rCalc').querySelector('[data-pill="' + c + '"]').innerHTML = e ? '<span class="pill ' + (e.ok ? 'pass' : 'fail') + '">' + (e.ok ? 'Pass' : 'Fail') + '</span>' : '';
+    $('rCalc').querySelector('[data-crit="' + c + '"]').textContent = e ? e.crit + (e.note ? ' · ' + e.note : '') : ''; });
+  $('rResult').innerHTML = row.result === 'pass' ? '<span class="pill pass" style="font-size:14px;padding:4px 14px">ผลรวม: Pass</span>' : row.result === 'fail' ? '<span class="pill fail" style="font-size:14px;padding:4px 14px">ผลรวม: Fail</span>' : '';
+}
+$('rMode').onchange = drawCalc;
+$('rType').onchange = refreshCalc;
+function openRow(id, forDelete) {
+  const r = id ? S.md.rows.find(x => x.id === id) : null;
+  if (r && !QCX.canWrite()) { toast('ดูได้อย่างเดียว'); return; }
+  editId = r ? r.id : null;
+  $('rTitle').textContent = r ? 'แก้ไขรายการ' : '🔎 กรอกค่า / เช็คหน้าเครื่อง';
+  inVals = {}; if (r && r.vals) Object.entries(r.vals).forEach(([c, v]) => inVals[c] = [String(v[0]), String(v[1])]);
+  $('rMode').value = r && r.mode === 'rpd' ? 'rpd' : 'diff'; $('rType').value = r && r.type === 'dog' ? 'dog' : 'cat';
+  $('rSave').disabled = !QCX.canWrite(); $('rSave').title = QCX.canWrite() ? '' : 'ดูได้อย่างเดียว — เช็คผลได้ แต่ยังบันทึกไม่ได้';
   $('rD').value = r ? r.d : (S.month === QCX.thisMonth() ? QCX.todayISO() : S.month + '-01');
   $('rLab').value = r ? r.lab : ''; $('rSmp').value = r ? r.smp : ''; $('rBy').value = r ? r.by : (QCX.user() || '').split(/\s+/)[0];
   tick = r ? (r.pars || []).slice() : [];
@@ -534,12 +625,19 @@ function openRow(id) {
   $('rVals').style.display = r && r.vals && Object.keys(r.vals).length ? 'block' : 'none';
   if (r && r.vals) $('rVals').innerHTML = 'ค่าที่วัด (ครั้งที่ 1 / 2): ' + Object.entries(r.vals).map(([c, v]) => '<b>' + c + '</b> ' + v[0] + ' / ' + v[1]).join(' · ') +
     (r.res ? '<br>' + esc(QCX.REP_MODE_TEXT[r.mode] || '') + (r.mode === 'diff' && QCX.REP_TYPES[r.type] ? ' (' + QCX.REP_TYPES[r.type].label + ')' : '') + ': ' + Object.entries(r.res).map(([c, e]) => '<b>' + c + '</b> ' + e.v + ' <span style="color:' + (e.ok ? 'var(--pass)' : 'var(--fail)') + '">' + (e.ok ? 'Pass' : 'Fail') + '</span>').join(' · ') + ' → <b>' + (r.result === 'fail' ? 'Fail' : 'Pass') + '</b>' : '') + (r.savedBy ? '<br>บันทึกโดย ' + esc(r.savedBy) + ' · ' + esc(r.src === 'report' ? 'จาก Report' : r.src === 'import' ? 'นำเข้าจาก Excel เดิม' : 'กรอกเอง') : '');
-  drawTicks(); $('ovRow').classList.add('on');
+  $('rSave').style.display = forDelete ? 'none' : ''; $('rDel').textContent = forDelete ? '🗑️ ยืนยันลบรายการนี้' : '🗑️ ลบรายการ';
+  if (forDelete) { $('rTitle').textContent = 'ลบรายการ'; $('rNoteL').textContent = 'เหตุผลที่ลบ (บังคับ)'; }
+  drawTicks(); $('ovRow').classList.add('on'); if (forDelete) $('rNote').focus();
 }
-$('rSmp').onchange = () => { if (!editId && !tick.length) { const def = S.prod.map[QCX.prodKey($('rSmp').value)]; if (def) { tick = QCX.IQC_PARAMS.filter(c => def.includes(c)); drawTicks(); } } };
+$('rSmp').onchange = () => {
+  if (!editId && !tick.length) { const def = S.prod.map[QCX.prodKey($('rSmp').value)]; if (def) { tick = QCX.IQC_PARAMS.filter(c => def.includes(c)); drawTicks(); } }
+  if (!editId) { const t = QCX.repGuessType($('rSmp').value); if ($('rType').value !== t) { $('rType').value = t; refreshCalc(); } }
+};
 $('btnAdd').onclick = () => openRow(null);
 async function saveRow(del) {
   const r = { d: $('rD').value, lab: $('rLab').value.trim(), smp: $('rSmp').value.trim(), by: $('rBy').value.trim(), pars: tick.slice() };
+  const calc = calcRow();
+  if (Object.keys(calc.vals).length) Object.assign(r, { vals: calc.vals, diff: calc.diff, mode: calc.mode, type: calc.type, res: calc.res, result: calc.result });
   const note = $('rNote').value.trim();
   if (!del && (!r.d || !r.lab || !r.pars.length)) { toast('ใส่วันที่ Lab No. และติ๊กพารามิเตอร์อย่างน้อย 1 ตัว'); return; }
   if (editId && !note) { toast('ใส่เหตุผลก่อน (เก็บเป็นหลักฐานการแก้ไข)'); return; }
@@ -620,7 +718,18 @@ $('xls').onchange = async e => {
       '<div class="row" style="margin-top:8px">' + (nProd ? '<button class="primary" id="impProd"' + (ro ? ' disabled' : '') + '>บันทึกตารางสินค้า (' + nProd + ')</button>' : '') + (nRows ? '<button id="impHist"' + (ro ? ' disabled' : '') + '>นำเข้าประวัติ ' + nRows + ' รายการ</button>' : '') + '</div>';
     if ($('impProd')) $('impProd').onclick = async () => {
       busy(true, 'กำลังบันทึกตารางสินค้า…');
-      try { const o = await QCX.update(QCX.iqcProductsPath, { version: 1, map: {} }, p => { p.map = P.map; p.updated = new Date().toISOString(); p.source = f.name; }, 'Repeatability product table (' + nProd + ')'); S.prod = o.obj; busy(false); toast('✅ บันทึกตารางสินค้าแล้ว'); }
+      try {
+        let nNew = 0, nChg = 0, nKeep = 0;
+        // รวมกับตารางเดิม: ชื่อที่มีใน Excel ใช้ค่าจาก Excel · สินค้าที่เพิ่มเองในเว็บ (ไม่มีใน Excel) ยังอยู่
+        const o = await QCX.update(QCX.iqcProductsPath, { version: 1, map: {} }, p => {
+          p.map = p.map || {}; nNew = nChg = 0;
+          Object.entries(P.map).forEach(([k, v]) => { if (!p.map[k]) nNew++; else if (p.map[k].join() !== v.join()) nChg++; p.map[k] = v; });
+          nKeep = Object.keys(p.map).length - Object.keys(P.map).length;
+          if (!nNew && !nChg) return false;
+          p.updated = new Date().toISOString(); p.source = f.name;
+        }, 'Repeatability product table from Excel');
+        S.prod = o.obj; busy(false); toast('✅ ตารางสินค้า: เพิ่มใหม่ ' + nNew + ' · เปลี่ยน ' + nChg + (nKeep > 0 ? ' · สินค้าที่เพิ่มในเว็บยังอยู่ ' + nKeep : ''), 6000);
+      }
       catch (err) { busy(false); alert('ไม่สำเร็จ: ' + err.message); }
     };
     if ($('impHist')) $('impHist').onclick = async () => {
@@ -659,8 +768,8 @@ $('btnPrint').onclick = () => window.print();
 (async function init() {
   const q = new URLSearchParams(location.search);
   if (/^\d{4}-\d{2}$/.test(q.get('month') || '')) S.month = q.get('month');
-  await QCX.connect();
-  if (!QCX.canWrite()) $('note').innerHTML = '<div class="note warn" style="margin-bottom:14px">ดูได้อย่างเดียว — เครื่องนี้ยังต่อ Worker ไม่ได้ ตรวจที่หน้า NIR Data Import → ⚙️ ตั้งค่า</div>';
+  await QCX.connect(['iqc']);
+  if (!QCX.canWrite()) $('note').innerHTML = '<div class="note warn" style="margin-bottom:14px">ดูได้อย่างเดียว — ' + esc(QCX.problem) + QCX.webLinkHtml() + '</div>';
   try { S.prod = await QCX.loadIqcProducts(); } catch (e) { }
   await loadMonth();
 })();

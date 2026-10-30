@@ -116,36 +116,58 @@ window.addEventListener('error', function (e) {
   };
   QCX.STATUS_TEXT = { pass: 'Pass', warn: 'Warning', fail: 'Fail', '': '-' };
 
-  // กฎ Westgard แบบย่อ (ใช้กับจุดเรียงตามวันที่ในเดือนเดียวกัน)
-  //   1-3s  : จุดเดียวเกิน ±3SD                    → Fail (ต้องแก้ไข)
-  //   2-2s  : 2 จุดติดกันเกิน 2SD ด้านเดียวกัน        → Fail
-  //   7-T   : 7 จุดติดกันอยู่ด้านเดียวกันของ X̄         → แนวโน้ม (เฝ้าระวัง)
+  // กฎตัดสินของห้องปฏิบัติการ (เรียงจุดตามวันที่)
+  //   1-3s : ออกนอก ±3SD 1 จุด                                   → Fail
+  //   2of3 : ใน 3 จุดติดกัน มี 2 จุดออกนอก ±2SD (Warning) ด้านเดียวกัน → Fail
+  //   9x   : 9 จุดติดกันอยู่ฝั่งเดียวกันของ X̄                       → Fail
+  //   จุดเดียวอยู่ระหว่าง 2SD–3SD (ยังไม่เข้ากฎ) = Pass (แสดงจุดสีส้มในกราฟให้เห็นว่าเกินเส้น Warning)
+  QCX.FAIL_RULES = ['1-3s', '2of3', '9x'];
   QCX.evaluate = (pts, limOf) => {
     const flags = pts.map(() => []);
-    const side = (v, l) => v > l.mean ? 1 : v < l.mean ? -1 : 0;
+    const add = (k, f) => { if (!flags[k].includes(f)) flags[k].push(f); };
+    const side2 = (p, l) => !l ? 0 : p.v > l.p2 ? 1 : p.v < l.m2 ? -1 : 0;
+    const sideM = (p, l) => !l ? 0 : p.v > l.mean ? 1 : p.v < l.mean ? -1 : 0;
+    let run = 0, runSide = 0;
     pts.forEach((p, i) => {
-      const l = limOf(p); if (!l) return;
-      if (p.v > l.p3 || p.v < l.m3) flags[i].push('1-3s');
-      if (i > 0) {
-        const q = pts[i - 1], lq = limOf(q);
-        if (lq) {
-          const hi = p.v > l.p2 && q.v > lq.p2, lo = p.v < l.m2 && q.v < lq.m2;
-          if (hi || lo) { flags[i].push('2-2s'); if (!flags[i - 1].includes('2-2s')) flags[i - 1].push('2-2s'); }
-        }
+      const l = limOf(p);
+      if (l && (p.v > l.p3 || p.v < l.m3)) add(i, '1-3s');
+      const s2 = side2(p, l);
+      if (s2 !== 0) {
+        const win = [];
+        for (let k = Math.max(0, i - 2); k <= i; k++) if (side2(pts[k], limOf(pts[k])) === s2) win.push(k);
+        if (win.length >= 2) win.forEach(k => add(k, '2of3'));
       }
-      if (i >= 6) {
-        const s = side(p.v, l);
-        if (s !== 0 && pts.slice(i - 6, i + 1).every(x => { const lx = limOf(x); return lx && side(x.v, lx) === s; })) {
-          for (let k = i - 6; k <= i; k++) if (!flags[k].includes('7-T')) flags[k].push('7-T');
-        }
-      }
+      const sm = sideM(p, l);
+      if (sm !== 0 && sm === runSide) run++; else { run = sm !== 0 ? 1 : 0; runSide = sm; }
+      if (run >= 9) { add(i, '9x'); if (run === 9) for (let k = i - 8; k < i; k++) add(k, '9x-run'); }
     });
     return flags;
   };
+  QCX.isFail = flags => flags.some(f => QCX.FAIL_RULES.includes(f));
   QCX.RULE_TEXT = {
-    '1-3s': 'เกิน ±3SD (Action limit)',
-    '2-2s': '2 จุดติดกันเกิน 2SD ด้านเดียวกัน',
-    '7-T': '7 จุดติดกันอยู่ด้านเดียวกันของค่าเฉลี่ย (แนวโน้ม)',
+    '1-3s': 'ออกนอก ±3SD',
+    '2of3': '2 ใน 3 จุดออกนอก ±2SD ด้านเดียวกัน',
+    '9x': '9 จุดติดกันอยู่ฝั่งเดียวกันของ X̄',
+    '9x-run': 'อยู่ในชุด 9 จุดฝั่งเดียวกัน',
+  };
+  // ตัดสินทั้งชุดของเดือน โดยดูจุดท้ายของเดือนก่อนประกอบด้วย (กฎ 2 ใน 3 และ 9 จุดข้ามเดือนได้)
+  QCX.evalSeries = (cfg, k, par, pts, prevPts) => {
+    const ctx = (prevPts || []).filter(p => p.k === k && p.par === par).sort((a, b) => (a.d + (a.run || 1)).localeCompare(b.d + (b.run || 1))).slice(-8);
+    const all = ctx.concat(pts), limOf = p => QCX.limitsFor(cfg, k, par, p.d);
+    const flags = QCX.evaluate(all, limOf).slice(ctx.length);
+    const st = pts.map((p, i) => QCX.isFail(flags[i]) ? 'fail' : limOf(p) ? 'pass' : '');
+    const out2 = pts.map(p => QCX.status(p.v, limOf(p)) === 'warn');   // เกิน ±2SD แต่ยังผ่าน
+    return { flags, st, out2, limOf };
+  };
+  // ตัดสินค่าใหม่ 1 ค่า เทียบกับจุดก่อนหน้า (เดือนนี้ + ท้ายเดือนก่อน)
+  QCX.judgePoint = (cfg, ctxPts, k, par, d, v) => {
+    const lim = QCX.limitsFor(cfg, k, par, d);
+    if (!lim || v === null || v === undefined || isNaN(v)) return { lim, st: '', flags: [], z: null };
+    const before = (ctxPts || []).filter(p => p.k === k && p.par === par && p.d < d).sort((a, b) => (a.d + (a.run || 1)).localeCompare(b.d + (b.run || 1))).slice(-8);
+    const arr = before.concat([{ k, par, d, v }]);
+    const flags = QCX.evaluate(arr, p => QCX.limitsFor(cfg, k, par, p.d))[arr.length - 1].filter(f => f !== '9x-run');
+    const sd = (lim.p3 - lim.mean) / 3;
+    return { lim, st: QCX.isFail(flags) ? 'fail' : 'pass', out2: QCX.status(v, lim) === 'warn', flags, z: sd ? (v - lim.mean) / sd : null };
   };
 
   // ── ผู้ใช้ / ที่เก็บค่าในเครื่อง ──
@@ -161,15 +183,33 @@ window.addEventListener('error', function (e) {
 
   QCX.mode = null;   // 'token' | 'relay' | 'readonly'
   QCX.relayInfo = null;
-  QCX.connect = async function () {
+  // need = โฟลเดอร์ที่หน้านั้นต้องเขียน เช่น ['xchart'] — ถ้า Worker ยังเป็นโค้ดเก่าจะบอกให้อัปเดต
+  QCX.connect = async function (need) {
+    QCX.problem = '';
     if (token()) { QCX.mode = 'token'; return QCX.mode; }
+    const url = relayUrl() + '/health';
     try {
-      const res = await fetch(relayUrl() + '/health', { headers: relayKey() ? { 'X-Import-Key': relayKey() } : {} });
-      QCX.relayInfo = res.ok ? await res.json() : null;
-    } catch (e) { QCX.relayInfo = null; }
-    QCX.mode = QCX.relayInfo && QCX.relayInfo.ok && QCX.relayInfo.keyOk ? 'relay' : 'readonly';
+      const res = await fetch(url, { headers: relayKey() ? { 'X-Import-Key': relayKey() } : {}, cache: 'no-store' });
+      let j = null; try { j = await res.json(); } catch (e) { }
+      QCX.relayInfo = j;
+      if (!res.ok) QCX.problem = (j && j.error ? j.error : 'Worker ตอบกลับ HTTP ' + res.status) + (res.status === 500 ? ' (Cloudflare → nir-import → Settings → Variables and Secrets)' : '');
+      else if (!j || !j.ok) QCX.problem = 'Worker ตอบกลับไม่ถูกต้อง — ตรวจว่าวางโค้ด nir-import-worker.js แล้วกด Deploy';
+      else if (need && need.some(f => !(j.folders || []).includes(f))) QCX.problem = 'Worker ยังเป็นโค้ดเก่า (ยังไม่รองรับโฟลเดอร์ ' + need.filter(f => !(j.folders || []).includes(f)).join(', ') + ') — วางโค้ดชุดใหม่จาก zip แล้วกด Deploy';
+      else if (j.needKey && !j.keyOk) QCX.problem = 'ต้องใส่รหัสนำเข้าก่อน (หน้า NIR Data Import → ⚙️ ตั้งค่า)';
+    } catch (e) {
+      QCX.relayInfo = null;
+      QCX.problem = location.hostname !== 'central-lab-pcg.github.io'
+        ? 'หน้านี้เปิดจาก ' + (location.hostname || 'ไฟล์ในเครื่อง') + ' — ต้องเปิดจากลิงก์บนเว็บ central-lab-pcg.github.io ถึงจะบันทึกได้'
+        : 'เรียก ' + url + ' ไม่ได้ — ตรวจว่าสร้าง Worker ชื่อ nir-import แล้ว (ลองเปิดลิงก์นี้ในเบราว์เซอร์)';
+    }
+    QCX.mode = QCX.problem ? 'readonly' : 'relay';
+    QCX.MODE_TEXT.readonly = 'ดูได้อย่างเดียว — ' + (QCX.problem || 'ต่อ Worker ไม่ได้');
     return QCX.mode;
   };
+  // หน้านี้บนเว็บ (ใช้เมื่อเปิดจากไฟล์ในเครื่อง)
+  QCX.isLocal = () => typeof location !== 'undefined' && location.hostname !== 'central-lab-pcg.github.io';
+  QCX.webUrl = () => QCX.PAGES + (location.pathname.split('/').pop() || 'index.html') + location.search;
+  QCX.webLinkHtml = () => QCX.isLocal() ? ' <a href="' + QCX.webUrl() + '" style="display:inline-block;margin-left:8px;padding:3px 12px;border-radius:8px;background:#db2777;color:#fff;text-decoration:none;font-weight:700">เปิดหน้านี้บนเว็บ →</a>' : '';
   QCX.canWrite = () => QCX.mode === 'token' || QCX.mode === 'relay';
   QCX.MODE_TEXT = { token: 'บันทึกขึ้นระบบ ✓ (token เครื่องนี้)', relay: 'บันทึกขึ้นระบบอัตโนมัติ ✓', readonly: 'ดูได้อย่างเดียว — ต่อ Worker ไม่ได้' };
 
@@ -192,6 +232,7 @@ window.addEventListener('error', function (e) {
     if (res.status === 404) return { json: null, sha: null };
     if (!res.ok) throw new Error('โหลด ' + path + ' ไม่ได้ (GitHub ' + res.status + '): ' + (await res.text()).slice(0, 160));
     const j = await res.json();
+    if (Array.isArray(j)) return { json: j, sha: null };   // โฟลเดอร์ → รายชื่อไฟล์
     let text;
     if (j.content && j.encoding === 'base64') text = unb64(j.content);
     else {   // ไฟล์ใหญ่ >1MB: ขอแบบ raw
@@ -469,7 +510,7 @@ table.lt input[type=number]{width:84px}
       </div>
       <div class="f"><label>พารามิเตอร์</label><div class="chips" id="parChips"></div></div>
       <div class="row" style="margin-left:auto">
-        <button id="btnAdd">➕ เพิ่มค่าเอง</button>
+        <button id="btnAdd">🔎 กรอกค่า / เช็คหน้าเครื่อง</button>
         <button id="btnLimits">⚙️ เกณฑ์ (X̄ / SD)</button>
         <button class="primary" id="btnPrint">🖨️ พิมพ์ / PDF</button>
       </div>
@@ -492,6 +533,11 @@ table.lt input[type=number]{width:84px}
     <div id="review"></div>
   </div>
 
+  <details class="card no-print" id="listCard">
+    <summary style="cursor:pointer;font-weight:700;color:var(--pink)">📝 แก้ไข / ลบค่า <span style="color:var(--t3);font-weight:500;font-size:12px">— รายการค่าทั้งเดือนของ QC นี้ (หรือคลิกตัวเลขในแบบฟอร์มด้านล่าง)</span></summary>
+    <div style="overflow-x:auto;margin-top:10px"><table class="lt" id="valList"></table></div>
+  </details>
+
   <div id="sheets"></div>
 
   <details class="card no-print" style="margin-top:16px">
@@ -503,21 +549,23 @@ table.lt input[type=number]{width:84px}
 </div>
 
 <!-- เพิ่ม/แก้ค่า -->
-<div class="ov" id="ovAdd"><div class="md" style="max-width:620px">
-  <button class="x" data-close>×</button><h3 id="addTitle">เพิ่มค่า QC เอง</h3>
+<div class="ov" id="ovAdd"><div class="md" style="max-width:860px">
+  <button class="x" data-close>×</button><h3 id="addTitle">🔎 กรอกค่า / เช็คหน้าเครื่อง</h3>
   <div class="row">
     <div class="f"><label>วันที่ทดสอบ</label><input type="date" id="aDate"></div>
-    <div class="f"><label>Control Sample</label><input id="aQc" style="width:150px"></div>
+    <div class="f"><label>Control Sample</label><input id="aQc" list="qcList" style="width:150px"><datalist id="qcList"></datalist></div>
+    <div id="aOverall" style="margin-left:auto"></div>
   </div>
-  <table class="lt" style="margin-top:12px"><thead><tr><th>พารามิเตอร์</th><th>ค่าที่วัดได้</th><th>เกณฑ์</th><th>ผล</th></tr></thead><tbody id="aBody"></tbody></table>
+  <div class="note" style="margin-top:10px">กรอกค่าที่อ่านได้จากเครื่อง ระบบตัดสินทันทีเทียบเกณฑ์ ±2SD / ±3SD และค่าก่อนหน้า (2 ใน 3 จุดนอก 2SD, 9 จุดฝั่งเดียว) · จะบันทึกลง X-Chart หรือไม่ก็ได้</div>
+  <div style="overflow-x:auto"><table class="lt" style="margin-top:10px"><thead><tr><th>พารามิเตอร์</th><th>ค่าที่วัดได้</th><th>X̄</th><th>±2SD</th><th>±3SD</th><th>ห่างจาก X̄</th><th>ผล</th><th>หมายเหตุ</th></tr></thead><tbody id="aBody"></tbody></table></div>
   <div class="f" style="margin-top:10px"><label>หมายเหตุ (เช่น เหตุผลที่กรอกเอง)</label><textarea id="aNote"></textarea></div>
-  <div class="row" style="margin-top:12px;justify-content:flex-end"><button data-close>ยกเลิก</button><button class="primary" id="aSave">บันทึก</button></div>
+  <div class="row" style="margin-top:12px;justify-content:flex-end"><span id="aRo" style="font-size:12px;color:var(--warn);margin-right:auto"></span><button id="aClear">ล้างค่า</button><button data-close>ปิด</button><button class="primary" id="aSave">บันทึกลง X-Chart</button></div>
 </div></div>
 
 <div class="ov" id="ovEdit"><div class="md" style="max-width:520px">
   <button class="x" data-close>×</button><h3 id="eTitle">แก้ไขค่า</h3>
   <div id="eInfo" class="note" style="margin-bottom:10px"></div>
-  <div class="row"><div class="f"><label>ค่าที่วัดได้</label><input type="number" step="any" id="eVal"></div></div>
+  <div class="row"><div class="f"><label>วันที่ทดสอบ</label><input type="date" id="eDate"></div><div class="f"><label>ค่าที่วัดได้</label><input type="number" step="any" id="eVal"></div><div id="eSt" style="align-self:center"></div></div>
   <div class="f" style="margin-top:10px"><label>เหตุผลที่แก้ไข / ลบ (บังคับ)</label><textarea id="eNote"></textarea></div>
   <div class="row" style="margin-top:12px;justify-content:space-between">
     <button id="eDel" style="color:var(--fail)">🗑️ ลบจุดนี้</button>
@@ -542,6 +590,16 @@ table.lt input[type=number]{width:84px}
       <div class="f"><label>แก้ไขครั้งที่</label><input id="dRev" style="width:70px"></div>
     </div>
   </details>
+  <details style="margin-top:12px" id="qcManage"><summary style="cursor:pointer;font-size:12.5px;color:var(--t2)">จัดการ Control Sample (ย้ายค่า / ลบ QC ที่ไม่ใช้)</summary>
+    <div class="note" style="margin-top:8px">ใช้เมื่อบันทึกค่าไว้ผิดชื่อ QC เช่น "QC Sample" ที่จริงคือ NIR 02/25 · ย้ายแล้ว QC เดิมจะถูกซ่อน · ทุกการเปลี่ยนเก็บไว้ในประวัติ GitHub</div>
+    <div class="row" style="margin-top:8px">
+      <div class="f"><label>QC ที่จะจัดการ</label><select id="mFrom" style="min-width:160px"></select></div>
+      <div class="f"><label>ย้ายค่าทั้งหมดไปที่</label><select id="mTo" style="min-width:160px"></select></div>
+      <button id="mMove">ย้ายค่า แล้วซ่อน QC เดิม</button>
+      <button id="mDel" style="color:var(--fail)">ลบ QC นี้ (ไม่ย้ายค่า)</button>
+    </div>
+    <div id="mMsg" style="margin-top:8px"></div>
+  </details>
   <div id="lMsg" style="margin-top:10px"></div>
   <div class="row" style="margin-top:12px;justify-content:flex-end"><button data-close>ปิด</button><button class="primary" id="lSave">บันทึกเกณฑ์</button></div>
 </div></div>
@@ -562,18 +620,19 @@ async function loadAll() {
   try {
     S.cfg = await QCX.loadConfig();
     S.md = await QCX.loadMonth(S.month);
+    await loadPrev();
   } catch (e) { S.cfg = S.cfg || JSON.parse(JSON.stringify(QCX.DEFAULT_CONFIG)); S.md = QCX.emptyMonth(S.month); $('note').innerHTML = '<div class="note err" style="margin-bottom:14px">❌ ' + esc(e.message) + '</div>'; }
   busy(false);
   fillQc(); render();
 }
 async function loadMonth() {
   busy(true, 'กำลังโหลด ' + QCX.monthTh(S.month) + '…');
-  try { S.md = await QCX.loadMonth(S.month); } catch (e) { S.md = QCX.emptyMonth(S.month); toast('❌ ' + e.message); }
+  try { S.md = await QCX.loadMonth(S.month); await loadPrev(); } catch (e) { S.md = QCX.emptyMonth(S.month); toast('❌ ' + e.message); }
   busy(false); fillQc(); render();
 }
 function qcKeys() {
   const ks = new Set(Object.keys(S.cfg.qc || {}).filter(k => S.cfg.qc[k].active !== false));
-  (S.md.points || []).forEach(p => ks.add(p.k));
+  (S.md.points || []).forEach(p => { if (!S.cfg.qc[p.k] || S.cfg.qc[p.k].active !== false) ks.add(p.k); });
   return [...ks].sort();
 }
 function fillQc() {
@@ -582,18 +641,16 @@ function fillQc() {
     const withData = ks.find(k => S.md.points.some(p => p.k === k));
     S.qc = S.qc && !ks.length ? S.qc : (withData || ks[0] || '');
   }
-  $('qcSel').innerHTML = ks.map(k => '<option value="' + esc(k) + '"' + (k === S.qc ? ' selected' : '') + '>' + esc(QCX.qcName(S.cfg, k)) +
-    (S.md.points.some(p => p.k === k) ? '' : ' (ไม่มีค่าเดือนนี้)') + '</option>').join('');
+  $('qcSel').innerHTML = ks.map(k => '<option value="' + esc(k) + '"' + (k === S.qc ? ' selected' : '') + '>' + esc(QCX.qcName(S.cfg, k)) + '</option>').join('');
 }
 function syncUrl() { const u = new URL(location.href); u.searchParams.set('qc', S.qc); u.searchParams.set('month', S.month); history.replaceState(null, '', u); }
 
+async function loadPrev() { try { S.prevPts = (await QCX.loadMonth(QCX.addMonth(S.month, -1))).points; } catch (e) { S.prevPts = []; } }
 // ── ข้อมูลของ QC + พารามิเตอร์ ในเดือนที่เลือก ──
 function series(par) {
   const pts = S.md.points.filter(p => p.k === S.qc && p.par === par).sort((a, b) => (a.d + (a.run || 1)).localeCompare(b.d + (b.run || 1)));
-  const limOf = p => QCX.limitsFor(S.cfg, S.qc, par, p.d);
-  const flags = QCX.evaluate(pts, limOf);
-  const st = pts.map((p, i) => { let s = QCX.status(p.v, limOf(p)); if (flags[i].includes('2-2s') && s !== 'fail') s = 'fail'; return s; });
-  return { pts, flags, st, limOf, limEnd: QCX.limitsFor(S.cfg, S.qc, par, S.month + '-31') };
+  const ev = QCX.evalSeries(S.cfg, S.qc, par, pts, S.prevPts);
+  return { pts, flags: ev.flags, st: ev.st, out2: ev.out2, limOf: ev.limOf, limEnd: QCX.limitsFor(S.cfg, S.qc, par, S.month + '-31') };
 }
 const statsOf = vs => { if (!vs.length) return null; const m = vs.reduce((a, b) => a + b, 0) / vs.length; const sd = vs.length > 1 ? Math.sqrt(vs.reduce((a, b) => a + (b - m) ** 2, 0) / (vs.length - 1)) : null; return { m, sd }; };
 
@@ -606,9 +663,9 @@ function render() {
   const ro = !QCX.canWrite();
   $('mode').textContent = QCX.MODE_TEXT[QCX.mode] || '';
   $('mode').className = 'mode ' + (ro ? 'ro' : 'ok');
-  ['btnAdd'].forEach(id => $(id).disabled = ro || !S.qc);
+  $('btnAdd').disabled = false;
   $('sumTitle').textContent = '· ' + QCX.qcName(S.cfg, S.qc) + ' · ' + QCX.monthTh(S.month);
-  renderSummary(); renderReview(); renderSheets();
+  renderSummary(); renderReview(); renderList(); renderSheets();
 }
 
 function renderSummary() {
@@ -616,7 +673,8 @@ function renderSummary() {
   $('summary').innerHTML = QCX.PARAMS.map(P => {
     const s = series(P.code), vs = s.pts.map(p => p.v), stt = statsOf(vs);
     const c = k => s.st.filter(x => x === k).length;
-    const worst = c('fail') ? 'fail' : (c('warn') || s.flags.some(f => f.includes('7-T'))) ? 'warn' : s.pts.length ? 'pass' : 'none';
+    const worst = c('fail') ? 'fail' : s.pts.length ? 'pass' : 'none';
+    const n2 = s.out2.filter((x, i) => x && s.st[i] !== 'fail').length;
     const label = { fail: 'ผิดเกณฑ์', warn: 'เฝ้าระวัง', pass: 'ในเกณฑ์', none: 'ยังไม่มีค่า' }[worst];
     const last = s.pts[s.pts.length - 1];
     return '<div class="sc" data-p="' + P.code + '"><div class="t"><span>' + P.short + ' <small>' + P.name + '</small></span><span class="pill ' + worst + '">' + label + '</span></div>' +
@@ -624,12 +682,26 @@ function renderSummary() {
       '<div class="meta">' + (last ? 'ล่าสุด ' + QCX.dmy(last.d) + ' · ' : '') + s.pts.length + ' จุด' +
       (stt ? '<br>เฉลี่ยเดือนนี้ ' + fl(stt.m, P.dec + 1) + (stt.sd !== null ? ' · SD ' + fl(stt.sd, 3) : '') : '') +
       (s.limEnd ? '<br>X̄ ' + s.limEnd.mean + ' · ±3SD ' + s.limEnd.m3 + '–' + s.limEnd.p3 : '<br><span style="color:var(--warn)">ยังไม่มีเกณฑ์</span>') +
-      (c('fail') || c('warn') ? '<br><b style="color:var(--fail)">' + (c('fail') ? c('fail') + ' Fail ' : '') + '</b><b style="color:var(--warn)">' + (c('warn') ? c('warn') + ' Warning' : '') + '</b>' : '') +
+      (c('fail') ? '<br><b style="color:var(--fail)">' + c('fail') + ' Fail</b>' : '') + (n2 ? (c('fail') ? ' · ' : '<br>') + '<span style="color:var(--warn)">เกิน ±2SD ' + n2 + ' จุด (ยัง Pass)</span>' : '') +
       '</div></div>';
   }).join('');
   $('summary').querySelectorAll('.sc').forEach(el => el.onclick = () => { S.par = el.dataset.p; render(); $('sheets').scrollIntoView({ behavior: 'smooth' }); });
 }
 
+function renderList() {
+  const rows = [];
+  QCX.PARAMS.forEach(P => { const s = series(P.code); s.pts.forEach((p, i) => rows.push({ P, p, i, st: s.st[i], o2: s.out2[i] })); });
+  rows.sort((a, b) => (a.p.d + a.P.code).localeCompare(b.p.d + b.P.code));
+  const ro = !QCX.canWrite();
+  $('valList').innerHTML = rows.length ? '<tr><th>วันที่</th><th>พารามิเตอร์</th><th>ค่า</th><th>ผล</th><th>ที่มา</th><th>หมายเหตุ</th><th></th></tr>' + rows.map(r =>
+    '<tr><td>' + QCX.dmy(r.p.d) + (r.p.run > 1 ? ' (' + r.p.run + ')' : '') + '</td><td><b>' + r.P.short + '</b></td><td>' + fmt(r.p.v, r.P.code) + '</td>' +
+    '<td><span class="pill ' + (r.st || 'none') + '">' + (QCX.STATUS_TEXT[r.st] || '-') + '</span>' + (r.o2 && r.st !== 'fail' ? ' <span class="hist" style="color:var(--warn)">นอก 2SD</span>' : '') + '</td>' +
+    '<td class="hist">' + esc((r.p.src === 'manual' ? 'กรอกเอง' : r.p.src === 'migrate' ? 'ย้ายจากเดิม' : 'Report') + (r.p.by ? ' · ' + r.p.by : '')) + '</td><td class="hist">' + esc(r.p.note || '') + (r.p.prev && r.p.prev.length ? ' (แก้ ' + r.p.prev.length + ' ครั้ง)' : '') + '</td>' +
+    '<td style="white-space:nowrap"><button class="ghost" data-ed="' + r.P.code + '|' + r.i + '"' + (ro ? ' disabled' : '') + '>✏️ แก้ไข</button><button class="ghost" style="color:var(--fail)" data-dl="' + r.P.code + '|' + r.i + '"' + (ro ? ' disabled' : '') + '>🗑️ ลบ</button></td></tr>').join('')
+    : '<tr><td style="color:var(--t3)">ยังไม่มีค่าในเดือนนี้</td></tr>';
+  $('valList').querySelectorAll('[data-ed]').forEach(b => b.onclick = () => { const [par, i] = b.dataset.ed.split('|'); openEdit(par, +i); });
+  $('valList').querySelectorAll('[data-dl]').forEach(b => b.onclick = () => { const [par, i] = b.dataset.dl.split('|'); openEdit(par, +i, true); });
+}
 function renderReview() {
   const r = (S.md.reviews || {})[S.qc];
   const all = QCX.PARAMS.map(P => series(P.code));
@@ -694,8 +766,8 @@ function chartSvg(s, par) {
   });
   if (s.pts.length > 1) out += '<polyline points="' + s.pts.map((p, i) => X(i) + ',' + Y(p.v)).join(' ') + '" fill="none" stroke="#2f3fae" stroke-width="1.6"/>';
   s.pts.forEach((p, i) => {
-    const c = s.st[i] === 'fail' ? '#dc2626' : s.st[i] === 'warn' ? '#d97706' : '#2f3fae';
-    out += '<circle cx="' + X(i) + '" cy="' + Y(p.v) + '" r="' + (s.st[i] === 'pass' || !s.st[i] ? 3.4 : 4.6) + '" fill="' + c + '"/>' +
+    const c = s.st[i] === 'fail' ? '#dc2626' : s.out2[i] ? '#d97706' : '#2f3fae';
+    out += '<circle cx="' + X(i) + '" cy="' + Y(p.v) + '" r="' + (s.st[i] === 'fail' || s.out2[i] ? 4.6 : 3.4) + '" fill="' + c + '"/>' +
       '<text x="' + X(i) + '" y="' + (Y(p.v) - 8) + '" text-anchor="middle" font-size="10" fill="#333">' + fmt(p.v, par) + '</text>' +
       '<text x="' + X(i) + '" y="' + (h - padB + 15) + '" text-anchor="middle" font-size="10" fill="#333">' + p.d.slice(8, 10) + (p.run > 1 ? '/' + p.run : '') + '</text>';
   });
@@ -718,7 +790,7 @@ function renderSheets() {
       sRow += cell(i, (p, k) => '<td class="s-' + s.st[k] + '">' + QCX.STATUS_TEXT[s.st[k]] + '</td>');
     }
     const viol = [];
-    s.pts.forEach((p, i) => s.flags[i].forEach(f => { if (f !== '7-T' || !viol.some(v => v.f === '7-T')) viol.push({ f, p }); }));
+    s.pts.forEach((p, i) => s.flags[i].forEach(f => { if (!QCX.FAIL_RULES.includes(f)) return; if (f === '9x' && i > 0 && s.flags[i - 1].includes('9x')) return; viol.push({ f, p }); }));
     const versions = [...new Set(s.pts.map(s.limOf))].filter(Boolean);
     return '<div class="sheet">' +
       '<div class="sh-top"><div class="center">' + esc(doc.lab || QCX.DEFAULT_CONFIG.doc.lab) + '</div><div class="right">เลขที่เอกสาร &nbsp;' + esc(doc.docNo) + '<br>เริ่มใช้วันที่ &nbsp;' + esc(doc.useDate) + '<br>แก้ไขครั้งที่ : ' + esc(doc.rev) + '<br>1/1</div></div>' +
@@ -729,8 +801,8 @@ function renderSheets() {
         : '<div class="sh-meta" style="color:#b45309">ยังไม่มีเกณฑ์ของพารามิเตอร์นี้ — กด ⚙️ เกณฑ์</div>') +
       '<table class="dt"><tr><td class="rl">DATE</td>' + dRow + '</tr><tr><td class="rl">SAMPLE MEASUREMENT</td>' + vRow + '</tr><tr><td class="rl">STATUS</td>' + sRow + '</tr></table>' +
       (s.pts.length || l ? chartSvg(s, P.code) : '<div class="empty-sheet">ยังไม่มีค่า</div>') +
-      '<div class="legend"><span><i style="border-color:#c0392b"></i> ±3SD (Action limit)</span><span><i style="border-color:#d4a20d;border-top-style:dashed"></i> ±2SD (Warning limit)</span><span><i style="border-color:#1c2230"></i> X&#772; (Center line)</span><span style="color:#dc2626">● Fail</span><span style="color:#d97706">● Warning</span><span>* = กรอกเอง</span></div>' +
-      '<div class="viol">' + (viol.length ? viol.map(v => '<b>' + QCX.dmy(v.p.d) + '</b> ' + v.f + ': ' + QCX.RULE_TEXT[v.f]).join(' &nbsp;·&nbsp; ') : (s.pts.length ? 'ไม่พบจุดผิดเกณฑ์ (1-3s, 2-2s, 7-T)' : '')) + '</div>' +
+      '<div class="legend"><span><i style="border-color:#c0392b"></i> ±3SD (Action limit)</span><span><i style="border-color:#d4a20d;border-top-style:dashed"></i> ±2SD (Warning limit)</span><span><i style="border-color:#1c2230"></i> X&#772; (Center line)</span><span style="color:#dc2626">● Fail</span><span style="color:#d97706">● เกิน ±2SD (ยัง Pass)</span><span>* = กรอกเอง</span><span>Fail: 1 จุดนอก ±3SD · 2 ใน 3 จุดนอก ±2SD ด้านเดียวกัน · 9 จุดติดกันฝั่งเดียวของ X̄</span></div>' +
+      '<div class="viol">' + (viol.length ? viol.map(v => '<b>' + QCX.dmy(v.p.d) + '</b> ' + v.f + ': ' + QCX.RULE_TEXT[v.f]).join(' &nbsp;·&nbsp; ') : (s.pts.length ? 'ไม่พบจุดผิดเกณฑ์ (1-3s, 2 ใน 3 นอก 2SD, 9 จุดฝั่งเดียว)' : '')) + '</div>' +
       (r && r.note ? '<div class="viol" style="margin-top:8px">ผลการทบทวน: ' + esc(r.result) + ' — ' + esc(r.note) + '</div>' : '') +
       '</div>';
   }).join('');
@@ -739,21 +811,25 @@ function renderSheets() {
 
 // ── แก้ไข / ลบจุด ──
 let editing = null;
-function openEdit(par, i) {
+function openEdit(par, i, forDelete) {
   if (!QCX.canWrite()) { toast('ดูได้อย่างเดียว — ยังบันทึกไม่ได้'); return; }
   const p = series(par).pts[i]; if (!p) return;
   editing = p;
   $('eTitle').textContent = 'แก้ไขค่า ' + QCX.PAR[par].name;
   $('eInfo').innerHTML = esc(QCX.qcName(S.cfg, S.qc)) + ' · ' + QCX.dmy(p.d) + (p.run > 1 ? ' (รอบ ' + p.run + ')' : '') + '<br>ค่าปัจจุบัน <b>' + fmt(p.v, par) + '</b> · ' + esc(p.src === 'manual' ? 'กรอกเอง' : 'จาก Report') + (p.by ? ' โดย ' + esc(p.by) : '') +
     (p.prev && p.prev.length ? '<br>ค่าก่อนแก้: ' + p.prev.map(x => esc(fmt(x.v, par)) + ' (' + esc(x.by || '') + ')').join(', ') : '');
-  $('eVal').value = p.v; $('eNote').value = '';
-  $('ovEdit').classList.add('on');
+  $('eVal').value = p.v; $('eDate').value = p.d; $('eNote').value = ''; $('eSt').innerHTML = '';
+  $('eVal').oninput = () => { const v = parseFloat($('eVal').value); const j = QCX.judgePoint(S.cfg, S.md.points.concat(S.prevPts || []).filter(o => !QCX.sameSlot(o, p)), S.qc, par, $('eDate').value, v); $('eSt').innerHTML = j.st ? '<span class="pill ' + j.st + '">' + QCX.STATUS_TEXT[j.st] + '</span>' : ''; };
+  $('eTitle').textContent = (forDelete ? 'ลบค่า ' : 'แก้ไขค่า ') + QCX.PAR[par].name;
+  $('eSave').style.display = forDelete ? 'none' : ''; $('eDel').textContent = forDelete ? '🗑️ ยืนยันลบจุดนี้' : '🗑️ ลบจุดนี้';
+  $('ovEdit').classList.add('on'); if (forDelete) $('eNote').focus();
 }
 async function changePoint(del) {
   const reason = $('eNote').value.trim();
   if (!reason) { toast('ใส่เหตุผลก่อน (เก็บไว้เป็นหลักฐานการแก้ไข)'); return; }
-  const v = parseFloat($('eVal').value);
+  const v = parseFloat($('eVal').value), nd = $('eDate').value;
   if (!del && isNaN(v)) { toast('ใส่ค่าตัวเลข'); return; }
+  if (!del && !nd) { toast('ใส่วันที่'); return; }
   if (del && !confirm('ลบจุดนี้? (ยังดูย้อนหลังได้ในประวัติ GitHub)')) return;
   const tgt = editing;
   busy(true, 'กำลังบันทึก…');
@@ -763,8 +839,16 @@ async function changePoint(del) {
       if (idx < 0) throw new Error('ไม่พบจุดนี้แล้ว (อาจมีคนแก้ไปก่อน) — กด 🔄');
       const o = md.points[idx], by = QCX.user(), at = new Date().toISOString();
       if (del) { md.deleted = md.deleted || []; md.deleted.push(Object.assign({}, o, { delBy: by, delAt: at, reason })); md.points.splice(idx, 1); }
-      else { o.prev = (o.prev || []).concat([{ v: o.v, by: o.by, at: o.at }]); Object.assign(o, { v, by, at, note: reason }); }
+      else if (QCX.monthOf(nd) !== S.month) {   // ย้ายไปเดือนอื่น: ลบจากเดือนนี้ (เก็บหลักฐาน) แล้วเพิ่มในเดือนใหม่ด้านล่าง
+        md.deleted = md.deleted || []; md.deleted.push(Object.assign({}, o, { delBy: by, delAt: at, reason: 'ย้ายไป ' + nd + ': ' + reason })); md.points.splice(idx, 1);
+      } else {
+        o.prev = (o.prev || []).concat([{ v: o.v, d: o.d, by: o.by, at: o.at }]);
+        if (nd !== o.d) { const same = md.points.filter(x => x !== o && x.k === o.k && x.par === o.par && x.d === nd); o.run = same.length ? Math.max(...same.map(x => x.run || 1)) + 1 : 1; }
+        Object.assign(o, { v, d: nd, by, at, note: reason });
+        md.points.sort((a, b) => (a.k + a.par + a.d + (a.run || 1)).localeCompare(b.k + b.par + b.d + (b.run || 1)));
+      }
     }, (del ? 'QC delete ' : 'QC edit ') + QCX.qcName(S.cfg, S.qc) + ' ' + tgt.par + ' ' + tgt.d);
+    if (!del && QCX.monthOf(nd) !== S.month) await QCX.addPoints([Object.assign({}, tgt, { d: nd, v, run: 1, note: reason, prev: undefined })], 'add', 'QC move ' + tgt.par + ' ' + tgt.d + ' → ' + nd);
     S.md = out.obj; busy(false); $('ovEdit').classList.remove('on'); toast(del ? 'ลบแล้ว' : '✅ แก้ไขแล้ว'); render();
   } catch (e) { busy(false); alert('ไม่สำเร็จ: ' + e.message); }
 }
@@ -772,20 +856,50 @@ $('eSave').onclick = () => changePoint(false);
 $('eDel').onclick = () => changePoint(true);
 
 // ── เพิ่มค่าเอง ──
-$('btnAdd').onclick = () => {
+const monthCache = {};
+async function monthPts(m) {
+  if (m === S.month) return S.md.points;
+  if (!monthCache[m]) { try { monthCache[m] = (await QCX.loadMonth(m)).points; } catch (e) { monthCache[m] = []; } }
+  return monthCache[m];
+}
+function judgeNew(prev, k, par, d, v) { return QCX.judgePoint(S.cfg, prev, k, par, d, v); }
+$('btnAdd').onclick = async () => {
   $('aDate').value = S.month === QCX.thisMonth() ? QCX.todayISO() : S.month + '-01';
-  $('aQc').value = QCX.qcName(S.cfg, S.qc); $('aNote').value = '';
-  const rowsFn = () => {
-    const d = $('aDate').value, k = QCX.qcKey($('aQc').value);
-    return QCX.PARAMS.map(P => { const l = QCX.limitsFor(S.cfg, k, P.code, d); return '<tr><td>' + P.short + ' <span class="hist">' + P.name + '</span></td><td><input type="number" step="any" data-p="' + P.code + '"></td><td class="hist">' + (l ? l.m3 + ' – ' + l.p3 : 'ไม่มีเกณฑ์') + '</td><td data-st="' + P.code + '"></td></tr>'; }).join('');
+  $('aQc').value = S.qc ? QCX.qcName(S.cfg, S.qc) : ''; $('aNote').value = '';
+  $('qcList').innerHTML = Object.keys(S.cfg.qc || {}).map(k => '<option value="' + esc(QCX.qcName(S.cfg, k)) + '">').join('');
+  $('aSave').disabled = !QCX.canWrite();
+  $('aRo').textContent = QCX.canWrite() ? '' : 'ดูได้อย่างเดียว — เช็คผลได้ แต่ยังบันทึกไม่ได้';
+  const vals = {};
+  const draw = () => {   // สร้างตารางครั้งเดียวตอนเปิด — เปลี่ยน QC/วันที่ จะอัปเดตเฉพาะช่องเกณฑ์ (ช่องที่กำลังพิมพ์ไม่หลุด)
+    $('aBody').innerHTML = QCX.PARAMS.map(P =>
+      '<tr><td><b>' + P.short + '</b> <span class="hist">' + P.name + '</span></td><td><input type="number" step="any" data-p="' + P.code + '" value="' + esc(vals[P.code] || '') + '"></td>' +
+      '<td data-mean="' + P.code + '"></td><td class="hist" data-l2="' + P.code + '"></td><td class="hist" data-l3="' + P.code + '"></td>' +
+      '<td data-z="' + P.code + '"></td><td data-st="' + P.code + '"></td><td data-fl="' + P.code + '" style="font-size:11.5px;color:var(--fail)"></td></tr>').join('');
+    $('aBody').querySelectorAll('input').forEach(inp => inp.oninput = () => { vals[inp.dataset.p] = inp.value; upd(); });
+    upd();
   };
-  $('aBody').innerHTML = rowsFn();
-  const upd = () => $('aBody').querySelectorAll('input').forEach(inp => {
-    const P = inp.dataset.p, v = parseFloat(inp.value), st = QCX.status(v, QCX.limitsFor(S.cfg, QCX.qcKey($('aQc').value), P, $('aDate').value));
-    $('aBody').querySelector('[data-st="' + P + '"]').innerHTML = st ? '<span class="pill ' + st + '">' + QCX.STATUS_TEXT[st] + '</span>' : '';
-  });
-  $('aBody').oninput = upd;
-  $('aDate').onchange = $('aQc').onchange = () => { const keep = {}; $('aBody').querySelectorAll('input').forEach(i => keep[i.dataset.p] = i.value); $('aBody').innerHTML = rowsFn(); $('aBody').querySelectorAll('input').forEach(i => i.value = keep[i.dataset.p] || ''); upd(); };
+  const upd = async () => {
+    const k = QCX.qcKey($('aQc').value), d = $('aDate').value;
+    const prev = d ? (await monthPts(QCX.monthOf(d))).concat(await monthPts(QCX.addMonth(QCX.monthOf(d), -1))) : [];
+    let worst = '', n = 0;
+    QCX.PARAMS.forEach(P => {
+      const v = parseFloat(vals[P.code]); const j = judgeNew(prev, k, P.code, d, v);
+      const cell = x => $('aBody').querySelector('[data-' + x + '="' + P.code + '"]');
+      if (!cell('st')) return;
+      const l = QCX.limitsFor(S.cfg, k, P.code, d);
+      cell('mean').textContent = l ? l.mean : '-'; cell('l2').textContent = l ? l.m2 + ' – ' + l.p2 : '-'; cell('l3').textContent = l ? l.m3 + ' – ' + l.p3 : 'ไม่มีเกณฑ์';
+      cell('st').innerHTML = j.st ? '<span class="pill ' + j.st + '">' + QCX.STATUS_TEXT[j.st] + '</span>' : '';
+      cell('z').textContent = j.z !== null && j.z !== undefined && !isNaN(v) ? (j.z >= 0 ? '+' : '') + j.z.toFixed(1) + ' SD' : '';
+      cell('fl').textContent = j.flags.length ? j.flags.map(f => QCX.RULE_TEXT[f]).join(' · ') : (!isNaN(v) && !j.lim ? 'ยังไม่มีเกณฑ์' : j.out2 ? 'เกิน ±2SD (ยัง Pass)' : '');
+      cell('fl').style.color = j.flags.length ? 'var(--fail)' : 'var(--warn)';
+      const R = { '': 0, pass: 1, warn: 2, fail: 3 };
+      if (j.st) { n++; if (R[j.st] > R[worst]) worst = j.st; }
+    });
+    $('aOverall').innerHTML = n ? '<span class="pill ' + worst + '" style="font-size:14px;padding:5px 14px">ผลรวม: ' + QCX.STATUS_TEXT[worst] + '</span>' : '';
+  };
+  $('aDate').onchange = $('aQc').onchange = $('aQc').oninput = upd;
+  $('aClear').onclick = () => { Object.keys(vals).forEach(k => delete vals[k]); draw(); };
+  draw();
   $('ovAdd').classList.add('on');
 };
 $('aSave').onclick = async () => {
@@ -820,11 +934,22 @@ function limRows() {
   $('lBody').innerHTML = QCX.PARAMS.map(P => {
     const l = QCX.limitsFor(S.cfg, k, P.code, from) || {};
     const vs = ((S.cfg.qc[k] || {}).params || {})[P.code] || [];
-    const hist = vs.slice().sort((a, b) => b.from.localeCompare(a.from)).map(v => QCX.dmy(v.from) + ': X̄ ' + v.mean + ' (' + v.m3 + '–' + v.p3 + ')').join('<br>');
+    const hist = vs.slice().sort((a, b) => b.from.localeCompare(a.from)).map(v => QCX.dmy(v.from) + ': X̄ ' + v.mean + ' (' + v.m3 + '–' + v.p3 + ')' + (QCX.canWrite() ? ' <a href="#" data-dv="' + P.code + '|' + v.from + '" style="color:var(--fail);text-decoration:none" title="ลบเวอร์ชันนี้">🗑️</a>' : '')).join('<br>');
     const inp = (f, v) => '<input type="number" step="any" data-p="' + P.code + '" data-f="' + f + '" value="' + (v ?? '') + '">';
     return '<tr><td><b>' + P.short + '</b> <span class="hist">' + P.name + '</span>' + (hist ? '<div class="hist">' + hist + '</div>' : '') + '</td><td>' + inp('mean', l.mean) + '</td><td>' + inp('sd', l.sd) + '</td>' +
       '<td><button class="ghost" data-calc="' + P.code + '" title="คำนวณ ±2SD/±3SD จาก X̄ และ SD">คำนวณ →</button></td><td>' + inp('p3', l.p3) + '</td><td>' + inp('p2', l.p2) + '</td><td>' + inp('m2', l.m2) + '</td><td>' + inp('m3', l.m3) + '</td></tr>';
   }).join('');
+  $('lBody').querySelectorAll('[data-dv]').forEach(a => a.onclick = async e => {
+    e.preventDefault();
+    const [par, from] = a.dataset.dv.split('|');
+    const why = prompt('ลบเกณฑ์ ' + par + ' ที่มีผล ' + QCX.dmy(from) + ' ของ ' + QCX.qcName(S.cfg, k) + '?\nใส่เหตุผล (ค่าที่ใช้เกณฑ์นี้จะกลับไปใช้เวอร์ชันก่อนหน้า):');
+    if (!why) return;
+    busy(true, 'กำลังลบ…');
+    try {
+      const o = await QCX.saveConfig(c => { const list = (((c.qc || {})[k] || {}).params || {})[par]; if (!list) return false; const i = list.findIndex(v => v.from === from); if (i < 0) return false; c.removed = (c.removed || []).concat([Object.assign({ qc: k, par, delBy: QCX.user(), delAt: new Date().toISOString(), reason: why }, list[i])]); list.splice(i, 1); }, 'QC limits delete ' + QCX.qcName(S.cfg, k) + ' ' + par + ' ' + from);
+      S.cfg = o.obj; busy(false); toast('ลบเกณฑ์แล้ว'); limRows(); render();
+    } catch (err) { busy(false); alert('ไม่สำเร็จ: ' + err.message); }
+  });
   $('lBody').querySelectorAll('[data-calc]').forEach(b => b.onclick = () => {
     const P = b.dataset.calc, g = f => parseFloat($('lBody').querySelector('[data-p="' + P + '"][data-f="' + f + '"]').value);
     const m = g('mean'), sd = g('sd'); if (isNaN(m) || isNaN(sd)) { toast('ใส่ X̄ และ SD ก่อน'); return; }
@@ -838,6 +963,7 @@ $('btnLimits').onclick = () => {
   $('lNew').value = ''; $('lFrom').value = QCX.todayISO(); $('lMsg').innerHTML = '';
   const d = S.cfg.doc || {}; $('dNo').value = d.docNo || ''; $('dUse').value = d.useDate || ''; $('dRev').value = d.rev || '';
   limRows(); $('lSave').disabled = !QCX.canWrite();
+  fillManage();
   $('ovLim').classList.add('on');
 };
 $('lQc').onchange = $('lNew').oninput = $('lFrom').onchange = limRows;
@@ -879,6 +1005,64 @@ $('lSave').onclick = async () => {
     toast('✅ บันทึกเกณฑ์แล้ว (' + Object.keys(changes).length + ' พารามิเตอร์)');
     S.qc = k; fillQc(); render();
   } catch (e) { busy(false); $('lMsg').innerHTML = '<div class="note err">❌ ' + esc(e.message) + '</div>'; }
+};
+
+// ── จัดการ QC: ย้ายค่าไป QC อื่น / ลบ ──
+function allQcKeys() { return [...new Set(Object.keys(S.cfg.qc || {}).concat(S.md.points.map(p => p.k)))].sort(); }
+function fillManage() {
+  const ks = allQcKeys(), opt = k => '<option value="' + esc(k) + '">' + esc(QCX.qcName(S.cfg, k)) + (S.cfg.qc[k] && S.cfg.qc[k].active === false ? ' (ซ่อนอยู่)' : '') + '</option>';
+  $('mFrom').innerHTML = ks.map(opt).join(''); $('mTo').innerHTML = ks.map(opt).join('');
+  const bad = ks.find(k => k !== S.qc && !(S.cfg.qc[k] && S.cfg.qc[k].params && Object.keys(S.cfg.qc[k].params).length));
+  if (bad) $('mFrom').value = bad;
+  if (S.qc && S.qc !== $('mFrom').value) $('mTo').value = S.qc;
+  $('mMove').disabled = $('mDel').disabled = !QCX.canWrite(); $('mMsg').innerHTML = '';
+}
+async function qcMonths() {   // เดือนที่มีไฟล์ใน xchart/
+  try {
+    const f = await QCX.getFile('xchart');
+    const arr = Array.isArray(f.json) ? f.json : [];
+    const ms = arr.map(x => (x.name || '').replace(/\.json$/, '')).filter(m => /^\d{4}-\d{2}$/.test(m));
+    if (ms.length) return ms.sort();
+  } catch (e) { }
+  const out = []; for (let i = -24; i <= 1; i++) out.push(QCX.addMonth(QCX.thisMonth(), i)); return out;   // สำรอง: 2 ปีล่าสุด
+}
+async function moveOrDeleteQc(from, to) {
+  const by = QCX.user(), at = new Date().toISOString(); let moved = 0, removed = 0;
+  for (const m of await qcMonths()) {
+    const f = await QCX.getFile(QCX.monthPath(m)); if (!f.json || !f.json.points.some(p => p.k === from)) continue;
+    await QCX.update(QCX.monthPath(m), () => QCX.emptyMonth(m), md => {
+      const mine = md.points.filter(p => p.k === from); if (!mine.length) return false;
+      md.points = md.points.filter(p => p.k !== from);
+      if (to) {
+        const toName = QCX.qcName(S.cfg, to);
+        mine.forEach(p => {
+          const same = md.points.filter(o => o.k === to && o.par === p.par && o.d === p.d);
+          if (same.some(o => Math.abs(o.v - p.v) < 1e-9)) return;   // ค่าเดียวกันมีอยู่แล้ว
+          md.points.push(Object.assign({}, p, { k: to, qc: toName, run: same.length ? Math.max(...same.map(o => o.run || 1)) + 1 : (p.run || 1), note: (p.note ? p.note + ' · ' : '') + 'ย้ายจาก ' + QCX.qcName(S.cfg, from), movedBy: by, movedAt: at })); moved++;
+        });
+        md.points.sort((a, b) => (a.k + a.par + a.d + (a.run || 1)).localeCompare(b.k + b.par + b.d + (b.run || 1)));
+      } else { md.deleted = md.deleted || []; mine.forEach(p => md.deleted.push(Object.assign({}, p, { delBy: by, delAt: at, reason: 'ลบ QC ' + QCX.qcName(S.cfg, from) }))); removed += mine.length; }
+      if (md.reviews && md.reviews[from]) { if (to && !md.reviews[to]) md.reviews[to] = md.reviews[from]; delete md.reviews[from]; }
+    }, (to ? 'QC move ' + QCX.qcName(S.cfg, from) + ' → ' + QCX.qcName(S.cfg, to) : 'QC delete ' + QCX.qcName(S.cfg, from)) + ' ' + m);
+  }
+  const o = await QCX.saveConfig(c => { c.qc = c.qc || {}; if (to || (c.qc[from] && c.qc[from].params && Object.keys(c.qc[from].params).length)) { c.qc[from] = Object.assign(c.qc[from] || { name: from, params: {} }, { active: false, hiddenBy: by, hiddenAt: at }); } else delete c.qc[from]; }, 'QC hide ' + from);
+  S.cfg = o.obj;
+  return { moved, removed };
+}
+$('mMove').onclick = async () => {
+  const from = $('mFrom').value, to = $('mTo').value;
+  if (!from || !to || from === to) { $('mMsg').innerHTML = '<div class="note warn">เลือก QC ต้นทางและปลายทางที่ต่างกัน</div>'; return; }
+  if (!confirm('ย้ายค่าทั้งหมดของ "' + QCX.qcName(S.cfg, from) + '" ไปที่ "' + QCX.qcName(S.cfg, to) + '" ทุกเดือน แล้วซ่อน QC เดิม?')) return;
+  busy(true, 'กำลังย้ายค่า…');
+  try { const r = await moveOrDeleteQc(from, to); busy(false); $('ovLim').classList.remove('on'); toast('✅ ย้ายแล้ว ' + r.moved + ' ค่า · ซ่อน ' + QCX.qcName(S.cfg, from), 5000); S.qc = to; await loadMonth(); }
+  catch (e) { busy(false); $('mMsg').innerHTML = '<div class="note err">❌ ' + esc(e.message) + '</div>'; }
+};
+$('mDel').onclick = async () => {
+  const from = $('mFrom').value; if (!from) return;
+  if (!confirm('ลบ QC "' + QCX.qcName(S.cfg, from) + '" และค่าทั้งหมดของ QC นี้? (ยังดูย้อนหลังได้ในประวัติ GitHub)')) return;
+  busy(true, 'กำลังลบ…');
+  try { const r = await moveOrDeleteQc(from, null); busy(false); $('ovLim').classList.remove('on'); toast('ลบ ' + QCX.qcName(S.cfg, from) + ' แล้ว (' + r.removed + ' ค่า)', 5000); if (S.qc === from) S.qc = ''; await loadMonth(); }
+  catch (e) { busy(false); $('mMsg').innerHTML = '<div class="note err">❌ ' + esc(e.message) + '</div>'; }
 };
 
 // ── ย้ายข้อมูลจาก X-Chart เดิม (Cloudflare KV) ──
@@ -951,8 +1135,8 @@ $('btnPrint').onclick = () => window.print();
   if (/^\d{4}-\d{2}$/.test(q.get('month') || '')) S.month = q.get('month');
   if (q.get('qc')) S.qc = QCX.qcKey(q.get('qc'));
   if (q.get('par') && QCX.PAR[q.get('par')]) S.par = q.get('par');
-  await QCX.connect();
-  if (!QCX.canWrite()) $('note').innerHTML = '<div class="note warn" style="margin-bottom:14px">ดูได้อย่างเดียว — เครื่องนี้ยังต่อ Worker ไม่ได้ (ข้อมูลที่เห็นอาจช้ากว่าจริงไม่กี่นาที) ตรวจที่หน้า NIR Data Import → ⚙️ ตั้งค่า</div>';
+  await QCX.connect(['xchart']);
+  if (!QCX.canWrite()) $('note').innerHTML = '<div class="note warn" style="margin-bottom:14px">ดูได้อย่างเดียว — ' + esc(QCX.problem) + QCX.webLinkHtml() + '</div>';
   await loadAll();
 })();
 </script>
