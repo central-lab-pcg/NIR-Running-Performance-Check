@@ -1,0 +1,121 @@
+{
+ "version": 1,
+ "month": "2026-10",
+ "rows": [],
+ "deleted": [
+  {
+   "id": "mvue2300ghm2",
+   "src": "report",
+   "at": "2026-10-30T03:04:19.289Z",
+   "savedBy": "Gavin",
+   "d": "2026-10-30",
+   "lab": "02-QCR260009780001",
+   "smp": "CGM",
+   "pars": [
+    "M",
+    "CP",
+    "EE",
+    "FIB"
+   ],
+   "by": "กวิณ",
+   "vals": {
+    "M": [
+     8.79,
+     8.79
+    ],
+    "CP": [
+     65,
+     65.3
+    ],
+    "EE": [
+     1.69,
+     1.71
+    ],
+    "FIB": [
+     0.985,
+     0.939
+    ]
+   },
+   "mode": "rpd",
+   "type": "other",
+   "diff": {
+    "M": 0,
+    "CP": 0.37,
+    "EE": 1,
+    "FIB": 4.78
+   },
+   "res": {
+    "M": {
+     "v": 0,
+     "ok": true,
+     "crit": "NIR ≤ 20 → %RPD ≤ 10"
+    },
+    "CP": {
+     "v": 0.37,
+     "ok": true,
+     "crit": "NIR > 20 → %RPD < 5"
+    },
+    "EE": {
+     "v": 1,
+     "ok": true,
+     "crit": "NIR ≤ 20 → %RPD ≤ 10"
+    },
+    "FIB": {
+     "v": 4.78,
+     "ok": true,
+     "crit": "NIR ≤ 20 → %RPD ≤ 10"
+    }
+   },
+   "result": "pass",
+   "delBy": "Gavin",
+   "delAt": "2026-10-30T06:53:01.000Z",
+   "reason": "ลบตามคำขอ (บันทึกทดสอบ)"
+  },
+  {
+   "id": "mvue2300iqu2",
+   "src": "report",
+   "at": "2026-10-30T03:04:19.289Z",
+   "savedBy": "Gavin",
+   "d": "2026-10-30",
+   "lab": "02-QCR260009780007",
+   "smp": "YC",
+   "pars": [
+    "M",
+    "CP"
+   ],
+   "by": "กวิณ",
+   "vals": {
+    "M": [
+     13.7,
+     13.7
+    ],
+    "CP": [
+     7.84,
+     7.89
+    ]
+   },
+   "mode": "rpd",
+   "type": "other",
+   "diff": {
+    "M": 0.07,
+    "CP": 0.64
+   },
+   "res": {
+    "M": {
+     "v": 0.07,
+     "ok": true,
+     "crit": "NIR ≤ 20 → %RPD ≤ 10"
+    },
+    "CP": {
+     "v": 0.64,
+     "ok": true,
+     "crit": "NIR ≤ 20 → %RPD ≤ 10"
+    }
+   },
+   "result": "pass",
+   "delBy": "Gavin",
+   "delAt": "2026-10-30T06:53:01.000Z",
+   "reason": "ลบตามคำขอ (บันทึกทดสอบ)"
+  }
+ ]
+}
