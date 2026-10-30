@@ -1,0 +1,67 @@
+{
+ "version": 1,
+ "month": "2026-10",
+ "points": [
+  {
+   "run": 1,
+   "src": "report",
+   "by": "Gavin",
+   "at": "2026-10-30T03:04:02.300Z",
+   "k": "QCSAMPLE",
+   "qc": "QC Sample",
+   "par": "AH",
+   "d": "2026-10-30",
+   "v": 10.44,
+   "lab": "NIR02/25"
+  },
+  {
+   "run": 1,
+   "src": "report",
+   "by": "Gavin",
+   "at": "2026-10-30T03:04:02.300Z",
+   "k": "QCSAMPLE",
+   "qc": "QC Sample",
+   "par": "ASH",
+   "d": "2026-10-30",
+   "v": 6.3,
+   "lab": "NIR02/25"
+  },
+  {
+   "run": 1,
+   "src": "report",
+   "by": "Gavin",
+   "at": "2026-10-30T03:04:02.300Z",
+   "k": "QCSAMPLE",
+   "qc": "QC Sample",
+   "par": "CP",
+   "d": "2026-10-30",
+   "v": 32.17,
+   "lab": "NIR02/25"
+  },
+  {
+   "run": 1,
+   "src": "report",
+   "by": "Gavin",
+   "at": "2026-10-30T03:04:02.300Z",
+   "k": "QCSAMPLE",
+   "qc": "QC Sample",
+   "par": "FIB",
+   "d": "2026-10-30",
+   "v": 2.5,
+   "lab": "NIR02/25"
+  },
+  {
+   "run": 1,
+   "src": "report",
+   "by": "Gavin",
+   "at": "2026-10-30T03:04:02.300Z",
+   "k": "QCSAMPLE",
+   "qc": "QC Sample",
+   "par": "M",
+   "d": "2026-10-30",
+   "v": 7.78,
+   "lab": "NIR02/25"
+  }
+ ],
+ "reviews": {}
+}
