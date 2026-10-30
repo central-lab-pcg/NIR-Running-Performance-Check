@@ -189,7 +189,7 @@ window.addEventListener('error', function (e) {
     if (token()) { QCX.mode = 'token'; return QCX.mode; }
     const url = relayUrl() + '/health';
     try {
-      const res = await fetch(url, { headers: relayKey() ? { 'X-Import-Key': relayKey() } : {}, cache: 'no-store' });
+      const res = await fetch(url + '?t=' + Date.now(), { headers: relayKey() ? { 'X-Import-Key': relayKey() } : {} });
       let j = null; try { j = await res.json(); } catch (e) { }
       QCX.relayInfo = j;
       if (!res.ok) QCX.problem = (j && j.error ? j.error : 'Worker ตอบกลับ HTTP ' + res.status) + (res.status === 500 ? ' (Cloudflare → nir-import → Settings → Variables and Secrets)' : '');
@@ -198,9 +198,16 @@ window.addEventListener('error', function (e) {
       else if (j.needKey && !j.keyOk) QCX.problem = 'ต้องใส่รหัสนำเข้าก่อน (หน้า NIR Data Import → ⚙️ ตั้งค่า)';
     } catch (e) {
       QCX.relayInfo = null;
-      QCX.problem = location.hostname !== 'central-lab-pcg.github.io'
-        ? 'หน้านี้เปิดจาก ' + (location.hostname || 'ไฟล์ในเครื่อง') + ' — ต้องเปิดจากลิงก์บนเว็บ central-lab-pcg.github.io ถึงจะบันทึกได้'
-        : 'เรียก ' + url + ' ไม่ได้ — ตรวจว่าสร้าง Worker ชื่อ nir-import แล้ว (ลองเปิดลิงก์นี้ในเบราว์เซอร์)';
+      if (location.hostname !== 'central-lab-pcg.github.io') {
+        QCX.problem = 'หน้านี้เปิดจาก ' + (location.hostname || 'ไฟล์ในเครื่อง') + ' — ต้องเปิดจากลิงก์บนเว็บ central-lab-pcg.github.io ถึงจะบันทึกได้';
+      } else {
+        // แยกสาเหตุ: เข้าถึง Worker ได้แต่โดน CORS (Worker error) หรือเข้าไม่ถึงเลย (เน็ต/ไฟร์วอลล์บล็อก)
+        let reach = false;
+        try { await fetch(url + '?probe=' + Date.now(), { mode: 'no-cors', cache: 'no-store' }); reach = true; } catch (e2) { }
+        QCX.problem = reach
+          ? 'Worker ตอบกลับแต่เบราว์เซอร์ไม่ยอมรับ (CORS) — Worker อาจ error ให้ดู Cloudflare → nir-import → Logs หรือวางโค้ดชุดล่าสุดแล้ว Deploy ใหม่ [' + (e && e.message || e) + ']'
+          : 'เครื่องนี้เชื่อมต่อ ' + url.replace('/health', '') + ' ไม่ได้ — เน็ต/ไฟร์วอลล์/โปรแกรมบล็อกโฆษณาอาจบล็อก workers.dev (ลองเปิดลิงก์ /health ในแท็บใหม่ หรือลองอีกเครือข่าย) [' + (e && e.message || e) + ']';
+      }
     }
     QCX.mode = QCX.problem ? 'readonly' : 'relay';
     QCX.MODE_TEXT.readonly = 'ดูได้อย่างเดียว — ' + (QCX.problem || 'ต่อ Worker ไม่ได้');
@@ -216,7 +223,7 @@ window.addEventListener('error', function (e) {
   function api() {
     const R = QCX.REPO;
     if (QCX.mode === 'token') return { base: 'https://api.github.com/repos/' + R.owner + '/' + R.repo + '/contents/', h: { Authorization: 'Bearer ' + token(), 'X-GitHub-Api-Version': '2022-11-28' } };
-    const h = {}; if (relayKey()) h['X-Import-Key'] = relayKey(); if (QCX.user()) h['X-NIR-User'] = QCX.user();
+    const h = {}; if (relayKey()) h['X-Import-Key'] = relayKey(); if (QCX.user()) h['X-NIR-User'] = encodeURIComponent(QCX.user());   // header ต้องเป็น ASCII (ชื่อไทยต้อง encode)
     return { base: relayUrl() + '/contents/', h };
   }
   // อ่านไฟล์ JSON + sha (null ถ้ายังไม่มี)

@@ -499,7 +499,7 @@ window.addEventListener('error', function (e) {
     const api = relay ? relay + '/contents/' : 'https://api.github.com/repos/' + R.owner + '/' + R.repo + '/contents/';
     const repoUrl = relay ? relay + '/repo' : 'https://api.github.com/repos/' + R.owner + '/' + R.repo;
     const H = extra => Object.assign(relay
-      ? Object.assign({}, opts.key ? { 'X-Import-Key': opts.key } : {}, opts.user ? { 'X-NIR-User': opts.user } : {})
+      ? Object.assign({}, opts.key ? { 'X-Import-Key': opts.key } : {}, opts.user ? { 'X-NIR-User': encodeURIComponent(opts.user) } : {})
       : { Authorization: 'Bearer ' + token, 'X-GitHub-Api-Version': '2022-11-28' }, extra || {});
     return {
       async listShas(dir) {
