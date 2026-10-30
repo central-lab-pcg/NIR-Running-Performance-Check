@@ -283,6 +283,77 @@ window.addEventListener('error', function (e) {
     return sum;
   };
 
+  // ═══ Repeatability Check (IQC) — F-LAB-17-34 ═══════════════════════════
+  //   iqc/products.json   สินค้า → พารามิเตอร์ที่ต้องทำ Repeatability (จาก Sheet1 ของไฟล์เดิม)
+  //   iqc/YYYY-MM.json    รายการตัวอย่างที่ทำซ้ำในเดือนนั้น
+  QCX.IQC_PARAMS = ['M', 'CP', 'EE', 'AH', 'FIB', 'ASH', 'Ca', 'P', 'NaCl', 'Aw', 'TVBN', 'BHT', 'PD', 'Sand', 'Starch'];
+  QCX.IQC_DOC = { lab: 'ห้องปฏิบัติการทดสอบ บริษัท เพอร์เฟค คอมพาเนียน กรุ๊ป จำกัด', form: 'Repeatability Check', docNo: 'F-LAB-17-34', useDate: '09/09/2024', rev: '00' };
+  QCX.prodKey = s => String(s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+  QCX.iqcPath = m => 'iqc/' + m + '.json';
+  QCX.iqcProductsPath = 'iqc/products.json';
+  QCX.emptyIqc = m => ({ version: 1, month: m, rows: [], deleted: [] });
+  QCX.loadIqc = async m => (await QCX.getFile(QCX.iqcPath(m))).json || QCX.emptyIqc(m);
+  QCX.loadIqcProducts = async () => (await QCX.getFile(QCX.iqcProductsPath)).json || { version: 1, map: {} };
+  // เกณฑ์ Repeatability (หมายเหตุ 2 ในแบบฟอร์มรายงาน NIR)
+  //   %Repeatability Diff : Cat Food (ช่วง 1.07–42.70) / Dog Food (2.10–34.87) → |ครั้งที่ 1 − ครั้งที่ 2| ≤ 0.5 g/100g
+  //   %RPD (other)        : NIR ≤ 20 g/100g → %RPD ≤ 10% · NIR > 20 g/100g → %RPD < 5%
+  QCX.REP_TYPES = { cat: { label: 'Cat Food', min: 1.07, max: 42.70, lim: 0.5 }, dog: { label: 'Dog Food', min: 2.10, max: 34.87, lim: 0.5 } };
+  QCX.repGuessType = name => /dog|^do[_\s-]|^df/i.test(String(name || '')) ? 'dog' : 'cat';
+  QCX.repJudge = function (mode, type, v, avg) {
+    if (v === null || v === undefined || isNaN(v)) return { ok: null, crit: '' };
+    if (mode === 'rpd') {
+      if (avg !== null && avg !== undefined && avg > 20) return { ok: v < 5, crit: 'NIR > 20 → %RPD < 5' };
+      return { ok: v <= 10 + 1e-9, crit: 'NIR ≤ 20 → %RPD ≤ 10' };
+    }
+    const t = QCX.REP_TYPES[type] || QCX.REP_TYPES.cat;
+    const out = { ok: Math.abs(v) <= t.lim + 1e-9, crit: t.label + ' ±' + t.lim };
+    if (avg !== null && avg !== undefined && (avg < t.min || avg > t.max)) out.note = 'ค่าอยู่นอกช่วง ' + t.min + '–' + t.max;
+    return out;
+  };
+  // ประเมินทั้งแถว → { res:{code:{v,ok,crit,note}}, result:'pass'|'fail'|'' }
+  QCX.repEvaluate = function (row) {
+    const res = {};
+    (row.pars || []).forEach(c => {
+      const dv = row.diff ? row.diff[c] : undefined, pv = row.vals && row.vals[c];
+      const avg = pv ? (pv[0] + pv[1]) / 2 : null;
+      let v = dv;
+      if ((v === undefined || v === null || isNaN(v)) && pv) v = row.mode === 'rpd' ? (avg ? Math.abs(pv[0] - pv[1]) / Math.abs(avg) * 100 : null) : pv[0] - pv[1];
+      if (v === undefined || v === null || isNaN(v)) return;
+      res[c] = Object.assign({ v: +(+v).toFixed(4) }, QCX.repJudge(row.mode, row.type, v, avg));
+    });
+    const oks = Object.values(res).map(r => r.ok).filter(x => x !== null);
+    return { res, result: !oks.length ? '' : oks.every(Boolean) ? 'pass' : 'fail' };
+  };
+  QCX.REP_MODE_TEXT = { diff: '%Repeatability Diff', rpd: '%RPD' };
+
+  // พารามิเตอร์ที่ติ๊ก: ถ้ามีสินค้าในตาราง ใช้เฉพาะที่ตารางกำหนด (และวัดได้จริง) · ไม่มีในตาราง ใช้ที่วัดได้ทั้งสองครั้ง
+  QCX.iqcPars = (prodMap, name, measured) => {
+    const def = prodMap && prodMap[QCX.prodKey(name)];
+    if (!def) return { pars: measured.slice(), known: false };
+    return { pars: QCX.IQC_PARAMS.filter(c => def.includes(c) && (!measured.length || measured.includes(c))), known: true, def };
+  };
+  // เพิ่มรายการ: ตัวอย่างเดียวกัน (Lab No. + วันที่) ที่มีอยู่แล้วจะไม่เพิ่มซ้ำ
+  QCX.addIqcRows = async function (rows, message) {
+    const byM = {};
+    rows.forEach(r => { const m = QCX.monthOf(r.d); (byM[m] = byM[m] || []).push(r); });
+    const sum = { added: 0, same: 0, months: Object.keys(byM).sort() };
+    const at = new Date().toISOString(), savedBy = QCX.user();
+    for (const m of sum.months) {
+      let a = 0, s = 0;
+      await QCX.update(QCX.iqcPath(m), () => QCX.emptyIqc(m), md => {
+        a = 0; s = 0;
+        byM[m].forEach(r0 => {
+          if (md.rows.some(o => o.lab === r0.lab && o.d === r0.d)) { s++; return; }
+          md.rows.push(Object.assign({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), src: 'report', at, savedBy }, r0)); a++;
+        });
+        if (!a) return false;
+        md.rows.sort((x, y) => (x.d + x.lab).localeCompare(y.d + y.lab));
+      }, message || ('Repeatability ' + m));
+      sum.added += a; sum.same += s;
+    }
+    return sum;
+  };
+
   global.QCX = QCX;
   if (typeof module !== 'undefined') module.exports = QCX;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -424,6 +495,22 @@ select.diffmode-sel{font-size:11px; padding:2px 3px; border:1px solid #999; bord
     </div>
   </div>
 
+  <div id="iqcOv" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9995; align-items:flex-start; justify-content:center; padding:40px 16px; overflow:auto;">
+    <div style="background:#fff; color:#1c2230; border-radius:14px; max-width:1100px; width:100%; padding:20px 22px; box-shadow:0 10px 30px rgba(0,0,0,.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <h2 style="margin:0; font-size:16px;">📝 บันทึก Repeatability Check (F-LAB-17-34)</h2>
+        <button id="iqcClose" style="border:none; background:none; font-size:20px; cursor:pointer; padding:2px 6px;">✕</button>
+      </div>
+      <div id="iqcMode" style="font-size:12px; color:#6b7280; margin-bottom:10px;"></div>
+      <div id="iqcBody"></div>
+      <div id="iqcMsg" style="margin-top:10px;"></div>
+      <div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+        <button id="iqcOpen">เปิดบันทึก Repeatability</button>
+        <button class="primary" id="iqcSave">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
   <div class="panel">
     <h2>1) นำเข้าข้อมูล</h2>
     <div class="row">
@@ -503,6 +590,7 @@ select.diffmode-sel{font-size:11px; padding:2px 3px; border:1px solid #999; bord
       <button class="primary" id="printBtn">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
       <button id="exportXlsxBtn">📊 บันทึกเป็น Excel (Interface)</button>
       <button id="sendQcBtn">📈 บันทึกค่า QC ลง X-Chart</button>
+      <button id="sendIqcBtn">📝 บันทึก Repeatability (IQC)</button>
       <button id="addRowBtn">+ เพิ่มแถวว่าง</button>
     </div>
     <div id="qcStrip"></div>
@@ -1166,6 +1254,103 @@ function xchartUrl() {
 document.getElementById('qcOpen').onclick = () => window.open(xchartUrl(), '_blank');
 document.getElementById('controlChartBtn').addEventListener('click', () => window.open(xchartUrl(), '_blank'));
 
+
+// ---------- Repeatability (IQC) → บันทึก F-LAB-17-34 ----------
+// ตัวอย่างที่วัด 2 ครั้ง (ไม่ใช่ QC) = ทำ Repeatability · ติ๊กพารามิเตอร์ตามตารางสินค้า (iqc/products.json)
+let iqcItems = [], iqcProd = null;
+const IQC_PAGE = QCX.PAGES + 'NIR_Repeatability.html';
+function readRepFromReport() {
+  const out = [];
+  const testDate = document.getElementById('testDate').value || '';
+  groups.forEach((g, gi) => {
+    if (g.isQC || g.rows.length < 2) return;
+    const r1 = document.querySelector(`#reportEl tr[data-gi="${gi}"][data-kind="r1"]`), r2 = document.querySelector(`#reportEl tr[data-gi="${gi}"][data-kind="r2"]`);
+    if (!r1 || !r2) return;
+    const t1 = r1.querySelectorAll('td'), t2 = r2.querySelectorAll('td');
+    const dr = document.querySelector(`#reportEl tr.diffrow[data-gidx="${gi}"]`), td3 = dr ? dr.querySelectorAll('td') : [];
+    const sel = dr && dr.querySelector('select.diffmode-sel');
+    const mode = (sel && sel.value) || g.diffMode || 'diff';
+    const vals = {}, measured = [], diff = {};
+    QCX.IQC_PARAMS.forEach(code => {
+      const idx = PARAMS.findIndex(p => p.code === code); if (idx < 0) return;
+      const a = parseFloat(String((t1[3 + idx] || {}).textContent || '').trim()), b = parseFloat(String((t2[3 + idx] || {}).textContent || '').trim());
+      if (!isNaN(a) && !isNaN(b)) { vals[code] = [a, b]; measured.push(code); }
+      const dv = parseFloat(String((td3[3 + idx] || {}).textContent || '').trim());
+      if (!isNaN(dv)) diff[code] = dv;
+    });
+    const smp = (g.sampleName || '').trim();
+    out.push({ gi, lab: g.labNo, smp, d: testDate, vals, measured, diff, mode, type: mode === 'rpd' ? 'other' : QCX.repGuessType(smp) });
+  });
+  return out;
+}
+function analystShort() { const n = (document.getElementById('nameTester').value || '').trim(); return n.split(/\s+/)[0] || ''; }
+async function openIqcModal() {
+  if (!groups.length || !document.getElementById('reportEl')) { setStatus('ยังไม่มีรายงาน กรุณาสร้างรายงานก่อน', false); return; }
+  if (!document.getElementById('testDate').value) { setStatus('ใส่ Test Date ก่อน', false); return; }
+  const ov = document.getElementById('iqcOv'), body = document.getElementById('iqcBody');
+  document.getElementById('iqcMsg').innerHTML = '';
+  document.getElementById('iqcMode').textContent = QCX.MODE_TEXT[QCX.mode] || '';
+  ov.style.display = 'flex';
+  iqcItems = readRepFromReport();
+  if (!iqcItems.length) { body.innerHTML = '<div style="padding:12px;background:#fef3c7;border-radius:8px">ไม่พบตัวอย่างที่วัด 2 ครั้ง (Repeatability) ในรายงานนี้</div>'; document.getElementById('iqcSave').disabled = true; return; }
+  body.innerHTML = 'กำลังโหลดตารางสินค้า…';
+  if (!iqcProd) { try { iqcProd = await QCX.loadIqcProducts(); } catch (e) { iqcProd = { map: {} }; } }
+  let existing = { rows: [] };
+  try { existing = await QCX.loadIqc(QCX.monthOf(iqcItems[0].d)); } catch (e) { }
+  const who = analystShort();
+  iqcItems.forEach(it => {
+    const r = QCX.iqcPars(iqcProd.map, it.smp, it.measured);
+    it.pars = r.pars; it.known = r.known; it.by = who; it.on = true;
+    it.dup = existing.rows.some(o => o.lab === it.lab && o.d === it.d);
+    if (it.dup) it.on = false;
+  });
+  const th = 'padding:4px 3px;font-size:11px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb';
+  const draw = () => {
+    iqcItems.forEach(it => { it.ev = QCX.repEvaluate(it); });
+    body.innerHTML = `<div style="font-size:12.5px;color:#6b7280;margin-bottom:8px">วันที่ ${esc(QCX.dmy(iqcItems[0].d))} · ✓ = พารามิเตอร์ที่บันทึกว่าทำ Repeatability (คลิกเพื่อเปลี่ยน) · NIR Analyst <input id="iqcBy" value="${esc(iqcItems[0].by)}" style="width:110px"></div>
+      <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:12.5px"><tr><th style="${th}"></th><th style="${th};text-align:left">Lab No.</th><th style="${th};text-align:left">Sample name</th>${QCX.IQC_PARAMS.map(c => `<th style="${th}">${c}</th>`).join('')}<th style="${th}">เกณฑ์</th><th style="${th}">ผล</th><th style="${th};text-align:left"></th></tr>` +
+      iqcItems.map((it, n) => `<tr style="${it.on ? '' : 'opacity:.5'}"><td style="padding:4px"><input type="checkbox" data-on="${n}" ${it.on ? 'checked' : ''}></td><td style="padding:4px;white-space:nowrap">${esc(it.lab)}</td><td style="padding:4px">${esc(it.smp)}</td>` +
+        QCX.IQC_PARAMS.map(c => {
+          const on = it.pars.includes(c), m = it.measured.includes(c), r = it.ev.res[c];
+          const col = !on ? '#c4c4c8' : r && r.ok === false ? '#dc2626' : '#15803d';
+          const tip = (m ? 'ครั้งที่ 1 = ' + it.vals[c][0] + ' · ครั้งที่ 2 = ' + it.vals[c][1] : 'ไม่ได้วัด') + (r ? ' · ' + QCX.REP_MODE_TEXT[it.mode] + ' = ' + r.v + ' (' + r.crit + ')' + (r.note ? ' · ' + r.note : '') : '');
+          return `<td data-t="${n}|${c}" title="${esc(tip)}" style="padding:4px 3px;text-align:center;cursor:pointer;color:${col};font-weight:700;line-height:1.15">${on ? (r && r.ok === false ? '✗' : '✓') : '-'}${on && r ? `<div style="font-size:10px;font-weight:500">${r.v}${it.mode === 'rpd' ? '%' : ''}${r.note ? '*' : ''}</div>` : ''}</td>`;
+        }).join('') +
+        `<td style="padding:4px;white-space:nowrap">${it.mode === 'rpd' ? '<span style="font-size:11.5px">%RPD</span>' : `<select data-ty="${n}" style="font-size:11.5px;padding:2px 4px">${Object.entries(QCX.REP_TYPES).map(([k, t]) => `<option value="${k}"${it.type === k ? ' selected' : ''}>${t.label} ±${t.lim}</option>`).join('')}</select>`}</td>` +
+        `<td style="padding:4px">${it.ev.result === 'pass' ? '<span style="background:#e6f6ec;color:#15803d;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">Pass</span>' : it.ev.result === 'fail' ? '<span style="background:#fde4e4;color:#dc2626;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">Fail</span>' : '-'}</td>` +
+        `<td style="padding:4px;font-size:11.5px;color:#b45309;white-space:nowrap">${it.dup ? 'บันทึกแล้ว' : it.known ? '' : 'ไม่มีในตารางสินค้า — ใช้ค่าที่วัดได้'}${Object.values(it.ev.res).some(r => r.note) ? '<br>* ' + esc(Object.values(it.ev.res).find(r => r.note).note) : ''}</td></tr>`).join('') + '</table></div>' +
+      '<div style="font-size:11.5px;color:#6b7280;margin-top:8px;line-height:1.6">เกณฑ์: %Repeatability Diff — Cat Food (1.07–42.70) / Dog Food (2.10–34.87) |ครั้งที่ 1 − ครั้งที่ 2| ≤ 0.5 g/100g · %RPD — NIR ≤ 20 → ≤ 10% , NIR &gt; 20 → &lt; 5% · ใช้โหมดที่เลือกในแถว Diff ของรายงาน</div>';
+    body.querySelectorAll('[data-on]').forEach(cb => cb.onchange = () => { iqcItems[+cb.dataset.on].on = cb.checked; draw(); });
+    body.querySelectorAll('[data-t]').forEach(td => td.onclick = () => { const [n, c] = td.dataset.t.split('|'); const it = iqcItems[+n]; it.pars = it.pars.includes(c) ? it.pars.filter(x => x !== c) : QCX.IQC_PARAMS.filter(x => x === c || it.pars.includes(x)); draw(); });
+    body.querySelectorAll('[data-ty]').forEach(sl => sl.onchange = () => { iqcItems[+sl.dataset.ty].type = sl.value; draw(); });
+    document.getElementById('iqcBy').onchange = e => iqcItems.forEach(it => it.by = e.target.value.trim());
+  };
+  draw();
+  document.getElementById('iqcSave').disabled = !QCX.canWrite();
+  if (!QCX.canWrite()) document.getElementById('iqcMsg').innerHTML = '<div style="padding:10px 12px;background:#fde4e4;border-radius:8px;font-size:13px">ยังบันทึกไม่ได้ — เครื่องนี้ต่อ Worker ไม่ได้</div>';
+}
+document.getElementById('sendIqcBtn').addEventListener('click', openIqcModal);
+document.getElementById('iqcClose').onclick = () => { document.getElementById('iqcOv').style.display = 'none'; };
+document.getElementById('iqcOpen').onclick = () => window.open(IQC_PAGE + (iqcItems[0] ? '?month=' + QCX.monthOf(iqcItems[0].d) : ''), '_blank');
+document.getElementById('iqcSave').onclick = async () => {
+  const btn = document.getElementById('iqcSave'), msg = document.getElementById('iqcMsg');
+  const by = (document.getElementById('iqcBy') || {}).value || analystShort();
+  const rows = iqcItems.filter(it => it.on && it.pars.length).map(it => {
+    const ev = QCX.repEvaluate(it);
+    return { d: it.d, lab: it.lab, smp: it.smp, pars: it.pars, by: by.trim(), vals: Object.fromEntries(it.pars.filter(c => it.vals[c]).map(c => [c, it.vals[c]])),
+      mode: it.mode, type: it.type, diff: Object.fromEntries(it.pars.filter(c => it.diff[c] !== undefined).map(c => [c, it.diff[c]])), res: ev.res, result: ev.result };
+  });
+  if (!rows.length) { msg.innerHTML = '<div style="padding:10px;background:#fef3c7;border-radius:8px;font-size:13px">ไม่มีรายการที่เลือก</div>'; return; }
+  btn.disabled = true; msg.innerHTML = 'กำลังบันทึก…';
+  try {
+    const sum = await QCX.addIqcRows(rows, 'Repeatability from report ' + rows[0].d);
+    const nf = rows.filter(r => r.result === 'fail').length;
+    msg.innerHTML = `<div style="padding:10px 12px;background:#e6f6ec;color:#14532d;border-radius:8px;font-size:13px">✅ บันทึก Repeatability แล้ว ${sum.added} รายการ${sum.same ? ' · มีอยู่แล้ว ' + sum.same : ''}${nf ? ` · <b style="color:#dc2626">Fail ${nf} รายการ</b>` : ' · ผ่านเกณฑ์ทั้งหมด'}</div>`;
+    setStatus('บันทึก Repeatability (IQC) แล้ว', true);
+    iqcItems.forEach(it => { if (it.on) { it.dup = true; it.on = false; } });
+  } catch (e) { msg.innerHTML = `<div style="padding:10px 12px;background:#fde4e4;border-radius:8px;font-size:13px">❌ ${esc(e.message)}</div>`; }
+  btn.disabled = !QCX.canWrite();
+};
 
 document.getElementById('exportXlsxBtn').addEventListener('click', async function(){
   if(!groups.length){ setStatus('ยังไม่มีข้อมูลรายงาน', false); return; }

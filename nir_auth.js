@@ -10,15 +10,19 @@
   const PORTAL_URL = "index.html";
 
   // 1. ตรวจ session
+  // login ใช้ร่วมกันทุกแท็บ (คลิกขวา → เปิดในแท็บใหม่ได้) จนกว่าจะกดออกจากระบบ หรือครบ 12 ชม.
   const raw = localStorage.getItem("nir_user");
-  const tab = localStorage.getItem("nir_tab_active") || sessionStorage.getItem("nir_tab_active");
-  if (!raw || !tab) {
+  let session = null;
+  try { session = raw ? JSON.parse(raw) : null; } catch (e) { session = null; }
+  const MAX_AGE = 12 * 60 * 60 * 1000;
+  const fresh = session && session.username && (!session.loginTime || (Date.now() - new Date(session.loginTime).getTime()) < MAX_AGE);
+  if (!fresh) {
+    if (session) localStorage.removeItem("nir_user");   // หมดอายุ → login ใหม่
     document.documentElement.innerHTML = '<body style="display:none"></body>';
     window.location.replace(PORTAL_URL);
     return;
   }
-  let session;
-  try { session = JSON.parse(raw); } catch (e) { window.location.replace(PORTAL_URL); return; }
+  try { sessionStorage.setItem("nir_tab_active", "1"); } catch (e) {}
 
   // 2. ตรวจสิทธิ์ tool
   const users = JSON.parse(localStorage.getItem("nir_users") || "null");

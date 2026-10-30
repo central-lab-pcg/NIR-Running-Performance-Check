@@ -281,6 +281,77 @@ window.addEventListener('error', function (e) {
     return sum;
   };
 
+  // ═══ Repeatability Check (IQC) — F-LAB-17-34 ═══════════════════════════
+  //   iqc/products.json   สินค้า → พารามิเตอร์ที่ต้องทำ Repeatability (จาก Sheet1 ของไฟล์เดิม)
+  //   iqc/YYYY-MM.json    รายการตัวอย่างที่ทำซ้ำในเดือนนั้น
+  QCX.IQC_PARAMS = ['M', 'CP', 'EE', 'AH', 'FIB', 'ASH', 'Ca', 'P', 'NaCl', 'Aw', 'TVBN', 'BHT', 'PD', 'Sand', 'Starch'];
+  QCX.IQC_DOC = { lab: 'ห้องปฏิบัติการทดสอบ บริษัท เพอร์เฟค คอมพาเนียน กรุ๊ป จำกัด', form: 'Repeatability Check', docNo: 'F-LAB-17-34', useDate: '09/09/2024', rev: '00' };
+  QCX.prodKey = s => String(s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+  QCX.iqcPath = m => 'iqc/' + m + '.json';
+  QCX.iqcProductsPath = 'iqc/products.json';
+  QCX.emptyIqc = m => ({ version: 1, month: m, rows: [], deleted: [] });
+  QCX.loadIqc = async m => (await QCX.getFile(QCX.iqcPath(m))).json || QCX.emptyIqc(m);
+  QCX.loadIqcProducts = async () => (await QCX.getFile(QCX.iqcProductsPath)).json || { version: 1, map: {} };
+  // เกณฑ์ Repeatability (หมายเหตุ 2 ในแบบฟอร์มรายงาน NIR)
+  //   %Repeatability Diff : Cat Food (ช่วง 1.07–42.70) / Dog Food (2.10–34.87) → |ครั้งที่ 1 − ครั้งที่ 2| ≤ 0.5 g/100g
+  //   %RPD (other)        : NIR ≤ 20 g/100g → %RPD ≤ 10% · NIR > 20 g/100g → %RPD < 5%
+  QCX.REP_TYPES = { cat: { label: 'Cat Food', min: 1.07, max: 42.70, lim: 0.5 }, dog: { label: 'Dog Food', min: 2.10, max: 34.87, lim: 0.5 } };
+  QCX.repGuessType = name => /dog|^do[_\s-]|^df/i.test(String(name || '')) ? 'dog' : 'cat';
+  QCX.repJudge = function (mode, type, v, avg) {
+    if (v === null || v === undefined || isNaN(v)) return { ok: null, crit: '' };
+    if (mode === 'rpd') {
+      if (avg !== null && avg !== undefined && avg > 20) return { ok: v < 5, crit: 'NIR > 20 → %RPD < 5' };
+      return { ok: v <= 10 + 1e-9, crit: 'NIR ≤ 20 → %RPD ≤ 10' };
+    }
+    const t = QCX.REP_TYPES[type] || QCX.REP_TYPES.cat;
+    const out = { ok: Math.abs(v) <= t.lim + 1e-9, crit: t.label + ' ±' + t.lim };
+    if (avg !== null && avg !== undefined && (avg < t.min || avg > t.max)) out.note = 'ค่าอยู่นอกช่วง ' + t.min + '–' + t.max;
+    return out;
+  };
+  // ประเมินทั้งแถว → { res:{code:{v,ok,crit,note}}, result:'pass'|'fail'|'' }
+  QCX.repEvaluate = function (row) {
+    const res = {};
+    (row.pars || []).forEach(c => {
+      const dv = row.diff ? row.diff[c] : undefined, pv = row.vals && row.vals[c];
+      const avg = pv ? (pv[0] + pv[1]) / 2 : null;
+      let v = dv;
+      if ((v === undefined || v === null || isNaN(v)) && pv) v = row.mode === 'rpd' ? (avg ? Math.abs(pv[0] - pv[1]) / Math.abs(avg) * 100 : null) : pv[0] - pv[1];
+      if (v === undefined || v === null || isNaN(v)) return;
+      res[c] = Object.assign({ v: +(+v).toFixed(4) }, QCX.repJudge(row.mode, row.type, v, avg));
+    });
+    const oks = Object.values(res).map(r => r.ok).filter(x => x !== null);
+    return { res, result: !oks.length ? '' : oks.every(Boolean) ? 'pass' : 'fail' };
+  };
+  QCX.REP_MODE_TEXT = { diff: '%Repeatability Diff', rpd: '%RPD' };
+
+  // พารามิเตอร์ที่ติ๊ก: ถ้ามีสินค้าในตาราง ใช้เฉพาะที่ตารางกำหนด (และวัดได้จริง) · ไม่มีในตาราง ใช้ที่วัดได้ทั้งสองครั้ง
+  QCX.iqcPars = (prodMap, name, measured) => {
+    const def = prodMap && prodMap[QCX.prodKey(name)];
+    if (!def) return { pars: measured.slice(), known: false };
+    return { pars: QCX.IQC_PARAMS.filter(c => def.includes(c) && (!measured.length || measured.includes(c))), known: true, def };
+  };
+  // เพิ่มรายการ: ตัวอย่างเดียวกัน (Lab No. + วันที่) ที่มีอยู่แล้วจะไม่เพิ่มซ้ำ
+  QCX.addIqcRows = async function (rows, message) {
+    const byM = {};
+    rows.forEach(r => { const m = QCX.monthOf(r.d); (byM[m] = byM[m] || []).push(r); });
+    const sum = { added: 0, same: 0, months: Object.keys(byM).sort() };
+    const at = new Date().toISOString(), savedBy = QCX.user();
+    for (const m of sum.months) {
+      let a = 0, s = 0;
+      await QCX.update(QCX.iqcPath(m), () => QCX.emptyIqc(m), md => {
+        a = 0; s = 0;
+        byM[m].forEach(r0 => {
+          if (md.rows.some(o => o.lab === r0.lab && o.d === r0.d)) { s++; return; }
+          md.rows.push(Object.assign({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), src: 'report', at, savedBy }, r0)); a++;
+        });
+        if (!a) return false;
+        md.rows.sort((x, y) => (x.d + x.lab).localeCompare(y.d + y.lab));
+      }, message || ('Repeatability ' + m));
+      sum.added += a; sum.same += s;
+    }
+    return sum;
+  };
+
   global.QCX = QCX;
   if (typeof module !== 'undefined') module.exports = QCX;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -371,10 +442,10 @@ table.lt input[type=number]{width:84px}
 .pr-only{display:none}
 @media print{
   @page{size:A4 landscape;margin:7mm}
-  body{background:#fff}
-  body *{visibility:hidden}
-  #sheets,#sheets *{visibility:visible}
-  #sheets{position:absolute;left:0;top:0;width:100%;overflow:visible}
+  body{background:#fff;margin:0!important}
+  .wrap{padding:0!important;max-width:none!important}
+  body>*:not(.wrap),.wrap>*:not(#sheets){display:none!important}
+  #sheets{overflow:visible}
   .sheet{border:none;width:100%;margin:0;padding:0;page-break-after:always;break-after:page;zoom:.72}
   .sheet:last-child{page-break-after:auto;break-after:auto}
   table.dt td.v:hover{background:none}

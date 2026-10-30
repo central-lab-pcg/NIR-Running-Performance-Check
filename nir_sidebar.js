@@ -9,30 +9,42 @@
       label: "Home",
       url: BASE + "index.html",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>' },
-    { id: "running",
+    { id: "running", group: "view",
       label: "Running Performance Check",
       url: BASE + "NIR-Running-Performance-Check.html",
       view: "chart",   // switchView target when already on this page
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' },
-    { id: "running",
+    { id: "running", group: "view",
       label: "Raw Data",
       url: BASE + "NIR-Running-Performance-Check.html",
       view: "raw",     // switchView target when already on this page
       hash: "#raw",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>' },
-    { id: "summary",
+    { id: "summary", group: "view",
       label: "Summary",
       url: BASE + "summary_5.html",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>' },
-    { id: "bias",
+    { id: "bias", group: "view",
       label: "Install & Bias",
       url: BASE + "bias_latest.html",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>' },
-    { id: "report",
+    { id: "import", group: "tool",
+      label: "NIR Data Import",
+      url: BASE + "NIR-Import.html",
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' },
+    { id: "report", group: "tool",
       label: "Interface Report Tool",
       url: BASE + "NIR_Interface_Report_Tool.html",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>' },
-    { id: "constituent",
+    { id: "xchart", group: "tool",
+      label: "X-Chart (Control Chart)",
+      url: BASE + "NIR_XChart_Sync.html",
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 3 5-8"/></svg>' },
+    { id: "repeat", group: "tool",
+      label: "Repeatability Check",
+      url: BASE + "NIR_Repeatability.html",
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v3H9z"/><polyline points="8.5 13 10.5 15 15.5 10"/></svg>' },
+    { id: "constituent", group: "tool",
       label: "Best Constituent Finder",
       url: BASE + "best_constituent.html",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' },
@@ -78,10 +90,11 @@
     ".sb-nav{flex:1;padding:8px 0;overflow-y:auto;overflow-x:hidden;}",
     ".sb-nav::-webkit-scrollbar{width:3px;}",
     ".sb-nav::-webkit-scrollbar-thumb{background:#d0d0cc;border-radius:2px;}",
-    ".sb-sec{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;",
-    "color:#b4b4ac;padding:10px 16px 4px;white-space:nowrap;transition:opacity .15s;}",
-    "#nir-sb.col .sb-sec{opacity:0;}",
-    ".sb-a{display:flex;align-items:center;gap:10px;padding:0 14px;height:42px;",
+    ".sb-sec{font-size:10.5px;font-weight:700;letter-spacing:.04em;",
+    "color:#db2777;padding:12px 16px 4px;white-space:nowrap;transition:opacity .15s;}",
+    ".sb-sec{border-top:1px solid #eeeeea;margin-top:6px;}",
+    "#nir-sb.col .sb-sec{opacity:1;color:transparent;height:10px;padding:0;margin:6px 10px 4px;overflow:hidden;}",
+    ".sb-a{display:flex;align-items:center;gap:10px;padding:6px 14px;min-height:42px;",
     "text-decoration:none!important;color:#4a4a4a!important;cursor:pointer;",
     "font-size:12.5px;font-weight:500;white-space:nowrap;",
     "transition:background .12s,color .12s;position:relative;overflow:hidden;}",
@@ -92,8 +105,8 @@
     ".sb-a.lk{opacity:.28;cursor:not-allowed;pointer-events:none;}",
 
     ".sb-ico{flex-shrink:0;width:22px;display:flex;align-items:center;justify-content:center;}",
-    ".sb-lbl{overflow:hidden;text-overflow:ellipsis;transition:opacity .15s,width .15s;}",
-    "#nir-sb.col .sb-lbl{opacity:0;width:0;}",
+    ".sb-lbl{overflow:hidden;white-space:normal;line-height:1.25;transition:opacity .15s,width .15s;}",
+    "#nir-sb.col .sb-lbl{opacity:0;width:0;white-space:nowrap;}",
     "#nir-sb.col .sb-a{justify-content:center;padding:0;}",
     "#nir-sb.col .sb-a[data-tip]::after{content:attr(data-tip);",
     "position:fixed;left:"+(C+10)+"px;",
@@ -184,14 +197,19 @@
     var sb = document.createElement("div");
     sb.id = "nir-sb";
 
+    var SECTIONS = { view: "ดูกราฟ / ติดตามผล", tool: "เครื่องมือสำหรับ NIR" };
+    var lastGroup = null;
     var itemsHtml = TOOLS.map(function(t, i) {
+      var head = "";
+      var g = t.group || "";
+      if (g !== lastGroup) { lastGroup = g; if (SECTIONS[g]) head = '<div class="sb-sec">' + SECTIONS[g] + '</div>'; }
       var active = isActive(t);
       var ok     = (role === "admin") || (t.id === "home") || (perms[t.id] === true);
       var cls = "sb-a" + (active ? " on" : "") + (!ok ? " lk" : "");
       // ใช้ <a href="..."> จริง (ไม่ใช่ <div> + onclick) เพื่อให้คลิกขวา "เปิดลิงก์ในแท็บใหม่",
       // Ctrl/Cmd+คลิก, คลิกกลาง ใช้งานได้ตามปกติของเบราว์เซอร์ — ล็อกไว้ (!ok) จะไม่มี href จริง
       var href = ok ? (t.url + (t.hash || "")) : "#";
-      return '<a class="' + cls + '" href="' + href + '" data-idx="' + i + '" data-tip="' + t.label + '">' +
+      return head + '<a class="' + cls + '" href="' + href + '" data-idx="' + i + '" data-tip="' + t.label + '">' +
              '<span class="sb-ico">' + t.icon + '</span>' +
              '<span class="sb-lbl">' + t.label + '</span>' +
              (!ok ? '<span class="sb-lock">🔒</span>' : '') +
@@ -204,7 +222,6 @@
         '<span class="sb-title">NIR PORTAL</span>' +
       '</div>' +
       '<nav class="sb-nav">' +
-        '<div class="sb-sec">เมนู</div>' +
         itemsHtml +
       '</nav>' +
       '<div class="sb-foot">' +

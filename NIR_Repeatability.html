@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Repeatability Check (IQC)</title>
+<script>var NIR_TOOL_ID = "repeat";</script>
+<script src="nir_auth.js"></script>
+<script src="https://central-lab-pcg.github.io/NIR-Running-Performance-Check/nir_sidebar.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* ถ้ามีข้อผิดพลาด ให้แสดงบนหน้าเว็บ (ไม่เงียบ) */
+window.addEventListener('error', function (e) {
+  var box = document.getElementById('nirErrBox');
+  if (!box) { box = document.createElement('div'); box.id = 'nirErrBox';
+    box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:#fff1f1;color:#b42318;border-bottom:2px solid #f3c4c4;padding:10px 16px;font:13px sans-serif';
+    (document.body || document.documentElement).appendChild(box); }
+  box.textContent = '⚠️ หน้าเว็บทำงานผิดพลาด: ' + (e.message || e) + ' — ถ้าเปิดไฟล์จาก zip ให้แตก zip ก่อน หรือเปิดจากลิงก์บนเว็บ';
+});
+</script>
+<script>
+/* ===== nir_qc_core.js (รวมไว้ในไฟล์นี้ ไม่ต้องอัปโหลดแยก) ===== */
+/* ═══════════════════════════════════════════════════════════════════
+ * NIR QC Core — ข้อมูล X-Chart (Control Sample) ใช้ร่วมกันระหว่าง
+ *   NIR_Interface_Report_Tool.html (ส่งค่า QC) และ NIR_XChart_Sync.html (กราฟรายเดือน)
+ * เก็บบน GitHub repo เดียวกับข้อมูล NIR:
+ *   xchart/config.json    เกณฑ์ (X̄, ±2SD, ±3SD) ของแต่ละ QC sample แยกพารามิเตอร์ มีวันที่มีผล
+ *   xchart/YYYY-MM.json   ค่าที่วัดได้ของเดือนนั้น + บันทึกการทบทวนประจำเดือน
+ * เขียนผ่าน Cloudflare Worker (nir-import) หรือ GitHub token ในเครื่อง (ถ้ามี)
+ * ═══════════════════════════════════════════════════════════════════ */
+(function (global) {
+  'use strict';
+  const QCX = {};
+  QCX.REPO = { owner: 'central-lab-pcg', repo: 'NIR-Running-Performance-Check', branch: 'main' };
+  QCX.PAGES = 'https://central-lab-pcg.github.io/NIR-Running-Performance-Check/';
+  QCX.RELAY_URL = 'https://nir-import.imguy2727.workers.dev';
+  QCX.PAGE_URL = QCX.PAGES + 'NIR_XChart_Sync.html';
+
+  // พารามิเตอร์ที่ทำ X-Chart (โค้ดตรงกับ Report Tool)
+  QCX.PARAMS = [
+    { code: 'M',   name: 'Moisture',        short: 'M',   dec: 2 },
+    { code: 'CP',  name: 'Crude Protein',   short: 'CP',  dec: 2 },
+    { code: 'AH',  name: 'Acid Hydrolysis', short: 'AH',  dec: 2 },
+    { code: 'FIB', name: 'Fiber',           short: 'FIB', dec: 2 },
+    { code: 'ASH', name: 'Ash',             short: 'ASH', dec: 1 },
+  ];
+  QCX.PAR = Object.fromEntries(QCX.PARAMS.map(p => [p.code, p]));
+  // ชื่อพารามิเตอร์แบบอื่นที่อาจพบ (ข้อมูลเก่า) → โค้ด
+  QCX.PAR_ALIAS = {
+    'moisture': 'M', 'm': 'M', 'm-nir': 'M',
+    'crude protein': 'CP', 'protein': 'CP', 'cp': 'CP', 'cp-nir': 'CP',
+    'acid hydrolysis': 'AH', 'fat-ah': 'AH', 'fat ah': 'AH', 'ah': 'AH', 'ah-nir': 'AH',
+    'fiber': 'FIB', 'fibre': 'FIB', 'crude fiber': 'FIB', 'fib': 'FIB', 'fib-nir': 'FIB',
+    'ash': 'ASH', 'ash-nir': 'ASH',
+  };
+  QCX.parCode = s => QCX.PAR[s] ? s : (QCX.PAR_ALIAS[String(s || '').trim().toLowerCase()] || null);
+
+  // ชื่อ QC: "NIR02/25", "nir 02/25" → key เดียวกัน "NIR02/25"
+  QCX.qcKey = s => String(s || '').toUpperCase().replace(/\s+/g, '');
+  QCX.qcName = (cfg, key) => (cfg && cfg.qc && cfg.qc[key] && cfg.qc[key].name) || key;
+
+  QCX.DEFAULT_CONFIG = {
+    version: 1,
+    doc: { lab: 'ห้องปฏิบัติการทดสอบ บริษัท เพอร์เฟค คอมพาเนียน กรุ๊ป จำกัด', docNo: 'F-LAB-20-11', useDate: '01/05/2025', rev: '06' },
+    qc: {
+      'NIR02/25': {
+        name: 'NIR 02/25', active: true,
+        params: {
+          M:   [{ from: '2025-05-01', mean: 7.76,  p3: 7.94,  p2: 7.88,  m2: 7.63,  m3: 7.57 }],
+          CP:  [{ from: '2025-05-01', mean: 32.45, p3: 33.06, p2: 32.86, m2: 32.05, m3: 31.84 }],
+          AH:  [{ from: '2025-05-01', mean: 10.30, p3: 10.90, p2: 10.70, m2: 9.89,  m3: 9.69 }],
+          FIB: [{ from: '2025-05-01', mean: 2.29,  p3: 2.66,  p2: 2.54,  m2: 2.05,  m3: 1.93 }],
+          ASH: [{ from: '2025-05-01', mean: 6.3,   p3: 7.3,   p2: 7.0,   m2: 5.6,   m3: 5.3 }],
+        },
+      },
+    },
+  };
+
+  // ── วันที่ ──
+  QCX.monthOf = d => /^\d{4}-\d{2}/.test(d || '') ? String(d).slice(0, 7) : '';
+  QCX.todayISO = () => { const t = new Date(); return new Date(t.getTime() - t.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+  QCX.thisMonth = () => QCX.todayISO().slice(0, 7);
+  QCX.monthLabel = m => {
+    if (!/^\d{4}-\d{2}$/.test(m || '')) return '';
+    return new Date(m + '-01T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase();
+  };
+  QCX.monthTh = m => {
+    if (!/^\d{4}-\d{2}$/.test(m || '')) return '';
+    return new Date(m + '-01T00:00:00').toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+  };
+  QCX.addMonth = (m, n) => { const [y, mo] = m.split('-').map(Number); const d = new Date(y, mo - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+  QCX.dmy = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : (d || '');
+
+  // ── เกณฑ์ ──
+  // เวอร์ชันที่มีผล ณ วันที่ (ล่าสุดที่ from <= date) ถ้าก่อนเวอร์ชันแรก ใช้เวอร์ชันแรก
+  QCX.limitsFor = (cfg, key, par, date) => {
+    const q = cfg && cfg.qc && cfg.qc[key];
+    const vs = q && q.params && q.params[par];
+    if (!vs || !vs.length) return null;
+    const sorted = vs.slice().sort((a, b) => a.from.localeCompare(b.from));
+    let hit = null;
+    sorted.forEach(v => { if (!date || v.from <= date) hit = v; });
+    return hit || sorted[0];
+  };
+  QCX.fromMeanSd = (mean, sd, dec) => {
+    const r = x => +x.toFixed(dec === undefined ? 3 : dec + 1);
+    return { mean: +mean, p3: r(mean + 3 * sd), p2: r(mean + 2 * sd), m2: r(mean - 2 * sd), m3: r(mean - 3 * sd), sd: +sd };
+  };
+  // pass / warn (เกิน 2SD) / fail (เกิน 3SD)
+  QCX.status = (v, lim) => {
+    if (v === null || v === undefined || isNaN(v) || !lim) return '';
+    if (v > lim.p3 || v < lim.m3) return 'fail';
+    if (v > lim.p2 || v < lim.m2) return 'warn';
+    return 'pass';
+  };
+  QCX.STATUS_TEXT = { pass: 'Pass', warn: 'Warning', fail: 'Fail', '': '-' };
+
+  // กฎ Westgard แบบย่อ (ใช้กับจุดเรียงตามวันที่ในเดือนเดียวกัน)
+  //   1-3s  : จุดเดียวเกิน ±3SD                    → Fail (ต้องแก้ไข)
+  //   2-2s  : 2 จุดติดกันเกิน 2SD ด้านเดียวกัน        → Fail
+  //   7-T   : 7 จุดติดกันอยู่ด้านเดียวกันของ X̄         → แนวโน้ม (เฝ้าระวัง)
+  QCX.evaluate = (pts, limOf) => {
+    const flags = pts.map(() => []);
+    const side = (v, l) => v > l.mean ? 1 : v < l.mean ? -1 : 0;
+    pts.forEach((p, i) => {
+      const l = limOf(p); if (!l) return;
+      if (p.v > l.p3 || p.v < l.m3) flags[i].push('1-3s');
+      if (i > 0) {
+        const q = pts[i - 1], lq = limOf(q);
+        if (lq) {
+          const hi = p.v > l.p2 && q.v > lq.p2, lo = p.v < l.m2 && q.v < lq.m2;
+          if (hi || lo) { flags[i].push('2-2s'); if (!flags[i - 1].includes('2-2s')) flags[i - 1].push('2-2s'); }
+        }
+      }
+      if (i >= 6) {
+        const s = side(p.v, l);
+        if (s !== 0 && pts.slice(i - 6, i + 1).every(x => { const lx = limOf(x); return lx && side(x.v, lx) === s; })) {
+          for (let k = i - 6; k <= i; k++) if (!flags[k].includes('7-T')) flags[k].push('7-T');
+        }
+      }
+    });
+    return flags;
+  };
+  QCX.RULE_TEXT = {
+    '1-3s': 'เกิน ±3SD (Action limit)',
+    '2-2s': '2 จุดติดกันเกิน 2SD ด้านเดียวกัน',
+    '7-T': '7 จุดติดกันอยู่ด้านเดียวกันของค่าเฉลี่ย (แนวโน้ม)',
+  };
+
+  // ── ผู้ใช้ / ที่เก็บค่าในเครื่อง ──
+  const lsGet = (k, d) => { try { const v = localStorage.getItem(k); if (v === null) return d; try { return JSON.parse(v); } catch (e) { return v; } } catch (e) { return d; } };
+  QCX.user = () => { const u = lsGet('nir_user', {}) || {}; return u.name || u.username || ''; };
+  const token = () => lsGet('nir_gh_token', '') || '';
+  const relayUrl = () => (lsGet('nir_relay_url', '') || QCX.RELAY_URL || '').replace(/\/+$/, '');
+  const relayKey = () => lsGet('nir_import_key', '') || '';
+
+  // ── GitHub client (ผ่าน Worker หรือ token) ──
+  const b64 = s => { const bytes = new TextEncoder().encode(s); let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(bin); };
+  const unb64 = s => new TextDecoder().decode(Uint8Array.from(atob(String(s).replace(/\s/g, '')), c => c.charCodeAt(0)));
+
+  QCX.mode = null;   // 'token' | 'relay' | 'readonly'
+  QCX.relayInfo = null;
+  QCX.connect = async function () {
+    if (token()) { QCX.mode = 'token'; return QCX.mode; }
+    try {
+      const res = await fetch(relayUrl() + '/health', { headers: relayKey() ? { 'X-Import-Key': relayKey() } : {} });
+      QCX.relayInfo = res.ok ? await res.json() : null;
+    } catch (e) { QCX.relayInfo = null; }
+    QCX.mode = QCX.relayInfo && QCX.relayInfo.ok && QCX.relayInfo.keyOk ? 'relay' : 'readonly';
+    return QCX.mode;
+  };
+  QCX.canWrite = () => QCX.mode === 'token' || QCX.mode === 'relay';
+  QCX.MODE_TEXT = { token: 'บันทึกขึ้นระบบ ✓ (token เครื่องนี้)', relay: 'บันทึกขึ้นระบบอัตโนมัติ ✓', readonly: 'ดูได้อย่างเดียว — ต่อ Worker ไม่ได้' };
+
+  function api() {
+    const R = QCX.REPO;
+    if (QCX.mode === 'token') return { base: 'https://api.github.com/repos/' + R.owner + '/' + R.repo + '/contents/', h: { Authorization: 'Bearer ' + token(), 'X-GitHub-Api-Version': '2022-11-28' } };
+    const h = {}; if (relayKey()) h['X-Import-Key'] = relayKey(); if (QCX.user()) h['X-NIR-User'] = QCX.user();
+    return { base: relayUrl() + '/contents/', h };
+  }
+  // อ่านไฟล์ JSON + sha (null ถ้ายังไม่มี)
+  QCX.getFile = async function (path) {
+    if (!QCX.canWrite()) {   // อ่านจากเว็บสาธารณะ (อาจช้ากว่าจริง 1–10 นาที)
+      const res = await fetch(QCX.PAGES + path + '?_=' + Date.now(), { cache: 'no-store' });
+      if (res.status === 404) return { json: null, sha: null };
+      if (!res.ok) throw new Error('โหลด ' + path + ' ไม่ได้ (' + res.status + ')');
+      return { json: await res.json(), sha: null };
+    }
+    const a = api();
+    const res = await fetch(a.base + path + '?ref=' + QCX.REPO.branch + '&_cb=' + Date.now(), { headers: Object.assign({ Accept: 'application/vnd.github+json' }, a.h), cache: 'no-store' });
+    if (res.status === 404) return { json: null, sha: null };
+    if (!res.ok) throw new Error('โหลด ' + path + ' ไม่ได้ (GitHub ' + res.status + '): ' + (await res.text()).slice(0, 160));
+    const j = await res.json();
+    let text;
+    if (j.content && j.encoding === 'base64') text = unb64(j.content);
+    else {   // ไฟล์ใหญ่ >1MB: ขอแบบ raw
+      const r2 = await fetch(a.base + path + '?ref=' + QCX.REPO.branch + '&_cb=' + Date.now(), { headers: Object.assign({ Accept: 'application/vnd.github.raw+json' }, a.h) });
+      text = await r2.text();
+    }
+    return { json: JSON.parse(text), sha: j.sha };
+  };
+  QCX.putFile = async function (path, obj, sha, message) {
+    if (!QCX.canWrite()) throw new Error('ยังบันทึกไม่ได้ — ต่อ Worker ไม่ได้ (ดูหน้า NIR Data Import → ⚙️ ตั้งค่า)');
+    const a = api();
+    const body = { message, content: b64(JSON.stringify(obj, null, 1) + '\n'), branch: QCX.REPO.branch };
+    if (sha) body.sha = sha;
+    const res = await fetch(a.base + path, { method: 'PUT', headers: Object.assign({ Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' }, a.h), body: JSON.stringify(body) });
+    if (res.status === 409 || res.status === 422) { const e = new Error('CONFLICT'); e.conflict = true; throw e; }
+    if (!res.ok) throw new Error('บันทึก ' + path + ' ไม่สำเร็จ (GitHub ' + res.status + '): ' + (await res.text()).slice(0, 200));
+    return res.json();
+  };
+  // อ่าน → แก้ → เขียน (ถ้ามีคนบันทึกพร้อมกัน โหลดใหม่แล้วลองซ้ำ)
+  QCX.update = async function (path, empty, mutate, message) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const f = await QCX.getFile(path);
+      const obj = f.json || (typeof empty === 'function' ? empty() : JSON.parse(JSON.stringify(empty)));
+      const out = await mutate(obj);
+      if (out === false) return { obj, skipped: true };
+      try { await QCX.putFile(path, obj, f.sha, message); return { obj }; }
+      catch (e) { if (!e.conflict || attempt === 2) throw e; }
+    }
+  };
+
+  // ── ไฟล์ข้อมูล ──
+  QCX.configPath = 'xchart/config.json';
+  QCX.monthPath = m => 'xchart/' + m + '.json';
+  QCX.emptyMonth = m => ({ version: 1, month: m, points: [], reviews: {} });
+  QCX.loadConfig = async function () {
+    const f = await QCX.getFile(QCX.configPath);
+    return f.json || JSON.parse(JSON.stringify(QCX.DEFAULT_CONFIG));
+  };
+  QCX.loadMonth = async function (m) {
+    const f = await QCX.getFile(QCX.monthPath(m));
+    return f.json || QCX.emptyMonth(m);
+  };
+  QCX.saveConfig = (mutate, message) => QCX.update(QCX.configPath, QCX.DEFAULT_CONFIG, mutate, message);
+
+  // จุดข้อมูล: { k, qc, par, d, v, run, src, by, at, lab?, note? }
+  QCX.sameSlot = (a, b) => a.k === b.k && a.par === b.par && a.d === b.d && (a.run || 1) === (b.run || 1);
+  // ตรวจว่าจุดใหม่ชนกับของเดิมไหม → [{p, old}] เฉพาะที่ค่าต่างกัน
+  QCX.findConflicts = function (monthsData, pts) {
+    const out = [];
+    pts.forEach(p => {
+      const md = monthsData[QCX.monthOf(p.d)];
+      const old = md && md.points.find(o => o.k === p.k && o.par === p.par && o.d === p.d);
+      if (old && Math.abs(old.v - p.v) > 1e-9) out.push({ p, old });
+    });
+    return out;
+  };
+  // เพิ่มจุด: policy เมื่อวันเดียวกันมีค่าอยู่แล้วและค่าต่างกัน = 'replace' | 'add' (เป็นรอบที่ 2) | 'skip'
+  QCX.addPoints = async function (pts, policy, message) {
+    const byMonth = {};
+    pts.forEach(p => { const m = QCX.monthOf(p.d); (byMonth[m] = byMonth[m] || []).push(p); });
+    const sum = { added: 0, replaced: 0, same: 0, skipped: 0, months: Object.keys(byMonth).sort() };
+    const at = new Date().toISOString(), by = QCX.user();
+    for (const m of sum.months) {
+      const s = { added: 0, replaced: 0, same: 0, skipped: 0 };
+      await QCX.update(QCX.monthPath(m), () => QCX.emptyMonth(m), md => {
+        Object.assign(s, { added: 0, replaced: 0, same: 0, skipped: 0 });
+        byMonth[m].forEach(p0 => {
+          const p = Object.assign({ run: 1, src: 'report', by, at }, p0);
+          const same = md.points.filter(o => o.k === p.k && o.par === p.par && o.d === p.d);
+          if (same.some(o => Math.abs(o.v - p.v) < 1e-9)) { s.same++; return; }
+          if (!same.length) { md.points.push(p); s.added++; return; }
+          if (policy === 'replace') {
+            const o = same[same.length - 1];
+            o.prev = (o.prev || []).concat([{ v: o.v, by: o.by, at: o.at }]);
+            Object.assign(o, { v: p.v, by, at, src: p.src, lab: p.lab || o.lab });
+            if (p.note) o.note = p.note;
+            s.replaced++;
+          } else if (policy === 'add') {
+            p.run = Math.max.apply(null, same.map(o => o.run || 1)) + 1; md.points.push(p); s.added++;
+          } else s.skipped++;
+        });
+        if (!s.added && !s.replaced) return false;
+        md.points.sort((a, b) => (a.k + a.par + a.d + (a.run || 1)).localeCompare(b.k + b.par + b.d + (b.run || 1)));
+      }, message || ('QC X-Chart ' + m));
+      ['added', 'replaced', 'same', 'skipped'].forEach(k => { sum[k] += s[k]; });
+    }
+    return sum;
+  };
+
+  // ═══ Repeatability Check (IQC) — F-LAB-17-34 ═══════════════════════════
+  //   iqc/products.json   สินค้า → พารามิเตอร์ที่ต้องทำ Repeatability (จาก Sheet1 ของไฟล์เดิม)
+  //   iqc/YYYY-MM.json    รายการตัวอย่างที่ทำซ้ำในเดือนนั้น
+  QCX.IQC_PARAMS = ['M', 'CP', 'EE', 'AH', 'FIB', 'ASH', 'Ca', 'P', 'NaCl', 'Aw', 'TVBN', 'BHT', 'PD', 'Sand', 'Starch'];
+  QCX.IQC_DOC = { lab: 'ห้องปฏิบัติการทดสอบ บริษัท เพอร์เฟค คอมพาเนียน กรุ๊ป จำกัด', form: 'Repeatability Check', docNo: 'F-LAB-17-34', useDate: '09/09/2024', rev: '00' };
+  QCX.prodKey = s => String(s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+  QCX.iqcPath = m => 'iqc/' + m + '.json';
+  QCX.iqcProductsPath = 'iqc/products.json';
+  QCX.emptyIqc = m => ({ version: 1, month: m, rows: [], deleted: [] });
+  QCX.loadIqc = async m => (await QCX.getFile(QCX.iqcPath(m))).json || QCX.emptyIqc(m);
+  QCX.loadIqcProducts = async () => (await QCX.getFile(QCX.iqcProductsPath)).json || { version: 1, map: {} };
+  // เกณฑ์ Repeatability (หมายเหตุ 2 ในแบบฟอร์มรายงาน NIR)
+  //   %Repeatability Diff : Cat Food (ช่วง 1.07–42.70) / Dog Food (2.10–34.87) → |ครั้งที่ 1 − ครั้งที่ 2| ≤ 0.5 g/100g
+  //   %RPD (other)        : NIR ≤ 20 g/100g → %RPD ≤ 10% · NIR > 20 g/100g → %RPD < 5%
+  QCX.REP_TYPES = { cat: { label: 'Cat Food', min: 1.07, max: 42.70, lim: 0.5 }, dog: { label: 'Dog Food', min: 2.10, max: 34.87, lim: 0.5 } };
+  QCX.repGuessType = name => /dog|^do[_\s-]|^df/i.test(String(name || '')) ? 'dog' : 'cat';
+  QCX.repJudge = function (mode, type, v, avg) {
+    if (v === null || v === undefined || isNaN(v)) return { ok: null, crit: '' };
+    if (mode === 'rpd') {
+      if (avg !== null && avg !== undefined && avg > 20) return { ok: v < 5, crit: 'NIR > 20 → %RPD < 5' };
+      return { ok: v <= 10 + 1e-9, crit: 'NIR ≤ 20 → %RPD ≤ 10' };
+    }
+    const t = QCX.REP_TYPES[type] || QCX.REP_TYPES.cat;
+    const out = { ok: Math.abs(v) <= t.lim + 1e-9, crit: t.label + ' ±' + t.lim };
+    if (avg !== null && avg !== undefined && (avg < t.min || avg > t.max)) out.note = 'ค่าอยู่นอกช่วง ' + t.min + '–' + t.max;
+    return out;
+  };
+  // ประเมินทั้งแถว → { res:{code:{v,ok,crit,note}}, result:'pass'|'fail'|'' }
+  QCX.repEvaluate = function (row) {
+    const res = {};
+    (row.pars || []).forEach(c => {
+      const dv = row.diff ? row.diff[c] : undefined, pv = row.vals && row.vals[c];
+      const avg = pv ? (pv[0] + pv[1]) / 2 : null;
+      let v = dv;
+      if ((v === undefined || v === null || isNaN(v)) && pv) v = row.mode === 'rpd' ? (avg ? Math.abs(pv[0] - pv[1]) / Math.abs(avg) * 100 : null) : pv[0] - pv[1];
+      if (v === undefined || v === null || isNaN(v)) return;
+      res[c] = Object.assign({ v: +(+v).toFixed(4) }, QCX.repJudge(row.mode, row.type, v, avg));
+    });
+    const oks = Object.values(res).map(r => r.ok).filter(x => x !== null);
+    return { res, result: !oks.length ? '' : oks.every(Boolean) ? 'pass' : 'fail' };
+  };
+  QCX.REP_MODE_TEXT = { diff: '%Repeatability Diff', rpd: '%RPD' };
+
+  // พารามิเตอร์ที่ติ๊ก: ถ้ามีสินค้าในตาราง ใช้เฉพาะที่ตารางกำหนด (และวัดได้จริง) · ไม่มีในตาราง ใช้ที่วัดได้ทั้งสองครั้ง
+  QCX.iqcPars = (prodMap, name, measured) => {
+    const def = prodMap && prodMap[QCX.prodKey(name)];
+    if (!def) return { pars: measured.slice(), known: false };
+    return { pars: QCX.IQC_PARAMS.filter(c => def.includes(c) && (!measured.length || measured.includes(c))), known: true, def };
+  };
+  // เพิ่มรายการ: ตัวอย่างเดียวกัน (Lab No. + วันที่) ที่มีอยู่แล้วจะไม่เพิ่มซ้ำ
+  QCX.addIqcRows = async function (rows, message) {
+    const byM = {};
+    rows.forEach(r => { const m = QCX.monthOf(r.d); (byM[m] = byM[m] || []).push(r); });
+    const sum = { added: 0, same: 0, months: Object.keys(byM).sort() };
+    const at = new Date().toISOString(), savedBy = QCX.user();
+    for (const m of sum.months) {
+      let a = 0, s = 0;
+      await QCX.update(QCX.iqcPath(m), () => QCX.emptyIqc(m), md => {
+        a = 0; s = 0;
+        byM[m].forEach(r0 => {
+          if (md.rows.some(o => o.lab === r0.lab && o.d === r0.d)) { s++; return; }
+          md.rows.push(Object.assign({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), src: 'report', at, savedBy }, r0)); a++;
+        });
+        if (!a) return false;
+        md.rows.sort((x, y) => (x.d + x.lab).localeCompare(y.d + y.lab));
+      }, message || ('Repeatability ' + m));
+      sum.added += a; sum.same += s;
+    }
+    return sum;
+  };
+
+  global.QCX = QCX;
+  if (typeof module !== 'undefined') module.exports = QCX;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--line:#e7e3da;--ink:#18181b;--t2:#52525b;--t3:#8a8a93;--pink:#db2777;--pinkbg:#fdf2f8;--pinkline:#fbe0ee;--pass:#15803d;--passbg:#e6f6ec;--warn:#b45309;--warnbg:#fff1d6;--fail:#dc2626;--failbg:#fde4e4}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Sarabun","Segoe UI",Tahoma,sans-serif;font-size:14px}
+.wrap{max-width:1500px;margin:0 auto;padding:22px 18px 70px}
+h1{font-size:22px;margin:0;color:var(--pink);font-weight:700}
+.sub{color:var(--t2);font-size:13px;margin:2px 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin-bottom:16px}
+.card-h{font-size:13px;font-weight:700;color:var(--pink);margin:0 0 12px;padding-bottom:10px;border-bottom:1px solid var(--pinkline)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.f{display:flex;flex-direction:column;gap:4px}.f label{font-size:12px;color:var(--t2);font-weight:500}
+input,select,textarea{font:inherit;font-size:13.5px;border:1px solid #d6d3cc;border-radius:9px;padding:7px 10px;background:#fff;color:var(--ink)}
+textarea{width:100%;min-height:56px}
+button{font:inherit;font-size:13px;font-weight:600;border:1px solid #d6d3cc;background:#fff;color:var(--ink);border-radius:9px;padding:8px 14px;cursor:pointer}
+button:hover:not(:disabled){border-color:#a1a1aa} button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--pink);border-color:var(--pink);color:#fff} button.ghost{border-color:transparent;background:transparent;padding:6px 8px}
+.mode{font-size:12px;margin-left:auto}.mode.ok{color:var(--pass)}.mode.ro{color:var(--warn)}
+.note{font-size:12.5px;border-radius:10px;padding:9px 12px;background:#f4f4f5;color:var(--t2);line-height:1.6}
+.note.ok{background:var(--passbg);color:#14532d}.note.warn{background:var(--warnbg);color:#78350f}.note.err{background:var(--failbg);color:#7f1d1d}
+.stats{display:flex;gap:12px;flex-wrap:wrap}.stat{border:1px solid var(--line);border-radius:14px;padding:10px 16px;min-width:140px}.stat b{display:block;font-size:22px}.stat span{font-size:12px;color:var(--t2)}
+/* form */
+#sheets{overflow-x:auto}
+.sheet{background:#fff;color:#111;width:100%;min-width:1100px;margin:0 auto 18px;padding:18px 22px;border:1px solid #d4d4d4;border-radius:6px}
+.hd{display:grid;grid-template-columns:1.3fr 1fr .6fr;font-size:12.5px;border:1px solid #333}
+.hd div{padding:4px 8px;border-right:1px solid #333}.hd div:last-child{border-right:0}
+.hd .r2{border-top:1px solid #333}
+.mline{display:flex;justify-content:space-between;font-size:12.5px;margin:12px 4px 8px}
+table.ft{border-collapse:collapse;width:100%;font-size:11.5px}
+table.ft th,table.ft td{border:1px solid #333;padding:3px 3px;text-align:center;height:22px}
+table.ft th{background:#f2f2f2;font-weight:700}
+table.ft td.l{text-align:left;padding-left:6px;white-space:nowrap}
+table.ft td.ck{color:#111;font-weight:700;line-height:1.1} table.ft .sv{font-size:9px;font-weight:500;color:#333;white-space:nowrap} table.ft td.bad .sv{color:#dc2626;font-weight:700} table.ft td.bad{color:#dc2626} table.ft td.pass{color:#15803d;font-weight:700} table.ft td.fail{color:#dc2626;font-weight:700}
+table.ft tr.rw{cursor:pointer} table.ft tr.rw:hover td{background:#fff7d6}
+.foot{display:flex;justify-content:center;flex-direction:column;align-items:center;margin-top:26px;font-size:12.5px;gap:14px}
+.foot .ln{border-bottom:1px dotted #333;width:240px;height:22px}
+.ov{position:fixed;inset:0;background:rgba(15,15,20,.42);display:none;align-items:flex-start;justify-content:center;z-index:9995;padding:40px 14px;overflow:auto}.ov.on{display:flex}
+.md{background:#fff;border-radius:18px;max-width:860px;width:100%;padding:20px 22px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.md h3{margin:0 0 12px;font-size:16px;color:var(--pink)}.md .x{float:right;border:0;background:none;font-size:20px;color:var(--t3);padding:0 4px}
+.ticks{display:flex;flex-wrap:wrap;gap:6px}.tk{border:1px solid #d6d3cc;border-radius:8px;padding:5px 9px;font-size:12.5px;font-weight:600;cursor:pointer;user-select:none;color:var(--t3)}.tk.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.busy{position:fixed;inset:0;background:rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;z-index:9999;font-weight:600}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#18181b;color:#fff;padding:10px 18px;border-radius:10px;z-index:9999;font-size:13px}
+@media print{
+  @page{size:A4 landscape;margin:8mm}
+  body{background:#fff;margin:0!important}
+  .wrap{padding:0!important;max-width:none!important}
+  body>*:not(.wrap),.wrap>*:not(#sheets){display:none!important}
+  #sheets{overflow:visible}
+  .sheet{border:0;min-width:0;margin:0;padding:0;page-break-after:always;break-after:page;zoom:.8}
+  .sheet:last-child{page-break-after:auto;break-after:auto}
+  table.ft tr.rw:hover td{background:none}
+  #nir-sb,#nir-sb-btn{display:none!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📝 Repeatability Check (IQC)</h1>
+  <div class="sub">บันทึกตัวอย่างที่ทำซ้ำ (Repeatability) จาก NIR Interface Report Tool แยกรายเดือน · F-LAB-17-34</div>
+
+  <div class="card">
+    <div class="row">
+      <div class="f"><label>เดือน</label><div style="display:flex;gap:4px"><button class="ghost" id="prevM">◀</button><input type="month" id="month"><button class="ghost" id="nextM">▶</button></div></div>
+      <div class="f"><label>ค้นหา</label><input id="q" placeholder="Lab No. / Sample / ผู้ทดสอบ" style="width:220px"></div>
+      <div class="row" style="margin-left:auto"><button id="btnAdd">➕ เพิ่มรายการเอง</button><button class="primary" id="btnPrint">🖨️ พิมพ์ / PDF</button></div>
+    </div>
+    <div class="row" style="margin-top:10px"><span class="mode" id="mode">กำลังเชื่อมต่อ…</span><button class="ghost" id="btnRefresh" title="โหลดล่าสุด">🔄</button></div>
+  </div>
+  <div id="note"></div>
+  <div class="card"><div class="card-h">สรุปเดือนนี้</div><div class="stats" id="stats"></div></div>
+  <div id="sheets"></div>
+
+  <details class="card" id="setup">
+    <summary style="cursor:pointer;font-weight:600;color:var(--t2)">⚙️ ตารางสินค้า → พารามิเตอร์ · นำเข้าจากไฟล์ Excel เดิม</summary>
+    <div class="note" style="margin-top:10px">เลือกไฟล์ <b>F-LAB-17-34_Repeatability_Check_….xlsx</b> ระบบอ่าน <b>Sheet1</b> (สินค้า → พารามิเตอร์ที่ทำ Repeatability ใช้ติ๊ก ✓ อัตโนมัติ) และชีท <b>Summary &lt;เดือน&gt;</b> (ประวัติที่บันทึกไว้แล้ว) ให้เลือกนำเข้าได้</div>
+    <div class="row" style="margin-top:10px"><input type="file" id="xls" accept=".xlsx,.xls"></div>
+    <div id="xlsOut" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:14px"><div class="f"><label>ดู/แก้พารามิเตอร์ของสินค้า</label><input id="pq" placeholder="ชื่อสินค้า เช่น CGM" style="width:220px"></div><span id="pInfo" style="font-size:12px;color:var(--t2)"></span></div>
+    <div id="pEdit" style="margin-top:8px"></div>
+  </details>
+</div>
+
+<div class="ov" id="ovRow"><div class="md">
+  <button class="x" data-close>×</button><h3 id="rTitle">เพิ่มรายการ</h3>
+  <div class="row">
+    <div class="f"><label>Testing Date</label><input type="date" id="rD"></div>
+    <div class="f"><label>Lab No.</label><input id="rLab" style="width:220px"></div>
+    <div class="f"><label>Sample name</label><input id="rSmp" style="width:160px"></div>
+    <div class="f"><label>NIR Analyst</label><input id="rBy" style="width:120px"></div>
+  </div>
+  <div class="f" style="margin-top:12px"><label>พารามิเตอร์ที่ทำ Repeatability</label><div class="ticks" id="rTicks"></div></div>
+  <div id="rVals" class="note" style="margin-top:10px;display:none"></div>
+  <div class="f" style="margin-top:10px"><label id="rNoteL">หมายเหตุ</label><textarea id="rNote"></textarea></div>
+  <div class="row" style="margin-top:12px;justify-content:space-between"><button id="rDel" style="color:var(--fail)">🗑️ ลบรายการ</button><div class="row"><button data-close>ยกเลิก</button><button class="primary" id="rSave">บันทึก</button></div></div>
+</div></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const S = { month: QCX.thisMonth(), md: null, prod: { map: {} }, q: '' };
+const ROWS_PER_PAGE = 26;
+function toast(m, ms = 3500) { document.querySelectorAll('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), ms); }
+function busy(on, msg) { let b = $('busyEl'); if (!on) { b && b.remove(); return; } if (!b) { b = document.createElement('div'); b.id = 'busyEl'; b.className = 'busy'; document.body.appendChild(b); } b.textContent = msg || 'กำลังทำงาน…'; }
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('.ov').classList.remove('on'));
+
+async function loadMonth() {
+  busy(true, 'กำลังโหลด…');
+  try { S.md = await QCX.loadIqc(S.month); } catch (e) { S.md = QCX.emptyIqc(S.month); $('note').innerHTML = '<div class="note err" style="margin-bottom:14px">❌ ' + esc(e.message) + '</div>'; }
+  busy(false); render();
+}
+function visibleRows() {
+  const q = S.q.trim().toLowerCase();
+  return (S.md.rows || []).filter(r => !q || [r.lab, r.smp, r.by].some(x => String(x || '').toLowerCase().includes(q)));
+}
+function render() {
+  const u = new URL(location.href); u.searchParams.set('month', S.month); history.replaceState(null, '', u);
+  $('month').value = S.month;
+  const ro = !QCX.canWrite();
+  $('mode').textContent = QCX.MODE_TEXT[QCX.mode] || ''; $('mode').className = 'mode ' + (ro ? 'ro' : 'ok');
+  $('btnAdd').disabled = ro;
+  const rows = S.md.rows || [];
+  const byA = {}; rows.forEach(r => { byA[r.by || '-'] = (byA[r.by || '-'] || 0) + 1; });
+  const days = new Set(rows.map(r => r.d)).size;
+  const nP = rows.filter(r => r.result === 'pass').length, nF = rows.filter(r => r.result === 'fail').length;
+  $('stats').innerHTML = '<div class="stat"><b>' + rows.length + '</b><span>ตัวอย่างที่ทำ Repeatability</span></div><div class="stat"><b>' + days + '</b><span>วันที่ทดสอบ</span></div>' +
+    '<div class="stat"><b style="color:var(--pass)">' + nP + '</b><span>Pass</span></div><div class="stat"><b style="color:' + (nF ? 'var(--fail)' : 'var(--t3)') + '">' + nF + '</b><span>Fail</span></div>' +
+    Object.keys(byA).sort().map(a => '<div class="stat"><b>' + byA[a] + '</b><span>' + esc(a) + '</span></div>').join('') +
+    (rows.length ? '' : '<div class="note">ยังไม่มีรายการในเดือนนี้ — บันทึกได้จากปุ่ม 📝 ใน NIR Interface Report Tool</div>');
+  renderSheets();
+}
+function renderSheets() {
+  const rows = visibleRows(), d = QCX.IQC_DOC;
+  const pages = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE));
+  let h = '';
+  for (let pg = 0; pg < pages; pg++) {
+    const chunk = rows.slice(pg * ROWS_PER_PAGE, (pg + 1) * ROWS_PER_PAGE);
+    let body = '';
+    for (let i = 0; i < ROWS_PER_PAGE; i++) {
+      const r = chunk[i], no = pg * ROWS_PER_PAGE + i + 1;
+      if (!r) { body += '<tr><td>' + (rows.length ? '' : no) + '</td><td></td><td></td><td></td>' + QCX.IQC_PARAMS.map(() => '<td></td>').join('') + '<td></td><td></td></tr>'; continue; }
+      body += '<tr class="rw" data-id="' + esc(r.id) + '"><td>' + no + '</td><td>' + esc(QCX.dmy(r.d)) + '</td><td class="l">' + esc(r.lab) + '</td><td class="l">' + esc(r.smp) + '</td>' +
+        QCX.IQC_PARAMS.map(c => {
+          const on = (r.pars || []).includes(c), v = r.vals && r.vals[c], e = r.res && r.res[c], bad = on && e && e.ok === false;
+          const tip = (v ? 'ครั้งที่ 1 = ' + v[0] + ' · ครั้งที่ 2 = ' + v[1] : '') + (e ? ' · ' + QCX.REP_MODE_TEXT[r.mode] + ' = ' + e.v + ' (' + e.crit + ')' + (e.note ? ' · ' + e.note : '') : '');
+          const num = on && e ? '<div class="sv">' + (r.mode === 'rpd' ? (+e.v).toFixed(2) + '%' : (+e.v).toFixed(Math.abs(e.v) < 1 && String(e.v).split('.')[1] && String(e.v).split('.')[1].length > 2 ? 3 : 2)) + (e.note ? '*' : '') + '</div>' : '';
+          return '<td class="' + (on ? 'ck' : '') + (bad ? ' bad' : '') + '"' + (tip ? ' title="' + esc(tip.replace(/^ · /, '')) + '"' : '') + '>' + (on ? (bad ? '✗' : '✓') : '-') + num + '</td>';
+        }).join('') +
+        '<td>' + esc(r.by) + '</td><td class="' + (r.result || '') + '">' + (r.result === 'pass' ? 'Pass' : r.result === 'fail' ? 'Fail' : '') +
+        (r.result ? '<div class="sv">' + (r.mode === 'rpd' ? '%RPD' : 'Diff' + (QCX.REP_TYPES[r.type] ? ' ' + QCX.REP_TYPES[r.type].label.split(' ')[0] : '')) + '</div>' : '') + '</td></tr>';
+    }
+    h += '<div class="sheet"><div class="hd"><div><b>' + esc(d.lab) + '</b></div><div>เลขที่เอกสาร &nbsp; ' + esc(d.docNo) + '</div><div>' + (pg + 1) + '/' + pages + '</div>' +
+      '<div class="r2">แบบฟอร์ม : &nbsp;' + esc(d.form) + '</div><div class="r2">เริ่มใช้วันที่ &nbsp;' + esc(d.useDate) + '</div><div class="r2">แก้ไขครั้งที่ : ' + esc(d.rev) + '</div></div>' +
+      '<div class="mline"><span>Month ......<b>' + esc(QCX.monthLabel(S.month).replace(/^(\w)(\w+)/, (m, a, b) => a + b.toLowerCase())) + '</b>......</span><span>Page ....' + (pg + 1) + '/' + pages + '....</span></div>' +
+      '<table class="ft"><tr><th rowspan="2" style="width:34px">No.</th><th rowspan="2" style="width:92px">Testing Date</th><th rowspan="2">Lab No.</th><th rowspan="2">Sample name</th><th colspan="' + QCX.IQC_PARAMS.length + '">Parameters</th><th rowspan="2" style="width:90px">NIR Analyst</th><th rowspan="2" style="width:56px">Result</th></tr>' +
+      '<tr>' + QCX.IQC_PARAMS.map(c => '<th style="width:36px">' + c + '</th>').join('') + '</tr>' + body + '</table>' +
+      '<div style="font-size:10.5px;margin-top:6px;color:#333">✓ = ทำ Repeatability แล้ว (ผ่านเกณฑ์ ถ้ามีผลใน Result) · ✗ = ไม่ผ่านเกณฑ์ · ตัวเลขใต้เครื่องหมาย = Diff (ครั้งที่ 1 − ครั้งที่ 2, g/100g) หรือ %RPD · * = ค่าอยู่นอกช่วงการทดสอบ · เกณฑ์: %Repeatability Diff — Cat Food (1.07–42.70) / Dog Food (2.10–34.87) |ครั้งที่ 1 − ครั้งที่ 2| ≤ 0.5 g/100g · %RPD — NIR ≤ 20 g/100g → %RPD ≤ 10%, NIR &gt; 20 g/100g → %RPD &lt; 5%</div>' +
+      '<div class="foot"><div class="ln"></div><div>Technical NIR Team</div><div>Date…………………………………….......</div></div></div>';
+  }
+  $('sheets').innerHTML = h;
+  $('sheets').querySelectorAll('tr.rw').forEach(tr => tr.onclick = () => openRow(tr.dataset.id));
+}
+
+// ── เพิ่ม / แก้ / ลบ ──
+let editId = null, tick = [];
+function drawTicks() { $('rTicks').innerHTML = QCX.IQC_PARAMS.map(c => '<span class="tk' + (tick.includes(c) ? ' on' : '') + '" data-c="' + c + '">' + c + '</span>').join(''); $('rTicks').querySelectorAll('.tk').forEach(t => t.onclick = () => { const c = t.dataset.c; tick = tick.includes(c) ? tick.filter(x => x !== c) : QCX.IQC_PARAMS.filter(x => x === c || tick.includes(x)); drawTicks(); }); }
+function openRow(id) {
+  if (!QCX.canWrite()) { toast('ดูได้อย่างเดียว'); return; }
+  const r = id ? S.md.rows.find(x => x.id === id) : null; editId = r ? r.id : null;
+  $('rTitle').textContent = r ? 'แก้ไขรายการ' : 'เพิ่มรายการเอง';
+  $('rD').value = r ? r.d : (S.month === QCX.thisMonth() ? QCX.todayISO() : S.month + '-01');
+  $('rLab').value = r ? r.lab : ''; $('rSmp').value = r ? r.smp : ''; $('rBy').value = r ? r.by : (QCX.user() || '').split(/\s+/)[0];
+  tick = r ? (r.pars || []).slice() : [];
+  $('rNote').value = ''; $('rNoteL').textContent = r ? 'เหตุผลที่แก้ไข / ลบ (บังคับ)' : 'หมายเหตุ';
+  $('rDel').style.visibility = r ? 'visible' : 'hidden';
+  $('rVals').style.display = r && r.vals && Object.keys(r.vals).length ? 'block' : 'none';
+  if (r && r.vals) $('rVals').innerHTML = 'ค่าที่วัด (ครั้งที่ 1 / 2): ' + Object.entries(r.vals).map(([c, v]) => '<b>' + c + '</b> ' + v[0] + ' / ' + v[1]).join(' · ') +
+    (r.res ? '<br>' + esc(QCX.REP_MODE_TEXT[r.mode] || '') + (r.mode === 'diff' && QCX.REP_TYPES[r.type] ? ' (' + QCX.REP_TYPES[r.type].label + ')' : '') + ': ' + Object.entries(r.res).map(([c, e]) => '<b>' + c + '</b> ' + e.v + ' <span style="color:' + (e.ok ? 'var(--pass)' : 'var(--fail)') + '">' + (e.ok ? 'Pass' : 'Fail') + '</span>').join(' · ') + ' → <b>' + (r.result === 'fail' ? 'Fail' : 'Pass') + '</b>' : '') + (r.savedBy ? '<br>บันทึกโดย ' + esc(r.savedBy) + ' · ' + esc(r.src === 'report' ? 'จาก Report' : r.src === 'import' ? 'นำเข้าจาก Excel เดิม' : 'กรอกเอง') : '');
+  drawTicks(); $('ovRow').classList.add('on');
+}
+$('rSmp').onchange = () => { if (!editId && !tick.length) { const def = S.prod.map[QCX.prodKey($('rSmp').value)]; if (def) { tick = QCX.IQC_PARAMS.filter(c => def.includes(c)); drawTicks(); } } };
+$('btnAdd').onclick = () => openRow(null);
+async function saveRow(del) {
+  const r = { d: $('rD').value, lab: $('rLab').value.trim(), smp: $('rSmp').value.trim(), by: $('rBy').value.trim(), pars: tick.slice() };
+  const note = $('rNote').value.trim();
+  if (!del && (!r.d || !r.lab || !r.pars.length)) { toast('ใส่วันที่ Lab No. และติ๊กพารามิเตอร์อย่างน้อย 1 ตัว'); return; }
+  if (editId && !note) { toast('ใส่เหตุผลก่อน (เก็บเป็นหลักฐานการแก้ไข)'); return; }
+  if (del && !confirm('ลบรายการนี้? (ยังดูย้อนหลังได้ในประวัติ GitHub)')) return;
+  busy(true, 'กำลังบันทึก…');
+  try {
+    if (!editId) {
+      if (QCX.monthOf(r.d) !== S.month) S.month = QCX.monthOf(r.d);
+      const sum = await QCX.addIqcRows([Object.assign(r, { src: 'manual', note: note || undefined })], 'Repeatability manual ' + r.lab);
+      if (!sum.added) { busy(false); toast('มีรายการนี้อยู่แล้ว (Lab No. + วันที่ซ้ำ)'); return; }
+    } else {
+      const oldMonth = S.month;
+      await QCX.update(QCX.iqcPath(oldMonth), () => QCX.emptyIqc(oldMonth), md => {
+        const i = md.rows.findIndex(x => x.id === editId); if (i < 0) throw new Error('ไม่พบรายการนี้แล้ว — กด 🔄');
+        const o = md.rows[i], by = QCX.user(), at = new Date().toISOString();
+        if (del || QCX.monthOf(r.d) !== oldMonth) { md.deleted = md.deleted || []; md.deleted.push(Object.assign({}, o, { delBy: by, delAt: at, reason: del ? note : 'ย้ายไปเดือน ' + QCX.monthOf(r.d) + ': ' + note })); md.rows.splice(i, 1); }
+        else { o.prev = (o.prev || []).concat([{ d: o.d, lab: o.lab, smp: o.smp, by: o.by, pars: o.pars, at: o.at, savedBy: o.savedBy, result: o.result }]); Object.assign(o, r, { at, savedBy: by, note }); if (o.mode) Object.assign(o, QCX.repEvaluate(o)); }
+      }, (del ? 'Repeatability delete ' : 'Repeatability edit ') + r.lab);
+      if (!del && QCX.monthOf(r.d) !== oldMonth) { const old = S.md.rows.find(x => x.id === editId) || {}; await QCX.addIqcRows([Object.assign({}, old, r, { id: undefined, note })]); S.month = QCX.monthOf(r.d); }
+    }
+    busy(false); $('ovRow').classList.remove('on'); toast(del ? 'ลบแล้ว' : '✅ บันทึกแล้ว'); await loadMonth();
+  } catch (e) { busy(false); alert('ไม่สำเร็จ: ' + e.message); }
+}
+$('rSave').onclick = () => saveRow(false);
+$('rDel').onclick = () => saveRow(true);
+
+// ── นำเข้าจาก Excel เดิม ──
+const MONTHS = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+const HEAD_ALIAS = { NACL: 'NaCl', SAND: 'Sand', STARCH: 'Starch' };
+function parseWorkbook(wb) {
+  const out = { map: {}, months: {}, fixes: [] };
+  const sh1 = wb.Sheets['Sheet1'];
+  if (sh1) {
+    const aoa = XLSX.utils.sheet_to_json(sh1, { header: 1, raw: true, defval: null });
+    const head = (aoa[0] || []).map(h => { const t = String(h || '').trim(); const u = t.toUpperCase(); return HEAD_ALIAS[u] || QCX.IQC_PARAMS.find(c => c.toUpperCase() === u) || null; });
+    aoa.slice(1).forEach(r => {
+      const name = r[0] === null ? '' : String(r[0]).trim(); if (!name) return;
+      const pars = []; head.forEach((c, i) => { if (c && i > 0 && r[i] === true) pars.push(c); });
+      out.map[QCX.prodKey(name)] = QCX.IQC_PARAMS.filter(c => pars.includes(c));
+    });
+  }
+  wb.SheetNames.forEach(n => {
+    const m = n.trim().match(/^Summary\s+([A-Za-z]{3})\w*\s+(\d{4})$/); if (!m || !MONTHS[m[1].toLowerCase()]) return;
+    const mk = m[2] + '-' + MONTHS[m[1].toLowerCase()];
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null });
+    let hr = aoa.findIndex(r => r && String(r[0] || '').trim() === 'No.'); if (hr < 0) return;
+    const ph = (aoa[hr + 1] || []).map(h => { const u = String(h || '').trim().toUpperCase(); return HEAD_ALIAS[u] || QCX.IQC_PARAMS.find(c => c.toUpperCase() === u) || null; });
+    const rows = [];
+    aoa.slice(hr + 2).forEach(r => {
+      const lab = r[2] === null ? '' : String(r[2]).trim(); if (!lab) return;
+      let d = r[1], iso = '';
+      if (d instanceof Date) iso = new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+      else if (typeof d === 'number') { const t = XLSX.SSF.parse_date_code(d); iso = t.y + '-' + String(t.m).padStart(2, '0') + '-' + String(t.d).padStart(2, '0'); }
+      else { const s = String(d || '').trim(); let x; if ((x = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) iso = x[3] + '-' + x[2].padStart(2, '0') + '-' + x[1].padStart(2, '0'); else if ((x = s.match(/^(\d{1,2})\/(\d{1,2})$/))) iso = mk.slice(0, 4) + '-' + x[2].padStart(2, '0') + '-' + x[1].padStart(2, '0'); }
+      if (!iso) return;
+      let fix = '';
+      if (iso.slice(5, 7) === mk.slice(5) && iso.slice(0, 4) !== mk.slice(0, 4)) { fix = 'ปีในไฟล์เดิม ' + iso.slice(0, 4) + ' → ' + mk.slice(0, 4) + ' ตามชีท ' + n.trim(); iso = mk.slice(0, 4) + iso.slice(4); }
+      else if (iso.slice(0, 7) !== mk) fix = 'วันที่ไม่อยู่ในเดือนของชีท ' + n.trim();
+      if (fix) out.fixes.push(lab + ' ' + QCX.dmy(iso) + ': ' + fix);
+      const pars = []; ph.forEach((c, i) => { if (c && r[i] === true) pars.push(c); });
+      let lastPar = -1; ph.forEach((c, i) => { if (c) lastPar = i; });
+      const ana = (() => { for (let i = lastPar + 1; i < r.length; i++) { if (r[i] !== null && String(r[i]).trim()) return String(r[i]).trim(); } return ''; })();
+      rows.push(Object.assign({ d: iso, lab, smp: r[3] === null ? '' : String(r[3]).trim(), pars: QCX.IQC_PARAMS.filter(c => pars.includes(c)), by: ana, src: 'import' }, fix ? { note: fix } : {}));
+    });
+    if (rows.length) out.months[mk] = (out.months[mk] || []).concat(rows);
+  });
+  return out;
+}
+$('xls').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const wb = XLSX.read(new Uint8Array(await f.arrayBuffer()), { type: 'array' });
+    const P = parseWorkbook(wb);
+    const nProd = Object.keys(P.map).length, months = Object.keys(P.months).sort(), nRows = months.reduce((a, m) => a + P.months[m].length, 0);
+    const ro = !QCX.canWrite();
+    $('xlsOut').innerHTML = '<div class="note ok">อ่านได้: ตารางสินค้า <b>' + nProd.toLocaleString() + '</b> รายการ · ประวัติ <b>' + nRows + '</b> รายการ ใน ' + months.length + ' เดือน (' + months.map(m => esc(QCX.monthLabel(m)) + ' ' + P.months[m].length).join(', ') + ')</div>' +
+      (P.fixes.length ? '<div class="note warn" style="margin-top:8px">ปรับวันที่ ' + P.fixes.length + ' รายการ:<br>' + P.fixes.map(esc).join('<br>') + '</div>' : '') +
+      '<div class="row" style="margin-top:8px">' + (nProd ? '<button class="primary" id="impProd"' + (ro ? ' disabled' : '') + '>บันทึกตารางสินค้า (' + nProd + ')</button>' : '') + (nRows ? '<button id="impHist"' + (ro ? ' disabled' : '') + '>นำเข้าประวัติ ' + nRows + ' รายการ</button>' : '') + '</div>';
+    if ($('impProd')) $('impProd').onclick = async () => {
+      busy(true, 'กำลังบันทึกตารางสินค้า…');
+      try { const o = await QCX.update(QCX.iqcProductsPath, { version: 1, map: {} }, p => { p.map = P.map; p.updated = new Date().toISOString(); p.source = f.name; }, 'Repeatability product table (' + nProd + ')'); S.prod = o.obj; busy(false); toast('✅ บันทึกตารางสินค้าแล้ว'); }
+      catch (err) { busy(false); alert('ไม่สำเร็จ: ' + err.message); }
+    };
+    if ($('impHist')) $('impHist').onclick = async () => {
+      busy(true, 'กำลังนำเข้าประวัติ…');
+      try { const all = months.flatMap(m => P.months[m]); const sum = await QCX.addIqcRows(all, 'Repeatability import from Excel'); busy(false); toast('✅ นำเข้า ' + sum.added + ' · มีอยู่แล้ว ' + sum.same, 5000); await loadMonth(); }
+      catch (err) { busy(false); alert('ไม่สำเร็จ: ' + err.message); }
+    };
+  } catch (err) { $('xlsOut').innerHTML = '<div class="note err">❌ อ่านไฟล์ไม่ได้: ' + esc(err.message) + '</div>'; }
+  e.target.value = '';
+};
+// ดู/แก้ตารางสินค้า
+$('pq').oninput = () => {
+  const q = QCX.prodKey($('pq').value); const keys = Object.keys(S.prod.map || {});
+  $('pInfo').textContent = keys.length ? 'ตารางมี ' + keys.length.toLocaleString() + ' สินค้า' : 'ยังไม่มีตารางสินค้า — เลือกไฟล์ Excel ด้านบน';
+  if (!q) { $('pEdit').innerHTML = ''; return; }
+  const hit = keys.filter(k => k.includes(q)).slice(0, 8);
+  const exact = S.prod.map[q];
+  $('pEdit').innerHTML = (exact ? '' : '<div class="note" style="margin-bottom:8px">ไม่มี "' + esc(q) + '" ในตาราง' + (hit.length ? ' — ใกล้เคียง: ' + hit.map(esc).join(', ') : '') + '</div>') +
+    '<div class="ticks" id="pTicks">' + QCX.IQC_PARAMS.map(c => '<span class="tk' + (exact && exact.includes(c) ? ' on' : '') + '" data-c="' + c + '">' + c + '</span>').join('') + '</div>' +
+    '<div class="row" style="margin-top:8px"><button class="primary" id="pSave"' + (QCX.canWrite() ? '' : ' disabled') + '>' + (exact ? 'บันทึกการแก้ไข' : 'เพิ่มสินค้านี้') + '</button></div>';
+  let sel = exact ? exact.slice() : [];
+  $('pTicks').querySelectorAll('.tk').forEach(t => t.onclick = () => { const c = t.dataset.c; sel = sel.includes(c) ? sel.filter(x => x !== c) : QCX.IQC_PARAMS.filter(x => x === c || sel.includes(x)); t.classList.toggle('on'); });
+  $('pSave').onclick = async () => {
+    busy(true, 'กำลังบันทึก…');
+    try { const o = await QCX.update(QCX.iqcProductsPath, { version: 1, map: {} }, p => { p.map = p.map || {}; p.map[q] = sel; p.updated = new Date().toISOString(); }, 'Repeatability product ' + q); S.prod = o.obj; busy(false); toast('✅ บันทึกแล้ว'); }
+    catch (err) { busy(false); alert('ไม่สำเร็จ: ' + err.message); }
+  };
+};
+
+$('month').onchange = () => { if ($('month').value) { S.month = $('month').value; loadMonth(); } };
+$('prevM').onclick = () => { S.month = QCX.addMonth(S.month, -1); loadMonth(); };
+$('nextM').onclick = () => { S.month = QCX.addMonth(S.month, 1); loadMonth(); };
+$('q').oninput = () => { S.q = $('q').value; renderSheets(); };
+$('btnRefresh').onclick = loadMonth;
+$('btnPrint').onclick = () => window.print();
+(async function init() {
+  const q = new URLSearchParams(location.search);
+  if (/^\d{4}-\d{2}$/.test(q.get('month') || '')) S.month = q.get('month');
+  await QCX.connect();
+  if (!QCX.canWrite()) $('note').innerHTML = '<div class="note warn" style="margin-bottom:14px">ดูได้อย่างเดียว — เครื่องนี้ยังต่อ Worker ไม่ได้ ตรวจที่หน้า NIR Data Import → ⚙️ ตั้งค่า</div>';
+  try { S.prod = await QCX.loadIqcProducts(); } catch (e) { }
+  await loadMonth();
+})();
+</script>
+</body>
+</html>
