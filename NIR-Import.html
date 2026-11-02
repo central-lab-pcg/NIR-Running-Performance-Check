@@ -729,6 +729,19 @@ textarea{font-family:var(--mono);font-size:12px;min-height:140px;resize:vertical
 .btn.danger{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btn.sm{padding:4px 9px;font-size:11px}
+.ed-bg{position:fixed;inset:0;background:rgba(13,31,53,.38);z-index:1000;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:40px 16px}
+.ed-box{background:var(--bg2);border-radius:var(--r-lg);box-shadow:0 10px 40px rgba(13,31,53,.25);max-width:780px;width:100%;padding:18px 20px}
+.ed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px 12px;margin:10px 0}
+.ed-grid label{display:block;font-size:11px;color:var(--txt3);margin-bottom:2px}
+.ed-grid input,.ed-grid select{width:100%}
+.ed-par{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px 12px;margin:6px 0 10px}
+.ed-par .pp{display:grid;grid-template-columns:48px 1fr 1fr;gap:4px;align-items:center;font-size:12px}
+.ed-par .pp b{font-family:var(--mono);font-size:11px}
+.ed-par input{padding:5px 6px;font:12px var(--mono)}
+.ed-par input.chg,.ed-grid .chg{border-color:var(--amber);background:var(--amber-bg)}
+.ed-hist{font-size:11.5px;color:var(--txt2);background:var(--bg3);border-radius:var(--r);padding:8px 10px;margin-top:8px;max-height:160px;overflow:auto}
+.ed-hist div+div{margin-top:4px;padding-top:4px;border-top:1px dashed var(--border)}
+.edbtn{border:0;background:none;cursor:pointer;font-size:14px;padding:0 2px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .spacer{flex:1}
 .note{font-size:12px;color:var(--txt2);background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;line-height:1.6}
@@ -1443,12 +1456,15 @@ html.fb .nb-switch button { border-radius: 11px; }
       <input id="qData" placeholder="ค้นหา sample / product / SEP / No." style="max-width:340px">
       <select id="qMonth" style="max-width:160px"></select>
       <span class="spacer"></span>
+      <input id="bulkPrd" list="dlPrd" placeholder="เปลี่ยน Product เป็น…" style="max-width:170px">
+      <button class="btn" id="btnBulkPrd">เปลี่ยน Product แถวที่เลือก</button>
       <select id="bulkSep" style="max-width:160px"><option value="">เปลี่ยน SEP เป็น…</option></select>
       <button class="btn" id="btnBulkSep">เปลี่ยน SEP แถวที่เลือก</button>
       <button class="btn danger" id="btnBulkDel">ลบแถวที่เลือก</button>
     </div>
     <div class="tbl-wrap" id="dataWrap"></div>
     <div style="font-size:11px;color:var(--txt3);margin-top:6px" id="dataMsg"></div>
+    <div style="font-size:11px;color:var(--txt3);margin-top:4px">กด ✏️ เพื่อแก้ทีละแถว · ทุกครั้งที่แก้ ระบบเก็บค่าเดิม ชื่อผู้แก้ และเวลาไว้ในแถว (audit trail ISO 17025) และใน commit ของ GitHub</div>
   </div>
 </section>
 
@@ -1497,8 +1513,12 @@ html.fb .nb-switch button { border-radius: 11px; }
   </div>
 
   <div class="card">
-    <div class="card-title">ย้ายข้อมูลจาก Excel เดิม (ทำครั้งเดียว)</div>
-    <div class="note" style="margin-bottom:10px">
+    <div class="card-title" id="migTitle">ย้ายข้อมูลจาก Excel เดิม (ทำครั้งเดียว)</div>
+    <div class="note ok" id="migMergeNote" style="margin-bottom:10px;display:none">
+      <b>โหมดรวมข้อมูล (ปลอดภัย)</b> — อ่าน <span class="mono">data.json</span> / <span class="mono">data2.json</span> แล้ว<b>เพิ่มเฉพาะแถวที่ยังไม่มีในระบบ</b> และเติมเฉพาะช่องที่ยังว่าง ·
+      ไม่เขียนทับค่าเดิม ไม่ยุ่งกับแถวที่นำเข้า/แก้ไขผ่านเว็บ ไม่เปลี่ยนตาราง SEP · แถวที่เคยลบผ่านเว็บจะไม่ถูกเพิ่มกลับ · รวมซ้ำกี่ครั้งก็ได้ ไม่เกิดแถวซ้ำ
+    </div>
+    <div class="note" id="migOrigNote" style="margin-bottom:10px">
       ดึง <span class="mono">data.json</span> + <span class="mono">data2.json</span> ที่ Power Automate สร้างไว้ → แยกเป็นตาราง SEP + ไฟล์รายเดือน → บันทึกขึ้น GitHub<br>
       ระบบใช้ค่า SEP ที่ถูกใช้บ่อยที่สุดของแต่ละรหัส (แก้ค่าที่ก็อปผิดในบางแถวให้อัตโนมัติ) และตัดช่อง <span class="mono">#VALUE!</span> / <span class="mono">#REF!</span> ออก
     </div>
@@ -1511,6 +1531,7 @@ html.fb .nb-switch button { border-radius: 11px; }
   </div>
 </section>
 
+<div id="edModal" class="ed-bg" style="display:none"><div class="ed-box" id="edBox"></div></div>
 <datalist id="dlPla"></datalist><datalist id="dlTyp"></datalist><datalist id="dlEqp"></datalist><datalist id="dlSrc"></datalist><datalist id="dlPrd"></datalist>
 
 <script>
@@ -1591,6 +1612,7 @@ async function init() {
 }
 
 function refreshAll() {
+  try { renderMigCard(); } catch (e) {}
   const n = S.rows.length, sets = Object.keys(S.sepDb.sets).length;
   $('statusLine').textContent = (S.loaded ? n.toLocaleString() + ' แถว · ' + (S.index.files || []).length + ' เดือน · ' + sets + ' ชุด SEP' : n ? 'ข้อมูลจาก Excel เดิม ' + n.toLocaleString() + ' แถว (ยังไม่ย้าย) · ' + sets + ' ชุด SEP' : 'ยังไม่มีข้อมูล · ' + sets + ' ชุด SEP') +
     ' · ' + ({ token: 'บันทึกตรงขึ้น GitHub ✓ (token เครื่องนี้)', relay: 'บันทึกขึ้นระบบอัตโนมัติ ✓', download: 'โหมดดาวน์โหลดไฟล์ — ดูแท็บ ⚙️ ตั้งค่า' })[writeMode()];
@@ -1654,7 +1676,9 @@ function monthFileText(month) {
 }
 function indexText() {
   const months = uniq(S.rows.map(r => NIR.monthOf(r.d))).filter(m => /^\d{4}-\d{2}$/.test(m));
+  const deleted = (S.index && S.index.deleted) || [];
   S.index = { files: months.map(m => m + '.json'), updated: new Date().toISOString(), count: S.rows.length };
+  if (deleted.length) S.index.deleted = deleted;   // แถวที่ลบผ่านเว็บ — กันไม่ให้ data.json เดิมเพิ่มกลับเข้ามา
   return JSON.stringify(S.index, null, 1) + '\n';
 }
 // เขียนเดือนที่เปลี่ยน + index (ถ้ามีเดือนใหม่/หายไป)
@@ -2332,15 +2356,16 @@ function renderData() {
   list = list.slice().sort((a, b) => (+b.no || 0) - (+a.no || 0));
   const total = list.length; list = list.slice(0, 300);
   const pars = NIR.PARAM_KEYS.filter(p => list.some(r => r.v[p]));
-  let h = '<table><thead><tr><th><input type="checkbox" id="dAll" style="width:auto"></th><th>No.</th><th>วันที่</th><th>Plant</th><th>Eqp</th><th>Product</th><th>SEP</th><th>Sample</th>' + pars.map(parTh).join('') + '</tr></thead><tbody>';
+  let h = '<table><thead><tr><th><input type="checkbox" id="dAll" style="width:auto"></th><th></th><th>No.</th><th>วันที่</th><th>Plant</th><th>Eqp</th><th>Product</th><th>SEP</th><th>Sample</th>' + pars.map(parTh).join('') + '</tr></thead><tbody>';
   list.forEach(r => {
-    h += '<tr><td><input type="checkbox" data-no="' + esc(r.no) + '" style="width:auto"' + (dataSel.has(String(r.no)) ? ' checked' : '') + '></td><td class="mono">' + esc(r.no) + '</td><td class="mono">' + esc(r.d) + '</td><td>' + esc(r.pla) + '</td><td>' + esc(r.eqp) + '</td><td>' + esc(r.prd) + '</td><td class="mono">' + (r.sep && S.sepDb.sets[r.sep] ? esc(r.sep) : '<span class="badge a">' + esc(r.sep || 'ไม่มี') + '</span>') + '</td>' +
+    h += '<tr><td><input type="checkbox" data-no="' + esc(r.no) + '" style="width:auto"' + (dataSel.has(String(r.no)) ? ' checked' : '') + '></td><td style="white-space:nowrap"><button class="edbtn" data-ed="' + esc(r.no) + '" title="แก้ไขแถวนี้">✏️</button>' + (r.hist && r.hist.length ? '<span class="badge a" title="' + esc(histTitle(r)) + '">แก้ ' + r.hist.length + '</span>' : '') + '</td><td class="mono">' + esc(r.no) + '</td><td class="mono">' + esc(r.d) + '</td><td>' + esc(r.pla) + '</td><td>' + esc(r.eqp) + '</td><td>' + esc(r.prd) + '</td><td class="mono">' + (r.sep && S.sepDb.sets[r.sep] ? esc(r.sep) : '<span class="badge a">' + esc(r.sep || 'ไม่มี') + '</span>') + '</td>' +
       '<td style="max-width:260px;overflow:hidden;text-overflow:ellipsis" title="' + esc(r.smp) + '">' + esc(r.smp) + '</td>' + pars.map(p => diffCell(r, p)).join('') + '</tr>';
   });
   h += '</tbody></table>';
   $('dataWrap').innerHTML = h;
   $('dataMsg').textContent = total > 300 ? 'แสดง 300 จาก ' + total.toLocaleString() + ' แถว (ใช้ช่องค้นหา/เลือกเดือนเพื่อกรอง)' : total.toLocaleString() + ' แถว';
   $('dataWrap').querySelectorAll('[data-no]').forEach(el => el.onchange = () => { el.checked ? dataSel.add(el.dataset.no) : dataSel.delete(el.dataset.no); });
+  $('dataWrap').querySelectorAll('[data-ed]').forEach(el => el.onclick = () => openEdit(el.dataset.ed));
   $('dAll').onchange = e => { list.forEach(r => e.target.checked ? dataSel.add(String(r.no)) : dataSel.delete(String(r.no))); renderData(); };
 }
 $('qData').oninput = renderData; $('qMonth').onchange = renderData;
@@ -2348,19 +2373,143 @@ $('btnBulkDel').onclick = async () => {
   if (!dataSel.size) { toast('ยังไม่ได้เลือกแถว'); return; }
   if (!confirm('ลบ ' + dataSel.size + ' แถว?\n(กู้คืนได้จากประวัติใน GitHub)')) return;
   const months = new Set(S.rows.filter(r => dataSel.has(String(r.no))).map(r => NIR.monthOf(r.d)));
-  const backup = S.rows;
+  const backup = S.rows, backupDel = ((S.index && S.index.deleted) || []).slice();
+  S.index = S.index || { files: [] };
+  S.index.deleted = backupDel.concat(S.rows.filter(r => dataSel.has(String(r.no))).map(r => ({ k: rowKey(r), no: r.no, at: new Date().toISOString(), by: nirUser() || 'ไม่ทราบชื่อ' })));
   S.rows = S.rows.filter(r => !dataSel.has(String(r.no)));
   try { await saveMonths([...months], 'Delete ' + dataSel.size + ' rows'); dataSel.clear(); toast('ลบแล้ว'); refreshAll(); }
-  catch (e) { busy(false); S.rows = backup; alert('ไม่สำเร็จ: ' + e.message); }
+  catch (e) { busy(false); S.rows = backup; S.index.deleted = backupDel; alert('ไม่สำเร็จ: ' + e.message); }
 };
 $('btnBulkSep').onclick = async () => {
   const code = $('bulkSep').value;
   if (!dataSel.size || !code) { toast('เลือกแถวและรหัส SEP ก่อน'); return; }
   if (!confirm('เปลี่ยน SEP ของ ' + dataSel.size + ' แถว เป็น ' + code + '?')) return;
   const months = new Set(); const backup = JSON.stringify(S.rows);
-  S.rows.forEach(r => { if (dataSel.has(String(r.no))) { r.sep = code; months.add(NIR.monthOf(r.d)); } });
+  S.rows.forEach(r => { if (dataSel.has(String(r.no)) && auditEdit(r, { sep: code })) months.add(NIR.monthOf(r.d)); });
+  if (!months.size) { toast('แถวที่เลือกใช้ SEP นี้อยู่แล้ว'); return; }
   try { await saveMonths([...months], 'Change SEP → ' + code + ' (' + dataSel.size + ' rows)'); dataSel.clear(); toast('เปลี่ยนแล้ว'); refreshAll(); }
   catch (e) { busy(false); S.rows = JSON.parse(backup); alert('ไม่สำเร็จ: ' + e.message); }
+};
+
+// ── แก้ไขข้อมูลที่บันทึกแล้ว + audit trail ───────────────────────────────
+// ทุกการแก้เก็บ { at, by, old:{ฟิลด์: ค่าเดิม, v:{พารามิเตอร์:[WC,NIR] เดิม}} } ต่อท้าย r.hist (ไม่ลบประวัติ)
+const ED_FIELDS = [['d', 'วันที่'], ['prd', 'Product'], ['sep', 'SEP'], ['smp', 'Sample'], ['pla', 'Plant'], ['typ', 'ประเภท'], ['eqp', 'Eqp'], ['src', 'Src'], ['lab', 'Lab No.']];
+const ED_LABEL = Object.fromEntries(ED_FIELDS);
+function auditEdit(r, ch) {
+  const old = {}; let n = 0;
+  Object.keys(ch).forEach(k => {
+    if (k === 'v') return;
+    const nv = ch[k] === '' ? undefined : ch[k];
+    if ((r[k] ?? '') === (nv ?? '')) return;
+    old[k] = r[k] === undefined ? null : r[k];
+    if (nv === undefined) delete r[k]; else r[k] = nv;
+    n++;
+  });
+  if (ch.v) {
+    const ov = {};
+    Object.keys(ch.v).forEach(p => {
+      const a = r.v[p] || [null, null], b = ch.v[p];
+      if (a[0] === b[0] && a[1] === b[1]) return;
+      ov[p] = r.v[p] ? a.slice() : null;
+      if (b[0] === null && b[1] === null) delete r.v[p]; else r.v[p] = b.slice();
+      n++;
+    });
+    if (Object.keys(ov).length) old.v = ov;
+  }
+  if (!n) return false;
+  (r.hist = r.hist || []).push({ at: new Date().toISOString(), by: nirUser() || 'ไม่ทราบชื่อ', old });
+  S._learn = null; S._idx = null;
+  return true;
+}
+const fmtAt = iso => { const t = new Date(iso); return isNaN(t) ? iso : t.toLocaleString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); };
+function histLines(r) {
+  return (r.hist || []).map(h => {
+    const parts = Object.keys(h.old || {}).filter(k => k !== 'v').map(k => (ED_LABEL[k] || k) + ' เดิม ' + (h.old[k] ?? '(ว่าง)'));
+    Object.keys((h.old && h.old.v) || {}).forEach(p => { const o = h.old.v[p]; parts.push(p + ' เดิม ' + (o ? 'WC ' + (o[0] ?? '–') + ' / NIR ' + (o[1] ?? '–') : '(ว่าง)')); });
+    return fmtAt(h.at) + ' · ' + h.by + ' — ' + parts.join(', ');
+  }).reverse();
+}
+const histTitle = r => histLines(r).join('\n');
+const numOrNull = v => { v = String(v ?? '').trim().replace(',', '.'); if (v === '') return null; const n = +v; return isFinite(n) ? n : NaN; };
+
+function openEdit(no) {
+  const r = S.rows.find(x => String(x.no) === String(no));
+  if (!r) return;
+  const sepOpts = c => '<option value="">(ไม่มี)</option>' + Object.keys(S.sepDb.sets).sort().map(k => '<option' + (k === c ? ' selected' : '') + '>' + esc(k) + '</option>').join('');
+  const lists = { pla: 'dlPla', typ: 'dlTyp', eqp: 'dlEqp', src: 'dlSrc', prd: 'dlPrd' };
+  let h = '<div class="row" style="align-items:center"><div class="card-title" style="margin:0">✏️ แก้ไขแถว No.' + esc(r.no) + '</div><span class="spacer"></span><button class="btn sm" id="edX">✕</button></div>';
+  h += '<div class="ed-grid">' + ED_FIELDS.map(([k, lb]) => {
+    if (k === 'sep') return '<div><label>SEP <a href="#" id="edAuto" style="font-size:10px">(เลือกตาม Product)</a></label><select data-f="sep">' + sepOpts(r.sep) + '</select></div>';
+    if (k === 'd') return '<div><label>' + lb + '</label><input type="date" data-f="d" value="' + esc(r.d) + '"></div>';
+    return '<div' + (k === 'smp' ? ' style="grid-column:span 2"' : '') + '><label>' + lb + '</label><input data-f="' + k + '"' + (lists[k] ? ' list="' + lists[k] + '"' : '') + ' value="' + esc(r[k] ?? '') + '"></div>';
+  }).join('') + '</div>';
+  h += '<div style="font-size:12px;font-weight:700;color:var(--txt2)">ค่าวิเคราะห์ <span style="font-weight:400;color:var(--txt3)">(ช่องซ้าย = WC ค่าเคมี · ช่องขวา = NIR · เว้นว่างได้)</span></div>';
+  const pars = NIR.PARAM_KEYS.filter(p => r.v[p]).concat(NIR.PARAM_KEYS.filter(p => !r.v[p]));
+  h += '<div class="ed-par">' + pars.map(p => { const v = r.v[p] || [null, null]; return '<div class="pp"><b>' + esc(p) + '</b><input data-p="' + esc(p) + '" data-i="0" placeholder="WC" value="' + (v[0] ?? '') + '"><input data-p="' + esc(p) + '" data-i="1" placeholder="NIR" value="' + (v[1] ?? '') + '"></div>'; }).join('') + '</div>';
+  if (r.hist && r.hist.length) h += '<div style="font-size:12px;font-weight:700;color:var(--txt2)">ประวัติการแก้ไข (' + r.hist.length + ')</div><div class="ed-hist">' + histLines(r).map(l => '<div>' + esc(l) + '</div>').join('') + '</div>';
+  if (r.added || r.upd) h += '<div style="font-size:11px;color:var(--txt3);margin-top:6px">' + (r.added ? 'นำเข้า ' + esc(r.added.replace('T', ' ')) : '') + (r.upd ? ' · เติมค่า ' + esc(r.upd.replace('T', ' ')) : '') + '</div>';
+  h += '<div class="row" style="margin-top:14px"><span style="font-size:11px;color:var(--txt3)">ผู้แก้: <b>' + esc(nirUser() || 'ไม่ทราบชื่อ (ยังไม่ได้ login)') + '</b> · ระบบเก็บค่าเดิมไว้อัตโนมัติ</span><span class="spacer"></span><button class="btn" id="edCancel">ยกเลิก</button><button class="btn primary" id="edSave">บันทึกการแก้ไข</button></div>';
+  $('edBox').innerHTML = h;
+  const M = $('edModal'); M.style.display = 'flex';
+  const close = () => { M.style.display = 'none'; };
+  $('edX').onclick = close; $('edCancel').onclick = close;
+  M.onclick = e => { if (e.target === M) close(); };
+  const F = k => $('edBox').querySelector('[data-f="' + k + '"]');
+  let sepTouched = false;
+  F('sep').onchange = () => { sepTouched = true; };
+  const autoSep = () => { const c = NIR.findSep(S.sepDb, NIR.normProduct(F('prd').value.trim()), F('pla').value.trim(), F('d').value); if (c) F('sep').value = c; return c; };
+  ['prd', 'pla', 'd'].forEach(k => F(k).addEventListener('change', () => { if (!sepTouched) autoSep(); }));
+  $('edAuto').onclick = e => { e.preventDefault(); if (!autoSep()) toast('ไม่พบ SEP ของ Product นี้'); };
+  // ไฮไลต์ช่องที่ถูกแก้
+  $('edBox').querySelectorAll('input,select').forEach(el => el.addEventListener('input', () => {
+    let orig;
+    if (el.dataset.f) orig = String(r[el.dataset.f] ?? ''); else if (el.dataset.p) { const v = r.v[el.dataset.p]; orig = v && v[+el.dataset.i] !== null ? String(v[+el.dataset.i]) : ''; } else return;
+    el.classList.toggle('chg', el.value.trim() !== orig);
+  }));
+  $('edSave').onclick = async () => {
+    const ch = {};
+    ED_FIELDS.forEach(([k]) => { let v = F(k).value.trim(); if (k === 'prd') v = NIR.normProduct(v); ch[k] = v; });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ch.d)) { alert('วันที่ไม่ถูกต้อง'); return; }
+    if (!ch.prd) { alert('ต้องมี Product'); return; }
+    if (!ch.smp) { alert('ต้องมีชื่อ Sample'); return; }
+    ch.v = {}; let bad = '';
+    NIR.PARAM_KEYS.forEach(p => {
+      const a = numOrNull($('edBox').querySelector('[data-p="' + p + '"][data-i="0"]').value), b = numOrNull($('edBox').querySelector('[data-p="' + p + '"][data-i="1"]').value);
+      if (Number.isNaN(a) || Number.isNaN(b)) bad = bad || p;
+      ch.v[p] = [a, b];
+    });
+    if (bad) { alert('ค่า ' + bad + ' ไม่ใช่ตัวเลข'); return; }
+    const backup = JSON.stringify(r), oldM = NIR.monthOf(r.d);
+    if (!auditEdit(r, ch)) { toast('ไม่มีอะไรเปลี่ยน'); close(); return; }
+    const months = uniq([oldM, NIR.monthOf(r.d)]);
+    try {
+      await saveMonths(months, 'Edit row No.' + r.no + (months.length > 1 ? ' (move ' + months.join(' → ') + ')' : ''));
+      close(); toast('บันทึกการแก้ไขแล้ว'); refreshAll();
+    } catch (e) {
+      busy(false);
+      Object.keys(r).forEach(k => delete r[k]); Object.assign(r, JSON.parse(backup));
+      S._learn = null; S._idx = null;
+      alert('ไม่สำเร็จ: ' + e.message);
+    }
+  };
+}
+$('btnBulkPrd').onclick = async () => {
+  const prd = NIR.normProduct($('bulkPrd').value.trim());
+  if (!dataSel.size || !prd) { toast('เลือกแถวและพิมพ์ Product ก่อน'); return; }
+  if (!confirm('เปลี่ยน Product ของ ' + dataSel.size + ' แถว เป็น ' + prd + '?\n(SEP จะเลือกใหม่ตาม Product · ระบบเก็บค่าเดิมไว้ในแถว)')) return;
+  const backup = JSON.stringify(S.rows), months = new Set(); let noSep = 0;
+  S.rows.forEach(r => {
+    if (!dataSel.has(String(r.no))) return;
+    const sep = NIR.findSep(S.sepDb, prd, r.pla, r.d);
+    if (!sep) noSep++;
+    if (auditEdit(r, { prd, sep: sep || r.sep })) months.add(NIR.monthOf(r.d));
+  });
+  if (!months.size) { toast('แถวที่เลือกเป็น ' + prd + ' อยู่แล้ว'); return; }
+  try {
+    await saveMonths([...months], 'Change product → ' + prd + ' (' + dataSel.size + ' rows)');
+    dataSel.clear(); $('bulkPrd').value = '';
+    toast('เปลี่ยนแล้ว' + (noSep ? ' · ' + noSep + ' แถวไม่พบ SEP ของ ' + prd + ' (คง SEP เดิม)' : '')); refreshAll();
+  } catch (e) { busy(false); S.rows = JSON.parse(backup); S._learn = null; S._idx = null; alert('ไม่สำเร็จ: ' + e.message); }
 };
 
 // ════════════════════════════════════════════════════════════════════
@@ -2447,7 +2596,47 @@ $('btnTok').onclick = async () => {
 };
 $('btnTokDel').onclick = () => { ls.del('nir_gh_token'); $('tok').value = ''; $('tokMsg').innerHTML = '<div class="note">ลบ token แล้ว</div>'; renderRelay(); refreshAll(); };
 
+// ── รวม data.json เข้ากับข้อมูลในระบบ (ไม่เขียนทับ) ─────────────────────────
+const normTxt = x => String(x ?? '').toUpperCase().replace(/\s+/g, ' ').trim();
+const rowKey = r => r.d + '|' + normTxt(r.smp) + '|' + normTxt(r.pla);
+function cmpRows(x, r) {   // นับค่าที่ตรง/ไม่ตรง (ทั้ง WC และ NIR) + Product ตรงกันไหม
+  let eq = 0, ne = 0;
+  Object.keys(x.v || {}).forEach(p => [0, 1].forEach(i => {
+    const a = x.v[p][i], b = r.v && r.v[p] ? r.v[p][i] : null;
+    if (a === null || a === undefined || b === null || b === undefined) return;
+    if (Math.abs(a - b) <= 1e-6) eq++; else ne++;
+  }));
+  const prd = NIR.normProduct(x.prd) === NIR.normProduct(r.prd) || (x.sep && x.sep === r.sep);
+  return { eq, ne, prd, score: eq - 2 * ne + (prd ? 3 : 0) };
+}
+function mergePlan(slim) {
+  const byKey = new Map(), byLab = new Map();
+  const add = (k, r) => { if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(r); };
+  S.rows.forEach(r => {
+    add(rowKey(r), r);
+    (r.hist || []).forEach(h => { const o = h.old || {}; if (o.d || o.smp || o.pla) add(rowKey({ d: o.d || r.d, smp: o.smp ?? r.smp, pla: o.pla ?? r.pla }), r); });   // ชื่อ/วันที่ก่อนแก้
+    if (r.lab) { if (!byLab.has(r.lab)) byLab.set(r.lab, []); byLab.get(r.lab).push(r); }
+  });
+  const dead = new Set(((S.index && S.index.deleted) || []).map(t => t.k));
+  const out = { add: [], fill: [], dup: 0, del: 0, conflict: 0, noDate: 0 };
+  slim.forEach(x => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(x.d || '')) { out.noDate++; return; }
+    if (dead.has(rowKey(x))) { out.del++; return; }
+    let cand = (byKey.get(rowKey(x)) || []).concat(x.lab ? (byLab.get(x.lab) || []).filter(r => r.d === x.d) : []);
+    cand = [...new Set(cand)];
+    let m = null, bc = null;
+    cand.forEach(r => { const c = cmpRows(x, r); if (!bc || c.score > bc.score) { bc = c; m = r; } });
+    // ยอมรับว่าเป็นแถวเดียวกัน: ค่าที่ตรงมากกว่าที่ต่าง หรือไม่มีค่าให้เทียบแต่ Product ตรง / มีผู้สมัครแถวเดียว
+    if (m && !(bc.eq > bc.ne || (bc.eq === 0 && bc.ne === 0 && (bc.prd || cand.length === 1)))) m = null;
+    if (!m) { out.add.push(x); return; }
+    const ch = changedParams(m, x), cf = conflictParams(m, x);
+    if (cf.length) out.conflict++;
+    if (ch.length) out.fill.push([m, x, ch]); else out.dup++;
+  });
+  return out;
+}
 async function runMigration(jsons) {
+  if (S.migrated && S.rows.length) return runMerge(jsons);
   let all = [];
   jsons.forEach(j => { if (j && j.rows) all = all.concat(j.rows); });
   if (!all.length) throw new Error('ไม่พบ rows ในไฟล์');
@@ -2488,6 +2677,54 @@ async function runMigration(jsons) {
       refreshAll();
     } catch (e) { busy(false); alert('ไม่สำเร็จ: ' + e.message); }
   };
+}
+async function runMerge(jsons) {
+  let all = [];
+  jsons.forEach(j => { if (j && j.rows) all = all.concat(j.rows); });
+  if (!all.length) throw new Error('ไม่พบ rows ในไฟล์');
+  const seen = new Set();
+  const wide = all.filter(r => { const k = NIR.wideKey(r); if (seen.has(k)) return false; seen.add(k); return true; });
+  const slim = wide.map(NIR.wideToSlim);
+  const plan = mergePlan(slim);
+  const addM = uniq(plan.add.map(r => NIR.monthOf(r.d)));
+  let h = '<div class="note ' + (plan.add.length || plan.fill.length ? 'ok' : '') + '" style="margin-bottom:10px"><div class="stat">' +
+    '<div><b>' + slim.length.toLocaleString() + '</b>แถวในไฟล์</div>' +
+    '<div><b>' + plan.add.length.toLocaleString() + '</b>แถวใหม่ที่จะเพิ่ม</div>' +
+    '<div><b>' + plan.fill.length.toLocaleString() + '</b>แถวเดิมที่เติมค่าว่าง</div>' +
+    '<div><b>' + plan.dup.toLocaleString() + '</b>มีในระบบแล้ว (ข้าม)</div>' +
+    '<div><b>' + plan.del + '</b>เคยลบผ่านเว็บ (ข้าม)</div></div></div>';
+  if (plan.conflict) h += '<div class="note warn" style="margin-bottom:10px">' + plan.conflict + ' แถวมีค่าในไฟล์ต่างจากในระบบ — <b>ใช้ค่าในระบบตามเดิม</b> (ถ้าต้องการค่าในไฟล์ ให้แก้ด้วยปุ่ม ✏️ ในแท็บข้อมูลในระบบ)</div>';
+  if (plan.noDate) h += '<div class="note warn" style="margin-bottom:10px">' + plan.noDate + ' แถวไม่มีวันที่ — ข้าม</div>';
+  if (plan.add.length) h += '<div style="font-size:12px;color:var(--txt2);margin-bottom:8px">แถวใหม่อยู่ในเดือน: ' + addM.map(esc).join(', ') + '</div>';
+  if (plan.add.length || plan.fill.length) h += '<div class="row"><button class="btn primary" id="migSave">' + (canWrite() ? 'เพิ่มเข้าระบบ' : 'ดาวน์โหลด ZIP') + '</button></div>';
+  else h += '<div style="font-size:12px;color:var(--txt3)">ไม่มีอะไรต้องเพิ่ม — ข้อมูลในไฟล์มีในระบบครบแล้ว</div>';
+  $('migOut').innerHTML = h;
+  if (!$('migSave')) return;
+  $('migSave').onclick = async () => {
+    const backup = JSON.stringify(S.rows), months = new Set(), stamp = new Date().toISOString().slice(0, 16);
+    let maxNo = S.rows.reduce((m, r) => Math.max(m, +r.no || 0), 0);
+    plan.fill.forEach(([m, x]) => {
+      Object.keys(x.v).forEach(p => { const o = m.v[p] || [null, null]; [0, 1].forEach(i => { if (x.v[p][i] !== null && (o[i] === null || o[i] === undefined)) o[i] = x.v[p][i]; }); m.v[p] = o; });
+      m.upd = stamp; months.add(NIR.monthOf(m.d));
+    });
+    plan.add.forEach(x => {
+      const r = Object.assign({}, x, { no: ++maxNo, added: stamp, from: 'data.json' });
+      if (!r.sep || !S.sepDb.sets[r.sep]) r.sep = NIR.findSep(S.sepDb, NIR.normProduct(r.prd), r.pla, r.d) || r.sep;
+      S.rows.push(r); months.add(NIR.monthOf(r.d));
+    });
+    S._learn = null; S._idx = null;
+    try {
+      await saveMonths([...months], 'Merge data.json: +' + plan.add.length + ' new, fill ' + plan.fill.length);
+      $('migOut').innerHTML = '<div class="note ok">✅ เพิ่ม ' + plan.add.length + ' แถว · เติมค่า ' + plan.fill.length + ' แถว — ข้อมูลเดิมไม่ถูกแตะ</div>';
+      refreshAll();
+    } catch (e) { busy(false); S.rows = JSON.parse(backup); S._learn = null; S._idx = null; alert('ไม่สำเร็จ: ' + e.message); }
+  };
+}
+function renderMigCard() {
+  const merge = !!(S.migrated && S.rows.length);
+  $('migTitle').textContent = merge ? 'รวมข้อมูลจาก data.json (Excel / Power Automate เดิม)' : 'ย้ายข้อมูลจาก Excel เดิม (ทำครั้งเดียว)';
+  $('migMergeNote').style.display = merge ? '' : 'none';
+  $('migOrigNote').style.display = merge ? 'none' : '';
 }
 $('btnMigFetch').onclick = async () => {
   try {
