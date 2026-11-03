@@ -1455,9 +1455,12 @@ html.fb .nb-switch button { border-radius: 11px; }
     <div class="row" style="margin-bottom:10px">
       <input id="qData" placeholder="ค้นหา sample / product / SEP / No." style="max-width:340px">
       <select id="qMonth" style="max-width:160px"></select>
+      <label class="row" style="gap:5px;font-size:12px;color:var(--txt2)"><input type="checkbox" id="qNoPla" style="width:auto"> เฉพาะที่ไม่มี Plant / Eqp</label>
+      <label class="row" style="gap:5px;font-size:12px;color:var(--txt2)"><input type="checkbox" id="qMis" style="width:auto"> เฉพาะ Product ไม่ตรง SEP</label>
       <span class="spacer"></span>
       <input id="bulkPrd" list="dlPrd" placeholder="เปลี่ยน Product เป็น…" style="max-width:170px">
       <button class="btn" id="btnBulkPrd">เปลี่ยน Product แถวที่เลือก</button>
+      <button class="btn" id="btnBulkPla">ตั้ง Plant / Eqp…</button>
       <select id="bulkSep" style="max-width:160px"><option value="">เปลี่ยน SEP เป็น…</option></select>
       <button class="btn" id="btnBulkSep">เปลี่ยน SEP แถวที่เลือก</button>
       <button class="btn danger" id="btnBulkDel">ลบแถวที่เลือก</button>
@@ -2048,6 +2051,7 @@ function rowIssues(r, pars) {
   else if (!r.sep) out.push(['a', 'ไม่พบ SEP → เลือก/สร้างในช่อง SEP']);
   if (r.prd && r.prdGuess && !r.userPrd) out.push(['b', (r.prdGuess.learned ? '🧠 ' : 'เดาจากรหัส ') + r.prdGuess.rule + (r.prdGuess.code ? ' · ' + r.prdGuess.code : '')]);
   else if (r.userSep && r.sep !== r.autoSep) out.push(['b', 'SEP เลือกเอง']);
+  if (r.status !== 'dup' && (!r.pla || !r.eqp)) out.push(['r', 'ไม่มี ' + [!r.pla && 'Plant', !r.eqp && 'Eqp'].filter(Boolean).join(' / ') + ' → ระบบจะถามตอนบันทึก']);
   if (r.newInst) out.push(['a', 'เครื่องใหม่ ' + (r.instName || r.inst) + ' → ใช้ค่าเริ่มต้น']);
   if (r.status === 'dup') out.push(['n', 'มีในระบบแล้ว']);
   if (r.status === 'update') out.push(['g', 'อัปเดตแถวเดิม No.' + r.match.no + ': ' + r.changes.join(', ')]);
@@ -2063,7 +2067,7 @@ function rowIssues(r, pars) {
   }
   return out;
 }
-const isProblem = r => !r.smp || !r.prd || (r.prd && !r.sep) || r.newInst || (r.conflicts && r.conflicts.length) || (r.status !== 'dup' && NIR.PARAM_KEYS.some(p => isOutlier(r, p)));
+const isProblem = r => !r.smp || !r.prd || (r.status !== 'dup' && (!r.pla || !r.eqp)) || (r.prd && !r.sep) || r.newInst || (r.conflicts && r.conflicts.length) || (r.status !== 'dup' && NIR.PARAM_KEYS.some(p => isOutlier(r, p)));
 
 function renderPreview(header) {
   const pars = NIR.PARAM_KEYS.filter(p => S.preview.some(r => r.v[p]));
@@ -2107,6 +2111,8 @@ function renderPreview(header) {
     const r = S.preview[+el.dataset.sep];
     if (el.value === '__new') { el.value = r.sep || ''; gotoNewSep(r); return; }
     r.sep = el.value; r.userSep = !!el.value;
+    const sp = el.value && sepPrd(el.value);   // SEP เป็นของ Product อื่น → เปลี่ยน Product ตาม
+    if (sp && NIR.normProduct(sp) !== NIR.normProduct(r.prd)) { r.prd = NIR.normProduct(sp); r.prdGuess = null; toast('SEP ' + el.value + ' เป็นของ ' + sp + ' → เปลี่ยน Product ให้แล้ว'); }
     // ใช้ SEP เดียวกันกับแถวอื่นของ product+plant เดียวกันที่ยังหาไม่เจอ
     if (el.value) S.preview.forEach(x => { if (x !== r && !x.sep && x.prd === r.prd && x.pla === r.pla) { x.sep = el.value; x.userSep = true; } });
     setTimeout(() => renderPreview(header), 0);
@@ -2136,6 +2142,8 @@ $('btnSave').onclick = async () => {
   const sel = S.preview.filter(r => r.on && r.smp && r.prd && r.status !== 'dup');
   const selDup = S.preview.filter(r => r.on && r.status === 'dup').length;
   if (!sel.length) { toast(selDup ? 'แถวที่เลือกมีในระบบแล้วทั้งหมด' : 'ยังไม่ได้เลือกแถว'); return; }
+  const lack = sel.filter(r => r.status !== 'dup' && (!r.pla || !r.eqp));
+  if (lack.length && !(await askPlantEqp(lack))) return;
   try {
     busy(true, 'กำลังโหลดข้อมูลล่าสุด…');
     if (canWrite() && S.loaded) {   // โหลดล่าสุดก่อน กันเลข No. ชนกับคนอื่น แล้วจับคู่แถวเดิมใหม่
@@ -2172,6 +2180,7 @@ $('btnSave').onclick = async () => {
     const want = new Map();
     sel.forEach(r => { if (r.userSep && r.sep && !r.autoSep && r.prd) { const k = r.prd + '|' + r.pla; const w = want.get(k); if (!w || r.d < w.from) want.set(k, { prd: r.prd, pla: r.pla, sep: r.sep, from: r.d }); } });
     want.forEach(w => { if (!db.rules.some(x => x.prd === w.prd && x.pla === w.pla && x.sep === w.sep)) { db.rules.push(w); learned++; } });
+    learned += S._instLearned || 0; S._instLearned = 0;
     const extra = {};
     if (learned) { db.updated = new Date().toISOString(); extra['sep.json'] = NIR.stringifySep(db); }
     const how = await saveMonths([...months], 'Import ' + nNew + ' new, ' + nUpd + ' updated', extra);
@@ -2346,19 +2355,24 @@ $('btnNewPrd').onclick = () => {
 // DATA (ดู / ลบ / เปลี่ยน SEP)
 // ════════════════════════════════════════════════════════════════════
 let dataSel = new Set();
+// SEP แต่ละรหัสเป็นของ Product เดียว — หน้า Running / Summary แยกกราฟตาม Product จึงต้องตรงกัน
+const sepPrd = code => (S.sepDb.sets[code] && S.sepDb.sets[code].prd) || '';
+const sepMismatch = r => { const p = sepPrd(r.sep); return !!(p && r.prd && NIR.normProduct(p) !== NIR.normProduct(r.prd)); };
 function renderData() {
   const months = uniq(S.rows.map(r => NIR.monthOf(r.d))).reverse();
   const curM = $('qMonth').value;
   $('qMonth').innerHTML = '<option value="">ทุกเดือน</option>' + months.map(m => '<option' + (m === curM ? ' selected' : '') + '>' + m + '</option>').join('');
   $('bulkSep').innerHTML = '<option value="">เปลี่ยน SEP เป็น…</option>' + Object.keys(S.sepDb.sets).sort().map(c => '<option>' + esc(c) + '</option>').join('');
   const q = $('qData').value.toLowerCase().trim(), m = $('qMonth').value;
-  let list = S.rows.filter(r => (!m || NIR.monthOf(r.d) === m) && (!q || [r.no, r.smp, r.prd, r.sep, r.pla, r.lab].join(' ').toLowerCase().includes(q)));
+  const onlyNoPla = $('qNoPla').checked;
+  const onlyMis = $('qMis').checked;
+  let list = S.rows.filter(r => (!onlyNoPla || !r.pla || !r.eqp) && (!onlyMis || sepMismatch(r)) && (!m || NIR.monthOf(r.d) === m) && (!q || [r.no, r.smp, r.prd, r.sep, r.pla, r.lab].join(' ').toLowerCase().includes(q)));
   list = list.slice().sort((a, b) => (+b.no || 0) - (+a.no || 0));
   const total = list.length; list = list.slice(0, 300);
   const pars = NIR.PARAM_KEYS.filter(p => list.some(r => r.v[p]));
   let h = '<table><thead><tr><th><input type="checkbox" id="dAll" style="width:auto"></th><th></th><th>No.</th><th>วันที่</th><th>Plant</th><th>Eqp</th><th>Product</th><th>SEP</th><th>Sample</th>' + pars.map(parTh).join('') + '</tr></thead><tbody>';
   list.forEach(r => {
-    h += '<tr><td><input type="checkbox" data-no="' + esc(r.no) + '" style="width:auto"' + (dataSel.has(String(r.no)) ? ' checked' : '') + '></td><td style="white-space:nowrap"><button class="edbtn" data-ed="' + esc(r.no) + '" title="แก้ไขแถวนี้">✏️</button>' + (r.hist && r.hist.length ? '<span class="badge a" title="' + esc(histTitle(r)) + '">แก้ ' + r.hist.length + '</span>' : '') + '</td><td class="mono">' + esc(r.no) + '</td><td class="mono">' + esc(r.d) + '</td><td>' + esc(r.pla) + '</td><td>' + esc(r.eqp) + '</td><td>' + esc(r.prd) + '</td><td class="mono">' + (r.sep && S.sepDb.sets[r.sep] ? esc(r.sep) : '<span class="badge a">' + esc(r.sep || 'ไม่มี') + '</span>') + '</td>' +
+    h += '<tr><td><input type="checkbox" data-no="' + esc(r.no) + '" style="width:auto"' + (dataSel.has(String(r.no)) ? ' checked' : '') + '></td><td style="white-space:nowrap"><button class="edbtn" data-ed="' + esc(r.no) + '" title="แก้ไขแถวนี้">✏️</button>' + (r.hist && r.hist.length ? '<span class="badge a" title="' + esc(histTitle(r)) + '">แก้ ' + r.hist.length + '</span>' : '') + '</td><td class="mono">' + esc(r.no) + '</td><td class="mono">' + esc(r.d) + '</td><td>' + esc(r.pla) + '</td><td>' + esc(r.eqp) + '</td><td>' + esc(r.prd) + (sepMismatch(r) ? ' <span class="badge a" title="SEP ' + esc(r.sep) + ' เป็นของ ' + esc(sepPrd(r.sep)) + '">≠ SEP</span>' : '') + '</td><td class="mono">' + (r.sep && S.sepDb.sets[r.sep] ? esc(r.sep) : '<span class="badge a">' + esc(r.sep || 'ไม่มี') + '</span>') + '</td>' +
       '<td style="max-width:260px;overflow:hidden;text-overflow:ellipsis" title="' + esc(r.smp) + '">' + esc(r.smp) + '</td>' + pars.map(p => diffCell(r, p)).join('') + '</tr>';
   });
   h += '</tbody></table>';
@@ -2366,9 +2380,10 @@ function renderData() {
   $('dataMsg').textContent = total > 300 ? 'แสดง 300 จาก ' + total.toLocaleString() + ' แถว (ใช้ช่องค้นหา/เลือกเดือนเพื่อกรอง)' : total.toLocaleString() + ' แถว';
   $('dataWrap').querySelectorAll('[data-no]').forEach(el => el.onchange = () => { el.checked ? dataSel.add(el.dataset.no) : dataSel.delete(el.dataset.no); });
   $('dataWrap').querySelectorAll('[data-ed]').forEach(el => el.onclick = () => openEdit(el.dataset.ed));
+  $('dAll').checked = list.length > 0 && list.every(r => dataSel.has(String(r.no)));
   $('dAll').onchange = e => { list.forEach(r => e.target.checked ? dataSel.add(String(r.no)) : dataSel.delete(String(r.no))); renderData(); };
 }
-$('qData').oninput = renderData; $('qMonth').onchange = renderData;
+$('qData').oninput = renderData; $('qMonth').onchange = renderData; $('qNoPla').onchange = renderData; $('qMis').onchange = renderData;
 $('btnBulkDel').onclick = async () => {
   if (!dataSel.size) { toast('ยังไม่ได้เลือกแถว'); return; }
   if (!confirm('ลบ ' + dataSel.size + ' แถว?\n(กู้คืนได้จากประวัติใน GitHub)')) return;
@@ -2383,9 +2398,11 @@ $('btnBulkDel').onclick = async () => {
 $('btnBulkSep').onclick = async () => {
   const code = $('bulkSep').value;
   if (!dataSel.size || !code) { toast('เลือกแถวและรหัส SEP ก่อน'); return; }
-  if (!confirm('เปลี่ยน SEP ของ ' + dataSel.size + ' แถว เป็น ' + code + '?')) return;
+  const sp = sepPrd(code);
+  const nMis = S.rows.filter(r => dataSel.has(String(r.no)) && sp && NIR.normProduct(r.prd) !== NIR.normProduct(sp)).length;
+  if (!confirm('เปลี่ยน SEP ของ ' + dataSel.size + ' แถว เป็น ' + code + '?' + (nMis ? '\n\nSEP ' + code + ' เป็นของ Product "' + sp + '" — ' + nMis + ' แถวจะเปลี่ยน Product เป็น ' + sp + ' ด้วย (ให้กราฟหน้า Running / Summary ย้ายตาม)' : ''))) return;
   const months = new Set(); const backup = JSON.stringify(S.rows);
-  S.rows.forEach(r => { if (dataSel.has(String(r.no)) && auditEdit(r, { sep: code })) months.add(NIR.monthOf(r.d)); });
+  S.rows.forEach(r => { if (dataSel.has(String(r.no)) && auditEdit(r, sp ? { sep: code, prd: NIR.normProduct(sp) } : { sep: code })) months.add(NIR.monthOf(r.d)); });
   if (!months.size) { toast('แถวที่เลือกใช้ SEP นี้อยู่แล้ว'); return; }
   try { await saveMonths([...months], 'Change SEP → ' + code + ' (' + dataSel.size + ' rows)'); dataSel.clear(); toast('เปลี่ยนแล้ว'); refreshAll(); }
   catch (e) { busy(false); S.rows = JSON.parse(backup); alert('ไม่สำเร็จ: ' + e.message); }
@@ -2456,7 +2473,14 @@ function openEdit(no) {
   M.onclick = e => { if (e.target === M) close(); };
   const F = k => $('edBox').querySelector('[data-f="' + k + '"]');
   let sepTouched = false;
-  F('sep').onchange = () => { sepTouched = true; };
+  F('sep').onchange = () => {
+    sepTouched = true;
+    const sp = sepPrd(F('sep').value);
+    if (sp && NIR.normProduct(sp) !== NIR.normProduct(F('prd').value.trim())) {
+      F('prd').value = sp; F('prd').classList.toggle('chg', sp !== String(r.prd ?? ''));
+      toast('SEP ' + F('sep').value + ' เป็นของ ' + sp + ' → เปลี่ยน Product ให้ตรงกันแล้ว');
+    }
+  };
   const autoSep = () => { const c = NIR.findSep(S.sepDb, NIR.normProduct(F('prd').value.trim()), F('pla').value.trim(), F('d').value); if (c) F('sep').value = c; return c; };
   ['prd', 'pla', 'd'].forEach(k => F(k).addEventListener('change', () => { if (!sepTouched) autoSep(); }));
   $('edAuto').onclick = e => { e.preventDefault(); if (!autoSep()) toast('ไม่พบ SEP ของ Product นี้'); };
@@ -2510,6 +2534,74 @@ $('btnBulkPrd').onclick = async () => {
     dataSel.clear(); $('bulkPrd').value = '';
     toast('เปลี่ยนแล้ว' + (noSep ? ' · ' + noSep + ' แถวไม่พบ SEP ของ ' + prd + ' (คง SEP เดิม)' : '')); refreshAll();
   } catch (e) { busy(false); S.rows = JSON.parse(backup); S._learn = null; S._idx = null; alert('ไม่สำเร็จ: ' + e.message); }
+};
+
+// ── ถาม Plant / Eqp ก่อนบันทึก (แถวที่ระบบหาไม่เจอ) ─────────────────────────
+const PLA_FIELDS = [['pla', 'Plant', 'dlPla'], ['eqp', 'Eqp', 'dlEqp'], ['typ', 'ประเภท', 'dlTyp'], ['src', 'Src', 'dlSrc']];
+function modalOpen(html) {
+  $('edBox').innerHTML = html; const M = $('edModal'); M.style.display = 'flex';
+  return () => { M.style.display = 'none'; M.onclick = null; };
+}
+function askPlantEqp(rows) {
+  return new Promise(resolve => {
+    const groups = new Map();
+    rows.forEach(r => { const g = r.inst ? 'inst:' + r.inst : 'org:' + (r.origin || 'วางข้อมูล'); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(r); });
+    const gs = [...groups.entries()];
+    const first = (list, k) => (list.find(r => r[k]) || {})[k] || '';
+    let h = '<div class="row" style="align-items:center"><div class="card-title" style="margin:0">⚠️ ยังไม่มี Plant / Eqp</div><span class="spacer"></span><button class="btn sm" id="peX">✕</button></div>' +
+      '<div class="note warn" style="margin:10px 0">' + rows.length + ' แถวที่จะบันทึกยังไม่รู้ว่ามาจาก Plant / เครื่องไหน — กรอกก่อนบันทึก (ใช้กับทุกแถวในกลุ่ม)</div>';
+    gs.forEach(([g, list], gi) => {
+      const inst = list[0].inst, name = list[0].instName || inst || list[0].origin || 'วางข้อมูล';
+      h += '<div style="border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:10px">' +
+        '<div style="font-size:12.5px;font-weight:700;color:var(--txt)">' + esc(name) + ' <span style="font-weight:400;color:var(--txt3)">· ' + list.length + ' แถว · เช่น ' + esc((list[0].smp || '').slice(0, 50)) + '</span></div>' +
+        '<div class="ed-grid">' + PLA_FIELDS.map(([k, lb, dl]) => '<div><label>' + lb + (k === 'pla' || k === 'eqp' ? ' *' : '') + '</label><input data-g="' + gi + '" data-k="' + k + '" list="' + dl + '" value="' + esc(first(list, k)) + '"></div>').join('') + '</div>' +
+        (inst ? '<label class="row" style="gap:6px;font-size:12px;color:var(--txt2)"><input type="checkbox" data-rem="' + gi + '" checked style="width:auto"> จำค่านี้ให้เครื่อง ' + esc(name) + ' (ครั้งหน้าไม่ต้องถาม)</label>' : '') + '</div>';
+    });
+    h += '<div class="row" style="margin-top:6px"><span class="spacer"></span><button class="btn" id="peCancel">ยกเลิก</button><button class="btn primary" id="peOk">ใช้ค่านี้และบันทึกต่อ</button></div>';
+    const close = modalOpen(h);
+    const done = v => { close(); resolve(v); };
+    $('peX').onclick = () => done(false); $('peCancel').onclick = () => done(false);
+    $('peOk').onclick = () => {
+      const val = (gi, k) => $('edBox').querySelector('[data-g="' + gi + '"][data-k="' + k + '"]').value.trim();
+      for (let gi = 0; gi < gs.length; gi++) if (!val(gi, 'pla') || !val(gi, 'eqp')) { alert('กรอก Plant และ Eqp ให้ครบทุกกลุ่ม'); return; }
+      gs.forEach(([g, list], gi) => {
+        const v = Object.fromEntries(PLA_FIELDS.map(([k]) => [k, val(gi, k)]));
+        list.forEach(r => { PLA_FIELDS.forEach(([k]) => { if (v[k]) r[k] = v[k]; }); finalizeRow(r, { on: r.on }); });
+        const rem = $('edBox').querySelector('[data-rem="' + gi + '"]');
+        if (rem && rem.checked && list[0].inst) {
+          const db = S.sepDb; db.instruments = db.instruments || {};
+          db.instruments[list[0].inst] = Object.assign({}, db.instruments[list[0].inst] || {}, v, { name: list[0].instName || (db.instruments[list[0].inst] || {}).name || list[0].inst });
+          S._instLearned = (S._instLearned || 0) + 1;
+        }
+      });
+      done(true);
+    };
+  });
+}
+$('btnBulkPla').onclick = () => {
+  if (!dataSel.size) { toast('เลือกแถวก่อน (ติ๊ก "เฉพาะที่ไม่มี Plant / Eqp" เพื่อหาแถวที่ขาด)'); return; }
+  const rows = S.rows.filter(r => dataSel.has(String(r.no)));
+  const common = k => { const v = uniq(rows.map(r => r[k] || '')); return v.length === 1 ? v[0] : ''; };
+  let h = '<div class="row" style="align-items:center"><div class="card-title" style="margin:0">ตั้ง Plant / Eqp ให้ ' + rows.length + ' แถว</div><span class="spacer"></span><button class="btn sm" id="bpX">✕</button></div>' +
+    '<div class="note" style="margin:10px 0">ช่องที่เว้นว่าง = ไม่เปลี่ยน · SEP จะเลือกใหม่ตาม Plant · ระบบเก็บค่าเดิมไว้ในประวัติของแต่ละแถว</div>' +
+    '<div class="ed-grid">' + PLA_FIELDS.map(([k, lb, dl]) => '<div><label>' + lb + '</label><input data-k="' + k + '" list="' + dl + '" value="' + esc(common(k)) + '"></div>').join('') + '</div>' +
+    '<div class="row" style="margin-top:10px"><span class="spacer"></span><button class="btn" id="bpCancel">ยกเลิก</button><button class="btn primary" id="bpOk">บันทึก</button></div>';
+  const close = modalOpen(h);
+  $('bpX').onclick = close; $('bpCancel').onclick = close;
+  $('bpOk').onclick = async () => {
+    const v = {}; PLA_FIELDS.forEach(([k]) => { const x = $('edBox').querySelector('[data-k="' + k + '"]').value.trim(); if (x) v[k] = x; });
+    if (!Object.keys(v).length) { toast('ยังไม่ได้กรอก'); return; }
+    const backup = JSON.stringify(S.rows), months = new Set();
+    rows.forEach(r => {
+      const ch = Object.assign({}, v);
+      if (v.pla) { const sep = NIR.findSep(S.sepDb, NIR.normProduct(r.prd), v.pla, r.d); if (sep) ch.sep = sep; }
+      if (auditEdit(r, ch)) months.add(NIR.monthOf(r.d));
+    });
+    close();
+    if (!months.size) { toast('ไม่มีอะไรเปลี่ยน'); return; }
+    try { await saveMonths([...months], 'Set plant/eqp (' + rows.length + ' rows)'); dataSel.clear(); toast('บันทึกแล้ว'); refreshAll(); }
+    catch (e) { busy(false); S.rows = JSON.parse(backup); S._learn = null; S._idx = null; alert('ไม่สำเร็จ: ' + e.message); }
+  };
 };
 
 // ════════════════════════════════════════════════════════════════════
