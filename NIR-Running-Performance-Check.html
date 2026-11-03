@@ -296,6 +296,142 @@ window.addEventListener('error', function (e) {
     return '';
   };
 
+  // ── เดา Product จากรูปแบบรหัสตัวอย่าง (อาหารสัตว์สำเร็จรูป) ─────────────────────────
+  // ใช้เมื่อหาจากชื่อตรงตัวไม่เจอ · ขึ้นต้นด้วย "Mix2" = สูตร Mix2 ของกลุ่มนั้น
+  // กฎ "ขึ้นต้นด้วย" ตรวจก่อนกฎ "มีคำว่า" · แก้/เพิ่มกฎได้ที่ตารางนี้
+  NIR.PRODUCT_FAMILIES = {
+    cat: ['Cat Kibbles', 'Cat Mix2'], dog: ['Dog Kibbles', 'Dog Mix2'], aqua: ['Aqua Food', 'Aqua Food'],
+    horse: ['Horse Kibbles', 'Horse Mix2'], bird: ['Bird Kibbles', 'Bird Mix2'], rodent: ['Rodent Kibbles', 'Rodent Mix2'],
+  };
+  // กฎใช้กับ "รหัส" ที่แยกออกจากชื่อตัวอย่างแล้ว (ตัวพิมพ์ใหญ่ ไม่มีเลขลำดับ 01. / ไม่มีคำไทย / ไม่มี Mix2 นำหน้า)
+  NIR.PRODUCT_RULES = [
+    // [regex, กลุ่ม หรือ Product ตรงตัว, คำอธิบาย]
+    [/^47H58/, 'BP-PL', '47H58 = BP-PL'],
+    // ── Mix2 เสมอ (จากข้อมูลที่บันทึกไว้) ──
+    [/^4C/, 'Cat Mix2', '4C… (Mix2)'], [/^4D/, 'Dog Mix2', '4D… (Mix2)'], [/^4H/, 'Horse Mix2', '4H… (Mix2)'], [/^4R/, 'Rodent Mix2', '4R… (Mix2)'],
+    [/^1K/, 'Dog Mix2', '1K… (Mix2)'], [/^1X/, 'Cat Mix2', '1X… (Mix2)'],
+    [/^O\d{2,4}$/, 'Mix1 Online', 'O51/O663… (Mix1 Online)'],
+    // ── ขึ้นต้นด้วย ──
+    [/^1TF/, 'aqua', '1TF…'], [/^1A/, 'aqua', '1A…'], [/^0{0,2}66[2-3]/, 'aqua', '0662…'], [/^ET/, 'aqua', 'ET…'], [/^1CG/, 'aqua', '1CG…'], [/^1BT/, 'aqua', '1BT…'],
+    [/^1H/, 'horse', '1H…'], [/^47/, 'horse', '47…'], [/^001/, 'horse', '001…'], [/^900/, 'horse', '900…'],
+    [/^1C/, 'cat', '1C…'], [/^EC/, 'cat', 'EC…'], [/^CA\d/, 'cat', 'CA…'], [/^05[1-9]/, 'cat', '051–059'], [/^1V\w*C$/, 'cat', '1V…C'], [/^5C/, 'cat', '5C…'], [/^14C/, 'cat', '14C…'],
+    [/^1D/, 'dog', '1D…'], [/^ED/, 'dog', 'ED…'], [/^1V\w*D$/, 'dog', '1V…D'], [/^5D/, 'dog', '5D…'], [/^14D/, 'dog', '14D…'], [/^8?8D/, 'dog', '8D…'], [/^98D/, 'dog', '98D…'],
+    [/^BF/, 'bird', 'BF…'], [/^1B/, 'bird', '1B…'], [/^07[6-8]/, 'bird', '076/078…'], [/^8B/, 'bird', '8B…'],
+    [/^1R/, 'rodent', '1R…'], [/^ER/, 'rodent', 'ER…'], [/^08[2-6]/, 'rodent', '082–086'],
+    // ── มีตัวอักษรนี้อยู่ในรหัส ──
+    [/FC(\d|$)/, 'aqua', '…FC…'], [/TF\d/, 'aqua', '…TF…'],
+    [/^\d{0,3}1B\d/, 'bird', '…1B…'], [/^\d{0,3}1D\d/, 'dog', '…1D…'],
+    [/CA(\w|$)/, 'cat', '…CA…'], [/C[KT]\d/, 'cat', '…CK/CT…'],
+    [/D[APTH](\w|$)/, 'dog', '…DA/DP/DT/DH…'],
+    [/B[RSM]\w/, 'bird', '…BR/BS/BM…'],
+    [/R[BG]\w/, 'rodent', '…RB/RG…'],
+  ];
+  NIR.MIX2_PREFIX = /^MIX\s*-?\s*2[\s_\-:.]*/;
+  // แยกรหัสสินค้าออกจากชื่อตัวอย่าง เช่น "03.MIX2 1D19441N 2/23/2026" → {code:'1D19441N', mix:2}
+  // "อาหารปลา12FC6603 12FC6603 PK02-5534" → {code:'12FC6603'} · "05.Mix11TF1401" → {code:'1TF1401', mix:1}
+  NIR.extractProductCode = function (text) {
+    let s = String(text || '').toUpperCase().replace(/[฀-๿]+/g, ' ').replace(/[\[\]()|;,]/g, ' ').trim();
+    s = s.replace(/^\d{1,2}\.\s*/, '').replace(/^\d{1,2}(?=MIX)/, '');   // เลขลำดับ "03." / "03Mix2"
+    let mix = 0;
+    const m = s.match(/^MIX\s*-?\s*(2|II|1|I)?(?=[\s_\-:.]|$|[0-9A-Z])/);
+    if (m) {
+      const n = m[1] || '';
+      mix = (n === '1' || n === 'I') ? 1 : 2;
+      s = s.slice(m[0].length);
+    }
+    if (!mix && /\bMIX\s*-?\s*(2|II)\b|MIXII/.test(s)) mix = 2;
+    if (/MIXER1/.test(s) && !mix) mix = 1;
+    const toks = s.split(/[\s_\/]+/).map(t => t.replace(/^[.\-:]+|[.\-:]+$/g, '')).filter(Boolean);
+    if (toks[0] && /^[A-Z]{2,}$/.test(toks[0]) && !/^MIX/.test(toks[0])) return { code: '', mix, word: true };   // ชื่อเป็นคำ เช่น EGG YP, CK LIV, Lamb Liver
+    for (const t of toks) {
+      if (/^(P|LOT|B|MFG|SUP)\.\S*/.test(t) || /^R\d\/?B\d/.test(t)) continue;   // P.07/09/2026, lot.xxx, R3/B4
+      if (/^MIX/.test(t)) continue;
+      if (/^\d{1,2}:\d{2}/.test(t) || /^\d{1,4}[.\-]\d{1,2}([.\-]\d{2,4})?$/.test(t)) continue;      // เวลา / วันที่
+      if (/^(19|20)\d\d$|^25[5-9]\d$/.test(t)) continue;                                              // ปี
+      if (/^\d{2}-\d{5,}$/.test(t) || /^\d{2}-[A-Z]{2,3}\d{6,}$/.test(t)) continue;                     // เลข lot / Lab No. (01-QC2600…)
+      if (/^(PK|EX|FP)\d+-\d+$/.test(t) || /^(EX\d{1,2}|RPC|AM|PM|RE|AC|QC|COATER|COOLER|DRYMIX|MIXER\d?|G\d|R\d\/?B\d)$/.test(t)) continue;   // คำประกอบ
+      if (/[A-Z]/.test(t) && /\d/.test(t)) return { code: t, mix };
+      if (/^\d{3,5}$/.test(t)) return { code: t, mix };
+    }
+    return { code: '', mix };
+  };
+  // ชื่อที่เป็นคำล้วน (ไม่มีรหัส) เช่น "06.EGG YL 7/2/2026" → "EGG YL", "Lamb Liver" → "LAMB LIVER"
+  NIR.productNameKey = function (text) {
+    const s = String(text || '').toUpperCase().replace(/[\u0E00-\u0E7F]+/g, ' ').replace(/^\s*\d{1,2}\.\s*/, '');
+    const out = [];
+    for (const t of s.split(/[\s_\/,;()\[\]|+]+/)) {   // เอาคำนำหน้าจนเจอวันที่ / P. / ตัวเลข
+      if (!/^[A-Z][A-Z0-9\-]*$/.test(t)) { if (out.length) break; else continue; }
+      if (/^(AM|PM|RPC|LOT|ND)$/.test(t)) break;
+      out.push(t.replace(/-ND$/, '')); if (out.length === 3) break;
+    }
+    return out.join(' ');
+  };
+  NIR.guessProduct = function (text) {
+    let { code, mix, word } = NIR.extractProductCode(text);
+    if (!code && word) ({ code, mix } = NIR.extractProductCode(String(text).replace(/^[^A-Za-z]*[A-Za-z]+[\s_\-]*/, '')));   // "DO_18ECA" → 18ECA
+    if (mix === 1 && code) return { prd: 'Mix1 Online', rule: 'Mix1' };
+    if (!code) return null;
+    for (const [re, target, label] of NIR.PRODUCT_RULES) {
+      if (!re.test(code)) continue;
+      const fam = NIR.PRODUCT_FAMILIES[target];
+      const prd = fam ? fam[mix ? 1 : 0] : target;
+      return { prd, rule: (mix && fam ? 'Mix2 + ' : '') + label, code };
+    }
+    return null;
+  };
+  // เรียนรู้จากข้อมูลที่บันทึกแล้ว (data/*.json) แยกตามประเภท (FG/WF/POC/RM)
+  //   รหัสเดิม → Product ที่ใช้ (ข้อมูลใหม่มีน้ำหนักมากกว่า) · ไม่เคยเจอ → รหัสที่ขึ้นต้นเหมือนกัน (≥4 ตัว) · ชื่อเป็นคำ → ชื่อเดิม
+  NIR.buildProductLearner = function (rows) {
+    const map = new Map();
+    let maxT = 0; (rows || []).forEach(r => { const t = Date.parse(r && r.d) || 0; if (t > maxT) maxT = t; });
+    const DAY = 864e5;
+    const put = (k, prd, w) => { let o = map.get(k); if (!o) map.set(k, o = {}); o[prd] = (o[prd] || 0) + w; };
+    (rows || []).forEach(r => {
+      if (!r || !r.prd || !r.smp) return;
+      const age = maxT ? Math.max(0, (maxT - (Date.parse(r.d) || maxT)) / DAY) : 0;
+      const w = Math.pow(0.5, age / 45);                        // ครึ่งชีวิต ~1.5 เดือน: ชื่อที่เปลี่ยนใหม่ชนะได้เร็ว
+      const { code, mix } = NIR.extractProductCode(r.smp);
+      const key = code ? 'C' + mix + '|' + code : (NIR.productNameKey(r.smp) ? 'N|' + NIR.productNameKey(r.smp) : '');
+      if (!key) return;
+      put((r.typ || '') + '#' + key, r.prd, w); put('*#' + key, r.prd, w);
+    });
+    const keys = [...map.keys()].sort();
+    const top = o => { let prd = null, n = 0, t = 0; for (const p in o) { t += o[p]; if (o[p] > n) { n = o[p]; prd = p; } } return { prd, n, t }; };
+    const lower = pre => { let lo = 0, hi = keys.length; while (lo < hi) { const m = (lo + hi) >> 1; if (keys[m] < pre) lo = m + 1; else hi = m; } return lo; };
+    const pct = b => Math.round(100 * b.n / b.t) + '%';
+    return function (text, typ) {
+      const { code, mix } = NIR.extractProductCode(text);
+      const nk = code ? '' : NIR.productNameKey(text);
+      if (!code && !nk) return null;
+      const scopes = typ ? [typ + '#', '*#'] : ['*#'];   // ประเภทเดียวกันก่อน แล้วค่อยดูทั้งหมด (ประเภทจากเครื่องอาจไม่ตรง)
+      for (const sc of scopes) {
+        const k = sc + (code ? 'C' + mix + '|' + code : 'N|' + nk);
+        const ex = map.get(k);
+        if (ex) { const b = top(ex); if (b.n / b.t >= 0.6) return { prd: b.prd, rule: 'เคยบันทึก ' + (code || nk) + ' เป็น ' + b.prd + ' (' + pct(b) + ')', code: code || nk, learned: true, sure: b.n / b.t }; }
+        if (!code) continue;
+        for (let L = code.length - 1; L >= 4; L--) {
+          const pre = sc + 'C' + mix + '|' + code.slice(0, L), tally = {}; let cnt = 0;
+          for (let i = lower(pre); i < keys.length && keys[i].startsWith(pre); i++) { const o = map.get(keys[i]); cnt++; for (const p in o) tally[p] = (tally[p] || 0) + o[p]; }
+          const b = top(tally);
+          if (b.t) { if (b.n / b.t >= 0.8) return { prd: b.prd, rule: 'คล้ายรหัส ' + code.slice(0, L) + '… ที่เคยบันทึก (' + pct(b) + ')', code, learned: true, sure: b.n / b.t }; break; }
+        }
+      }
+      return null;
+    };
+  };
+  // typ = ประเภทของแถว (FG/WF/POC/RM) ถ้ารู้ · กฎรหัสอาหารสัตว์แห้งไม่ใช้กับ WF/POC
+  NIR.guessProductAny = function (texts, learner, typ) {
+    const list = (texts || []).filter(Boolean);
+    const rulesOk = typ !== 'WF' && typ !== 'POC';
+    for (const t of list) {   // ช่องที่สำคัญกว่ามาก่อน: ลองประวัติ แล้วค่อยลองกฎ
+      const g = (learner && learner(t, typ)) || (rulesOk ? NIR.guessProduct(t) : null);
+      if (g) return Object.assign({ from: t }, g);
+    }
+    return null;
+  };
+
+
+
   // CSV ทั้งไฟล์ (รองรับ "..." ที่มี , หรือขึ้นบรรทัดใหม่)
   NIR.parseCSV = function (text) {
     text = text.replace(/^﻿/, '');
@@ -493,7 +629,7 @@ window.addEventListener('error', function (e) {
     const api = relay ? relay + '/contents/' : 'https://api.github.com/repos/' + R.owner + '/' + R.repo + '/contents/';
     const repoUrl = relay ? relay + '/repo' : 'https://api.github.com/repos/' + R.owner + '/' + R.repo;
     const H = extra => Object.assign(relay
-      ? Object.assign({}, opts.key ? { 'X-Import-Key': opts.key } : {}, opts.user ? { 'X-NIR-User': opts.user } : {})
+      ? Object.assign({}, opts.key ? { 'X-Import-Key': opts.key } : {}, opts.user ? { 'X-NIR-User': encodeURIComponent(opts.user) } : {})
       : { Authorization: 'Bearer ' + token, 'X-GitHub-Api-Version': '2022-11-28' }, extra || {});
     return {
       async listShas(dir) {
@@ -2417,15 +2553,16 @@ function buildRawWide() {
     map.get(k).params[pk] = {diff,wc,nir,u2:r[I.U2],l2:r[I.L2],u3:r[I.U3],l3:r[I.L3]};
   });
   const rows = [...map.values()];
-  // เรียงตาม No. เหมือน Excel, row ที่ไม่มี No. ไปท้าย
+  // เรียงตามเดือน (เก่า → ใหม่) ก่อน แล้วค่อยตาม No. ในเดือนเดียวกัน
+  // (แถวที่นำเข้าผ่านเว็บทีหลังได้ No. ใหม่ ถึงจะเป็นเดือนก่อนหน้าก็ต้องอยู่ในเดือนของมัน)
+  const monOf = r => (typeof r.mon === 'number' && r.mon >= 0) ? r.mon : Infinity;
   rows.sort((a,b) => {
-    const aNo = parseInt(a.no||0), bNo = parseInt(b.no||0);
+    const ma = monOf(a), mb = monOf(b);
+    if(ma !== mb) return ma - mb;
     const aHas = !!a.no, bHas = !!b.no;
-    if(aHas && bHas) return aNo - bNo;
+    if(aHas && bHas) return parseInt(a.no) - parseInt(b.no);
     if(aHas) return -1;
     if(bHas) return 1;
-    const mDiff = (a.mon||0) - (b.mon||0);
-    if(mDiff !== 0) return mDiff;
     return (a.sample||'').localeCompare(b.sample||'', undefined, {numeric:true});
   });
   return rows;
