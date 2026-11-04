@@ -2712,15 +2712,17 @@ $('btnTokDel').onclick = () => { ls.del('nir_gh_token'); $('tok').value = ''; $(
 // ── รวม data.json เข้ากับข้อมูลในระบบ (ไม่เขียนทับ) ─────────────────────────
 const normTxt = x => String(x ?? '').toUpperCase().replace(/\s+/g, ' ').trim();
 const rowKey = r => r.d + '|' + normTxt(r.smp) + '|' + normTxt(r.pla);
-function cmpRows(x, r) {   // นับค่าที่ตรง/ไม่ตรง (ทั้ง WC และ NIR) + Product ตรงกันไหม
-  let eq = 0, ne = 0;
+function cmpRows(x, r) {   // นับค่าที่ตรง/ไม่ตรง แยก WC กับ NIR + Product ตรงกันไหม
+  let eq = 0, ne = 0, eqN = 0, neN = 0;
   Object.keys(x.v || {}).forEach(p => [0, 1].forEach(i => {
     const a = x.v[p][i], b = r.v && r.v[p] ? r.v[p][i] : null;
     if (a === null || a === undefined || b === null || b === undefined) return;
-    if (Math.abs(a - b) <= 1e-6) eq++; else ne++;
+    const same = Math.abs(a - b) <= 1e-6;
+    if (same) eq++; else ne++;
+    if (i === 1) { if (same) eqN++; else neN++; }
   }));
   const prd = NIR.normProduct(x.prd) === NIR.normProduct(r.prd) || (x.sep && x.sep === r.sep);
-  return { eq, ne, prd, score: eq - 2 * ne + (prd ? 3 : 0) };
+  return { eq, ne, eqN, neN, prd, score: eq - 2 * ne + (prd ? 3 : 0) };
 }
 function mergePlan(slim) {
   const byKey = new Map(), byLab = new Map(), byDay = new Map();
@@ -2735,16 +2737,28 @@ function mergePlan(slim) {
   const prefixSame = (a, b) => { a = normTxt(a); b = normTxt(b); const [s1, s2] = a.length <= b.length ? [a, b] : [b, a]; return s1.length >= 10 && s2.startsWith(s1); };
   const dead = new Set(((S.index && S.index.deleted) || []).map(t => t.k));
   const out = { add: [], fill: [], dup: 0, del: 0, conflict: 0, noDate: 0 };
+  const used = new Set();
   slim.forEach(x => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(x.d || '')) { out.noDate++; return; }
     if (dead.has(rowKey(x))) { out.del++; return; }
-    let cand = (byKey.get(rowKey(x)) || []).concat(x.lab ? (byLab.get(x.lab) || []).filter(r => r.d === x.d) : []);
-    if (!cand.length) cand = (byDay.get(x.d + '|' + normTxt(x.pla)) || []).filter(r => prefixSame(r.smp, x.smp));
-    cand = [...new Set(cand)];
+    // ชื่อ+วันที่+Plant ตรงกัน = ตัวอย่างเดียวกัน (ค่าต่างได้ → แจ้งเตือน)
+    // จับคู่ผ่าน Lab No. / ชื่อที่มีหมายเหตุต่อท้าย = ต้องมีค่า NIR ตรงกัน (Lab No. เดียวกันวัดซ้ำได้หลายเครื่อง/หลายรอบ ค่า WC จะเหมือนกัน)
+    const strong = (byKey.get(rowKey(x)) || []).filter(r => !used.has(r));
+    const weak = [...new Set((x.lab ? (byLab.get(x.lab) || []).filter(r => r.d === x.d) : [])
+      .concat((byDay.get(x.d + '|' + normTxt(x.pla)) || []).filter(r => prefixSame(r.smp, x.smp))))].filter(r => !used.has(r) && !strong.includes(r));
     let m = null, bc = null;
-    cand.forEach(r => { const c = cmpRows(x, r); if (!bc || c.score > bc.score) { bc = c; m = r; } });
-    // ยอมรับว่าเป็นแถวเดียวกัน: ค่าที่ตรงมากกว่าที่ต่าง หรือไม่มีค่าให้เทียบแต่ Product ตรง / มีผู้สมัครแถวเดียว
-    if (m && !(bc.eq > bc.ne || (bc.eq === 0 && bc.ne === 0 && (bc.prd || cand.length === 1)))) m = null;
+    strong.forEach(r => { const c = cmpRows(x, r); if (!bc || c.score > bc.score) { bc = c; m = r; } });
+    if (m && !(bc.eq > bc.ne || (bc.eq === 0 && bc.ne === 0 && (bc.prd || strong.length === 1)))) m = null;
+    if (!m) {
+      bc = null;
+      weak.forEach(r => { const c = cmpRows(x, r); if (c.neN === 0 && c.eqN > 0 && (!bc || c.score > bc.score)) { bc = c; m = r; } });
+    }
+    // แถวซ้ำในไฟล์เอง (ค่าเหมือนกันทุกตัว) → ถือว่ามีแล้ว
+    if (!m) {
+      const dupOf = (byKey.get(rowKey(x)) || []).find(r => used.has(r) && (() => { const c = cmpRows(x, r); return c.ne === 0 && c.eq > 0; })());
+      if (dupOf) { out.dup++; return; }
+    }
+    if (m) used.add(m);
     if (!m) { out.add.push(x); return; }
     const ch = changedParams(m, x), cf = conflictParams(m, x);
     if (cf.length) out.conflict++;
