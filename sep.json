@@ -1,4 +1,4 @@
-{"version":1,"updated":"2026-11-03T08:37:44.334Z",
+{"version":1,"updated":"2026-11-04T03:03:29.569Z",
 "sets":{
 "AF1":{"prd":"Aqua Food","sep":{"M":0.281,"CP":0.7249,"AH":0.5897,"FIB":0.4961,"ASH":0.4959,"Ca":0.0992,"P":0.1074,"Aw":0.0461,"NaCl":0.165},"note":"ย้ายจาก Excel เดิม"},
 "AF2":{"prd":"Aqua Food","sep":{"M":0.269174,"CP":0.449218,"AH":0.34503,"FIB":0.471686,"ASH":0.403849,"Ca":0.106305,"P":0.09536,"Aw":0.03447,"NaCl":0.156506},"note":"ย้ายจาก Excel เดิม"},
@@ -404,4 +404,4 @@
 {"prd":"YC","pla":"Rayong","sep":"YC1","from":"2025-01-01"},
 {"prd":"YC","pla":"Rayong","sep":"YC2","from":"2026-01-01"}
 ],
-"instruments":{"91798125":{"pla":"169","typ":"RM","eqp":"DS2500","src":"QC","name":"PCG_DS2500_1"},"91915539":{"pla":"169","typ":"RM","eqp":"DS3","src":"QC","name":"91915539"},"91950096":{"pla":"","typ":"","eqp":"","src":"","name":"NIRS DS3"}}}
+"instruments":{"91798125":{"pla":"169","typ":"RM","eqp":"DS2500","src":"QC","name":"PCG_DS2500_1"},"91915539":{"pla":"169","typ":"RM","eqp":"DS3","src":"QC","name":"91915539"},"91950096":{"pla":"Wet Food","typ":"WF","eqp":"DS3","src":"WF","name":"NIRS DS3"}}}
