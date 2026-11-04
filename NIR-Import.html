@@ -1502,7 +1502,7 @@ html.fb .nb-switch button { border-radius: 11px; }
 
   <div class="card">
     <div class="card-title">เครื่อง NIR → Plant / Equipment / Source</div>
-    <div class="note" style="margin-bottom:10px">ระบบดู <b>Instrument Serial Number</b> ในไฟล์ IQX/Foss แล้วใส่ Plant / Equipment / Source ให้เอง · เครื่องใหม่จะถูกเพิ่มที่นี่อัตโนมัติตอนบันทึกครั้งแรก</div>
+    <div class="note" style="margin-bottom:10px">ระบบดู <b>Instrument Serial Number</b> ในไฟล์ IQX/Foss แล้วใส่ Plant / Equipment / Source ให้เอง · เครื่องใหม่จะถูกเพิ่มที่นี่อัตโนมัติตอนบันทึกครั้งแรก<br><b>Type</b> ระบบเลือกตาม Product ให้เอง (เครื่องเดียววัดได้ทั้ง FG และ RM) — Type ของเครื่องใช้เฉพาะตอนเจอ Product ที่ยังไม่เคยบันทึก</div>
     <div class="tbl-wrap" id="instWrap" style="max-height:none"></div>
     <div class="row" style="margin-top:8px"><button class="btn sm" id="btnInstAdd">＋ เพิ่มเครื่อง</button><span class="spacer"></span><button class="btn primary" id="btnInstSave">บันทึกการตั้งค่าเครื่อง</button></div>
   </div>
@@ -1921,7 +1921,20 @@ function conflictParams(old, nu) {
   });
   return out;
 }
+// Type ตาม Product (เครื่องเดียวกันวัดได้ทั้ง FG และ RM) — เรียนจากข้อมูลที่บันทึกแล้ว · ไม่รู้จัก Product → ใช้ค่าของเครื่อง
+function productTypes() {
+  if (S._ptRows === S.rows && S._ptN === S.rows.length && S._pt) return S._pt;
+  const c = {};
+  S.rows.forEach(r => { if (!r.prd || !r.typ) return; const p = NIR.normProduct(r.prd); (c[p] = c[p] || {})[r.typ] = (c[p][r.typ] || 0) + 1; });
+  const m = {};
+  Object.keys(c).forEach(p => { const e = Object.entries(c[p]).sort((a, b) => b[1] - a[1]); if (e[0][1] / e.reduce((a, x) => a + x[1], 0) >= 0.8) m[p] = e[0][0]; });
+  Object.values(NIR.PRODUCT_FAMILIES).flat().concat(['FG-Online', 'Mix1 Online']).forEach(p => { if (!m[p]) m[p] = 'FG'; });   // อาหารสัตว์สำเร็จรูปที่ยังไม่เคยบันทึก
+  S._pt = m; S._ptRows = S.rows; S._ptN = S.rows.length;
+  return m;
+}
 function finalizeRow(r, prev) {
+  if (r.instTyp === undefined) r.instTyp = r.typ || '';
+  if (!r.userTyp) { const t = r.prd && productTypes()[NIR.normProduct(r.prd)]; r.typ = t || r.instTyp; r.typAuto = !!t && t !== r.instTyp; }
   r.autoSep = NIR.findSep(S.sepDb, r.prd, r.pla, r.d);
   if (!r.userSep) r.sep = r.autoSep;
   r.match = findExisting(r);
@@ -2091,7 +2104,7 @@ function renderPreview(header) {
       '<td style="font-size:11px;color:var(--txt2)">' + esc(r.origin || '') + '</td>' +
       '<td title="' + esc(r.smp + (r.det ? '\n' + r.det : '')) + '" style="max-width:250px;overflow:hidden;text-overflow:ellipsis">' + esc(r.smp) + (r.lab ? '<br><span class="mono" style="font-size:10px;color:var(--txt3)">' + esc(r.lab + (r.seq ? ' #' + r.seq : '')) + '</span>' : '') + '</td>' +
       '<td><input data-prd="' + k + '" list="dlPrd" value="' + esc(r.prd) + '" placeholder="' + esc(r.prdName || '') + '" title="' + esc((r.prdName || '') + (r.prdHint ? ' · ' + r.prdHint : '')) + '" style="min-width:120px' + (r.prd ? '' : ';border-color:var(--red)') + '"></td>' +
-      '<td style="font-size:11px;color:var(--txt2)">' + esc(r.pla) + ' · ' + esc(r.eqp) + ' · ' + esc(r.src) + '<br><span class="mono" style="color:var(--txt3)">' + esc(r.d) + '</span></td>' +
+      '<td style="font-size:11px;color:var(--txt2)">' + esc(r.pla) + ' · ' + esc(r.eqp) + ' · ' + esc(r.src) + ' · <b' + (r.typAuto ? ' title="Type ตาม Product (เครื่องตั้งไว้ ' + esc(r.instTyp) + ')" style="color:var(--blue)"' : '') + '>' + esc(r.typ) + '</b><br><span class="mono" style="color:var(--txt3)">' + esc(r.d) + '</span></td>' +
       '<td><select data-sep="' + k + '" style="min-width:92px">' + sepOptions(r.prd, r.sep) + '</select></td>' +
       '<td style="white-space:normal;min-width:150px;max-width:260px">' + badges + '</td>' + pars.map(p => diffCell(r, p)).join('') + '</tr>';
   });
@@ -2402,7 +2415,7 @@ $('btnBulkSep').onclick = async () => {
   const nMis = S.rows.filter(r => dataSel.has(String(r.no)) && sp && NIR.normProduct(r.prd) !== NIR.normProduct(sp)).length;
   if (!confirm('เปลี่ยน SEP ของ ' + dataSel.size + ' แถว เป็น ' + code + '?' + (nMis ? '\n\nSEP ' + code + ' เป็นของ Product "' + sp + '" — ' + nMis + ' แถวจะเปลี่ยน Product เป็น ' + sp + ' ด้วย (ให้กราฟหน้า Running / Summary ย้ายตาม)' : ''))) return;
   const months = new Set(); const backup = JSON.stringify(S.rows);
-  S.rows.forEach(r => { if (dataSel.has(String(r.no)) && auditEdit(r, sp ? { sep: code, prd: NIR.normProduct(sp) } : { sep: code })) months.add(NIR.monthOf(r.d)); });
+  S.rows.forEach(r => { if (dataSel.has(String(r.no)) && auditEdit(r, sp ? Object.assign({ sep: code, prd: NIR.normProduct(sp) }, productTypes()[NIR.normProduct(sp)] ? { typ: productTypes()[NIR.normProduct(sp)] } : {}) : { sep: code })) months.add(NIR.monthOf(r.d)); });
   if (!months.size) { toast('แถวที่เลือกใช้ SEP นี้อยู่แล้ว'); return; }
   try { await saveMonths([...months], 'Change SEP → ' + code + ' (' + dataSel.size + ' rows)'); dataSel.clear(); toast('เปลี่ยนแล้ว'); refreshAll(); }
   catch (e) { busy(false); S.rows = JSON.parse(backup); alert('ไม่สำเร็จ: ' + e.message); }
@@ -2478,11 +2491,13 @@ function openEdit(no) {
     const sp = sepPrd(F('sep').value);
     if (sp && NIR.normProduct(sp) !== NIR.normProduct(F('prd').value.trim())) {
       F('prd').value = sp; F('prd').classList.toggle('chg', sp !== String(r.prd ?? ''));
+      const t = productTypes()[NIR.normProduct(sp)]; if (t) { F('typ').value = t; F('typ').classList.toggle('chg', t !== String(r.typ ?? '')); }
       toast('SEP ' + F('sep').value + ' เป็นของ ' + sp + ' → เปลี่ยน Product ให้ตรงกันแล้ว');
     }
   };
   const autoSep = () => { const c = NIR.findSep(S.sepDb, NIR.normProduct(F('prd').value.trim()), F('pla').value.trim(), F('d').value); if (c) F('sep').value = c; return c; };
   ['prd', 'pla', 'd'].forEach(k => F(k).addEventListener('change', () => { if (!sepTouched) autoSep(); }));
+  F('prd').addEventListener('change', () => { const t = productTypes()[NIR.normProduct(F('prd').value.trim())]; if (t && t !== F('typ').value.trim()) { F('typ').value = t; F('typ').classList.toggle('chg', t !== String(r.typ ?? '')); } });
   $('edAuto').onclick = e => { e.preventDefault(); if (!autoSep()) toast('ไม่พบ SEP ของ Product นี้'); };
   // ไฮไลต์ช่องที่ถูกแก้
   $('edBox').querySelectorAll('input,select').forEach(el => el.addEventListener('input', () => {
@@ -2526,7 +2541,8 @@ $('btnBulkPrd').onclick = async () => {
     if (!dataSel.has(String(r.no))) return;
     const sep = NIR.findSep(S.sepDb, prd, r.pla, r.d);
     if (!sep) noSep++;
-    if (auditEdit(r, { prd, sep: sep || r.sep })) months.add(NIR.monthOf(r.d));
+    const typ = productTypes()[prd];
+    if (auditEdit(r, Object.assign({ prd, sep: sep || r.sep }, typ ? { typ } : {}))) months.add(NIR.monthOf(r.d));
   });
   if (!months.size) { toast('แถวที่เลือกเป็น ' + prd + ' อยู่แล้ว'); return; }
   try {
@@ -2566,7 +2582,12 @@ function askPlantEqp(rows) {
       for (let gi = 0; gi < gs.length; gi++) if (!val(gi, 'pla') || !val(gi, 'eqp')) { alert('กรอก Plant และ Eqp ให้ครบทุกกลุ่ม'); return; }
       gs.forEach(([g, list], gi) => {
         const v = Object.fromEntries(PLA_FIELDS.map(([k]) => [k, val(gi, k)]));
-        list.forEach(r => { PLA_FIELDS.forEach(([k]) => { if (v[k]) r[k] = v[k]; }); finalizeRow(r, { on: r.on }); });
+        const typ0 = first(list, 'typ');
+        list.forEach(r => {
+          PLA_FIELDS.forEach(([k]) => { if (v[k]) r[k] = v[k]; });
+          if (v.typ) { r.instTyp = v.typ; if (v.typ !== typ0) r.userTyp = true; }
+          finalizeRow(r, { on: r.on });
+        });
         const rem = $('edBox').querySelector('[data-rem="' + gi + '"]');
         if (rem && rem.checked && list[0].inst) {
           const db = S.sepDb; db.instruments = db.instruments || {};
