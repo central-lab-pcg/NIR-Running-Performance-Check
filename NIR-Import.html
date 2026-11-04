@@ -2702,19 +2702,23 @@ function cmpRows(x, r) {   // นับค่าที่ตรง/ไม่ต�
   return { eq, ne, prd, score: eq - 2 * ne + (prd ? 3 : 0) };
 }
 function mergePlan(slim) {
-  const byKey = new Map(), byLab = new Map();
+  const byKey = new Map(), byLab = new Map(), byDay = new Map();
   const add = (k, r) => { if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(r); };
   S.rows.forEach(r => {
     add(rowKey(r), r);
     (r.hist || []).forEach(h => { const o = h.old || {}; if (o.d || o.smp || o.pla) add(rowKey({ d: o.d || r.d, smp: o.smp ?? r.smp, pla: o.pla ?? r.pla }), r); });   // ชื่อ/วันที่ก่อนแก้
     if (r.lab) { if (!byLab.has(r.lab)) byLab.set(r.lab, []); byLab.get(r.lab).push(r); }
+    const dk = r.d + '|' + normTxt(r.pla); if (!byDay.has(dk)) byDay.set(dk, []); byDay.get(dk).push(r);
   });
+  // ชื่อ sample ที่มีหมายเหตุต่อท้าย (เช่น "… outlier t-stat AH 2.79", "… เบอร์ใหม่") ถือเป็นตัวอย่างเดียวกัน
+  const prefixSame = (a, b) => { a = normTxt(a); b = normTxt(b); const [s1, s2] = a.length <= b.length ? [a, b] : [b, a]; return s1.length >= 10 && s2.startsWith(s1); };
   const dead = new Set(((S.index && S.index.deleted) || []).map(t => t.k));
   const out = { add: [], fill: [], dup: 0, del: 0, conflict: 0, noDate: 0 };
   slim.forEach(x => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(x.d || '')) { out.noDate++; return; }
     if (dead.has(rowKey(x))) { out.del++; return; }
     let cand = (byKey.get(rowKey(x)) || []).concat(x.lab ? (byLab.get(x.lab) || []).filter(r => r.d === x.d) : []);
+    if (!cand.length) cand = (byDay.get(x.d + '|' + normTxt(x.pla)) || []).filter(r => prefixSame(r.smp, x.smp));
     cand = [...new Set(cand)];
     let m = null, bc = null;
     cand.forEach(r => { const c = cmpRows(x, r); if (!bc || c.score > bc.score) { bc = c; m = r; } });
