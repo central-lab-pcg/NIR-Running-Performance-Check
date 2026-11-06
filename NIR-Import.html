@@ -508,6 +508,17 @@ window.addEventListener('error', function (e) {
   NIR.MOSAIC_PARAM = { 'M': 'M', 'CP': 'CP', 'FAT-EE': 'EE', 'EE': 'EE', 'FAT-AH': 'AH', 'AH': 'AH', 'FIB': 'FIB', 'ASH': 'ASH',
     'CA': 'Ca', 'P': 'P', 'SAND': 'Sand', 'STARCH': 'Starch', 'PD': 'PD', 'TVBN': 'TVBN', 'BHT': 'BHT', 'FFA': 'FFA',
     'AW': 'Aw', 'NACL': 'NaCl', 'PH': 'pH', 'FAT-C': 'Fat-C', 'CP-QCP': 'CP-QCP', 'STARCH-QCP': 'Starch-QCP' };
+  // พารามิเตอร์ที่ความหมายขึ้นกับ Product — เก็บไว้ก่อน แล้วค่อยแปลงเมื่อรู้ Product (ไม่ตรง Product ไหน = ไม่ใช้)
+  NIR.MOSAIC_EXTRA = { 'FAT': 'FAT' };
+  NIR.PRODUCT_PARAM_MAP = { 'Goat Milk': { FAT: 'AH' } };   // เฉพาะ Goat Milk: Fat = AH
+  NIR.applyProductParams = function (r) {
+    if (!r || !r.vx) return;
+    (r._vxSet || []).forEach(k => delete r.v[k]);   // Product เปลี่ยน → ถอนค่าที่แปลงไว้เดิม
+    r._vxSet = [];
+    const mp = NIR.PRODUCT_PARAM_MAP[NIR.normProduct(r.prd || '')];
+    if (!mp) return;
+    Object.keys(r.vx).forEach(k => { const t = mp[k]; if (t && !r.v[t]) { r.v[t] = r.vx[k].slice(); r._vxSet.push(t); } });
+  };
 
   NIR.detectSource = function (header) {
     const h = header.map(x => String(x || '').trim());
@@ -569,18 +580,19 @@ window.addEventListener('error', function (e) {
       const m = h.match(/^Ref\s+(.+)$/); if (!m) return;
       const nirIdx = col(m[1]); if (nirIdx < 0) return;
       const nm = m[1].replace(/^[A-Z0-9]{1,2}_/, '').toUpperCase();
-      const par = NIR.MOSAIC_PARAM[nm]; if (!par) return;
+      const par = NIR.MOSAIC_PARAM[nm] || (NIR.MOSAIC_EXTRA[nm] ? '~' + NIR.MOSAIC_EXTRA[nm] : ''); if (!par) return;
       pairs.push([par, i, nirIdx]);
     });
     const iT = col('Analysis Time'), iPN = col('Product Name'), iSN = col('Sample Number'), iSer = col('Instrument Serial Number'),
       iIN = col('Instrument Name'), iLab = col('2Lab No/Job ID'), iCls = col('3LB/LA/RM/FG'), iNm = col('1Sample name'), iTyp = col('Sample Type');
     table.slice(1).forEach(r => {
       if (iTyp >= 0 && r[iTyp] && !/normal/i.test(String(r[iTyp]))) { out.skipped++; return; }   // ข้าม check sample / reference
-      const v = {}; let any = false;
+      const v = {}, vx = {}; let any = false;
       pairs.forEach(([par, wi, ni]) => {
         const wc = NIR.labNum(r[wi]), nir = NIR.labNum(r[ni]);
         if (nir === null) return;
-        v[par] = [wc, nir]; any = true;
+        if (par[0] === '~') vx[par.slice(1)] = [wc, nir]; else v[par] = [wc, nir];
+        any = true;
       });
       if (!any) { out.skipped++; return; }
       const serial = String(r[iSer] || r[iIN] || '').trim();
@@ -600,7 +612,7 @@ window.addEventListener('error', function (e) {
         smp, det: '', d: NIR.parseDate(time),
         pla: cfg ? cfg.pla : '', typ: cls === 'FG' ? 'FG' : (cfg ? cfg.typ : ''), eqp: cfg ? cfg.eqp : '', src: cfg ? cfg.src : '',
         inst: serial, instKnown: !!cfg, instName: String(r[iIN] || '').trim(),
-        v,
+        v, vx: Object.keys(vx).length ? vx : undefined,
       });
     });
     return out;
@@ -1571,17 +1583,33 @@ function busy(on, msg) { let b = $('busy'); if (!on) { b && b.remove(); return; 
 // ════════════════════════════════════════════════════════════════════
 // LOAD
 // ════════════════════════════════════════════════════════════════════
+// โหลดแบบ "ครบหรือไม่โหลดเลย" — ถ้าไฟล์ไหนโหลดไม่ได้ ห้ามทำงานต่อ (กันการบันทึกทับด้วยข้อมูลไม่ครบ)
 async function loadState() {
   const gh = ghClient();
+  const noData = () => { const e = new Error('NO_DATA'); e.noData = true; return e; };
+  let sepDb, index, files;
   if (gh) {
-    const [sepDb, index] = await Promise.all([gh.getJSON('sep.json'), gh.getJSON('data/index.json')]);
-    if (!sepDb || !index) throw new Error('NO_DATA');
-    const files = await Promise.all(index.files.map(f => gh.getJSON('data/' + f)));
-    S.sepDb = sepDb; S.index = index; S.rows = [].concat(...files.map(f => (f && f.rows) || []));
+    [sepDb, index] = await Promise.all([gh.getJSON('sep.json'), gh.getJSON('data/index.json')]);
+    if (!index) throw noData();
+    if (!sepDb) throw new Error('โหลด sep.json ไม่ได้');
+    files = await Promise.all(index.files.map(f => gh.getJSON('data/' + f)));
   } else {
-    const r = await NIR.loadAll();
-    S.sepDb = r.sepDb; S.index = r.index; S.rows = r.rows;
+    const get = async path => {
+      const res = await fetch(NIR.BASE_URL + path + '?_cb=' + Date.now(), { cache: 'no-store' });
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error('โหลด ' + path + ' ไม่ได้ (HTTP ' + res.status + ')');
+      return res.json();
+    };
+    [sepDb, index] = await Promise.all([get('sep.json'), get('data/index.json')]);
+    if (!index) throw noData();
+    if (!sepDb) throw new Error('โหลด sep.json ไม่ได้');
+    files = await Promise.all(index.files.map(f => get('data/' + f)));
   }
+  const bad = index.files.filter((f, i) => !files[i] || !Array.isArray(files[i].rows));
+  if (bad.length) throw new Error('โหลดไฟล์ไม่ได้: ' + bad.join(', '));
+  const rows = [].concat(...files.map(f => f.rows));
+  if (index.count && rows.length < index.count) throw new Error('ข้อมูลโหลดไม่ครบ (' + rows.length + ' จาก ' + index.count + ' แถว)');
+  S.sepDb = sepDb; S.index = index; S.rows = rows;
   S.loaded = true;
 }
 
@@ -1590,8 +1618,16 @@ async function init() {
   const d = ls.get('nir_defaults', {});
   ['dPla', 'dTyp', 'dEqp', 'dSrc'].forEach(id => { if (d[id]) $(id).value = d[id]; });
   await checkRelay(); renderRelay();
-  try { await loadState(); S.migrated = true; }
+  try { await loadState(); S.migrated = true; S.loadFailed = false; }
   catch (e) {
+    if (!e.noData) {
+      // มีข้อมูลในระบบ แต่โหลดไม่สำเร็จ → ห้ามบันทึกทุกอย่าง (ไม่ใช่ "ยังไม่ได้ย้ายข้อมูล")
+      S.loadFailed = true; S.migrated = true; S.rows = []; S.index = { files: [] };
+      S.sepDb = JSON.parse(JSON.stringify(NIR.BUILTIN_SEP));
+      $('globalNote').innerHTML = '<div class="note err" style="margin-bottom:12px">⛔ <b>โหลดข้อมูลในระบบไม่สำเร็จ</b> — ' + esc(e.message) + '<br>ปิดการบันทึกทั้งหมดไว้ก่อนเพื่อกันข้อมูลหาย · กด <b>Ctrl+F5</b> เพื่อลองใหม่ (ถ้ายังไม่ได้ ให้เช็กการเชื่อมต่อ / Worker)</div>';
+      refreshAll();
+      return;
+    }
     // ยังไม่ได้ย้ายข้อมูล → ใช้ตาราง SEP สำรองก่อน แล้วลองอ่าน Excel เดิม (data.json/data2.json) มาใช้หา SEP + เช็คข้อมูลซ้ำ
     S.migrated = false;
     S.sepDb = JSON.parse(JSON.stringify(NIR.BUILTIN_SEP)); S.index = { files: [] }; S.rows = [];
@@ -1648,6 +1684,7 @@ function download(name, text, type) {
 
 // files: { 'data/2026-10.json': text, 'sep.json': text }
 async function writeFiles(files, message) {
+  if (S.loadFailed) throw new Error('ข้อมูลในระบบโหลดไม่ครบ — กด Ctrl+F5 แล้วลองใหม่ (ปิดการบันทึกไว้เพื่อกันข้อมูลหาย)');
   const gh = ghClient();
   if (gh) {
     const shas = Object.assign({}, await gh.listShas(''), await gh.listShas('data'));
@@ -1933,6 +1970,7 @@ function productTypes() {
   return m;
 }
 function finalizeRow(r, prev) {
+  NIR.applyProductParams(r);   // เช่น Goat Milk: FAT → AH
   if (r.instTyp === undefined) r.instTyp = r.typ || '';
   if (!r.userTyp) { const t = r.prd && productTypes()[NIR.normProduct(r.prd)]; r.typ = t || r.instTyp; r.typAuto = !!t && t !== r.instTyp; }
   r.autoSep = NIR.findSep(S.sepDb, r.prd, r.pla, r.d);
@@ -2767,7 +2805,7 @@ function mergePlan(slim) {
   return out;
 }
 async function runMigration(jsons) {
-  if (S.migrated && S.rows.length) return runMerge(jsons);
+  if (S.migrated) return runMerge(jsons);
   let all = [];
   jsons.forEach(j => { if (j && j.rows) all = all.concat(j.rows); });
   if (!all.length) throw new Error('ไม่พบ rows ในไฟล์');
@@ -2800,7 +2838,17 @@ async function runMigration(jsons) {
     (canWrite() ? '' : '<span style="font-size:12px;color:var(--txt3)">แตก zip แล้วอัปโหลด <b>sep.json</b> + <b>โฟลเดอร์ data</b> ขึ้น repo</span>') + '</div>';
   $('migOut').innerHTML = h;
   $('migSave').onclick = async () => {
-    if (S.migrated && S.rows.length && !confirm('มีข้อมูลรูปแบบใหม่อยู่แล้ว ' + S.rows.length + ' แถว — เขียนทับด้วยข้อมูลจาก Excel เดิม?')) return;
+    // ห้ามย้ายทับเด็ดขาดถ้าบน GitHub มีข้อมูลรูปแบบใหม่อยู่แล้ว (เช็กจากเซิร์ฟเวอร์ ไม่เชื่อสถานะในหน้า)
+    try {
+      busy(true, 'ตรวจข้อมูลบน GitHub …');
+      const gh = ghClient();
+      let remote = null;
+      if (gh) remote = await gh.getJSON('data/index.json');
+      else { const res = await fetch(NIR.BASE_URL + 'data/index.json?_cb=' + Date.now(), { cache: 'no-store' }); if (res.ok) remote = await res.json(); else if (res.status !== 404) throw new Error('HTTP ' + res.status); }
+      busy(false);
+      if (remote) { alert('⛔ ย้ายข้อมูลไม่ได้ — บน GitHub มีข้อมูลรูปแบบใหม่อยู่แล้ว ' + (remote.count || '') + ' แถว\nการย้ายจะเขียนทับข้อมูลที่นำเข้า/แก้ไขผ่านเว็บทั้งหมด\n\nกด Ctrl+F5 แล้วใช้ "รวมข้อมูลจาก data.json" แทน (เพิ่มเฉพาะแถวใหม่)'); return; }
+    } catch (e) { busy(false); alert('ตรวจข้อมูลบน GitHub ไม่ได้ (' + e.message + ') — ยกเลิกการย้ายเพื่อความปลอดภัย'); return; }
+    if (!confirm('ย้ายข้อมูลจาก Excel เดิม ' + slim.length + ' แถว ขึ้นรูปแบบใหม่ (ครั้งแรกครั้งเดียว)?')) return;
     try {
       await writeFiles(files, 'Migrate from Excel (' + slim.length + ' rows)');
       S.sepDb = sepDb; S.rows = slim; S.index = JSON.parse(files['data/index.json']); S.loaded = true; S.migrated = true;
@@ -2852,7 +2900,7 @@ async function runMerge(jsons) {
   };
 }
 function renderMigCard() {
-  const merge = !!(S.migrated && S.rows.length);
+  const merge = !!S.migrated;
   $('migTitle').textContent = merge ? 'รวมข้อมูลจาก data.json (Excel / Power Automate เดิม)' : 'ย้ายข้อมูลจาก Excel เดิม (ทำครั้งเดียว)';
   $('migMergeNote').style.display = merge ? '' : 'none';
   $('migOrigNote').style.display = merge ? 'none' : '';
