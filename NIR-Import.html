@@ -2798,7 +2798,7 @@ function mergePlan(slim) {
   // ชื่อ sample ที่มีหมายเหตุต่อท้าย (เช่น "… outlier t-stat AH 2.79", "… เบอร์ใหม่") ถือเป็นตัวอย่างเดียวกัน
   const prefixSame = (a, b) => { a = normTxt(a); b = normTxt(b); const [s1, s2] = a.length <= b.length ? [a, b] : [b, a]; return s1.length >= 10 && s2.startsWith(s1); };
   const dead = new Set(((S.index && S.index.deleted) || []).map(t => t.k));
-  const out = { add: [], fill: [], dup: 0, del: 0, conflict: 0, noDate: 0 };
+  const out = { add: [], fill: [], dup: 0, del: 0, conflict: 0, noDate: 0, diffs: [] };
   const used = new Set();
   slim.forEach(x => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(x.d || '')) { out.noDate++; return; }
@@ -2823,7 +2823,13 @@ function mergePlan(slim) {
     if (m) used.add(m);
     if (!m) { out.add.push(x); return; }
     const ch = changedParams(m, x), cf = conflictParams(m, x);
-    if (cf.length) out.conflict++;
+    if (cf.length) {
+      out.conflict++;
+      Object.keys(x.v).forEach(p => [0, 1].forEach(i => {   // เก็บรายการค่าที่ต่าง ให้ผู้ใช้เลือกอัปเดตตามไฟล์ได้
+        const a = m.v[p] ? m.v[p][i] : null, b = x.v[p][i];
+        if (a !== null && a !== undefined && b !== null && b !== undefined && Math.abs(a - b) > 1e-6) out.diffs.push({ m, x, p, i, a, b });
+      }));
+    }
     if (ch.length) out.fill.push([m, x, ch]); else out.dup++;
   });
   return out;
@@ -2897,15 +2903,26 @@ async function runMerge(jsons) {
     '<div><b>' + plan.fill.length.toLocaleString() + '</b>แถวเดิมที่เติมค่าว่าง</div>' +
     '<div><b>' + plan.dup.toLocaleString() + '</b>มีในระบบแล้ว (ข้าม)</div>' +
     '<div><b>' + plan.del + '</b>เคยลบผ่านเว็บ (ข้าม)</div></div></div>';
-  if (plan.conflict) h += '<div class="note warn" style="margin-bottom:10px">' + plan.conflict + ' แถวมีค่าในไฟล์ต่างจากในระบบ — <b>ใช้ค่าในระบบตามเดิม</b> (ถ้าต้องการค่าในไฟล์ ให้แก้ด้วยปุ่ม ✏️ ในแท็บข้อมูลในระบบ)</div>';
+  if (plan.diffs.length) {
+    h += '<div class="note warn" style="margin-bottom:8px"><b>' + plan.diffs.length + ' ค่าในไฟล์ต่างจากในระบบ</b> (' + plan.conflict + ' แถว) — เช่น ค่าที่แก้ใน SharePoint ภายหลัง · ติ๊กค่าที่ต้องการ<b>อัปเดตตามไฟล์</b> (ไม่ติ๊ก = ใช้ค่าในระบบตามเดิม) · ค่าเดิมจะถูกเก็บในประวัติของแถว</div>' +
+      '<div class="tbl-wrap" style="max-height:260px;margin-bottom:10px"><table><thead><tr><th><input type="checkbox" id="dfAll" style="width:auto" checked></th><th>No.</th><th>เดือน</th><th>Product</th><th>Sample</th><th>ค่า</th><th>ในระบบ</th><th>ในไฟล์</th></tr></thead><tbody>' +
+      plan.diffs.map((d, k) => '<tr><td><input type="checkbox" data-df="' + k + '" checked style="width:auto"></td><td class="mono">' + esc(d.m.no) + '</td><td class="mono">' + esc(NIR.monthOf(d.m.d)) + '</td><td>' + esc(d.m.prd) + '</td><td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(d.m.smp) + '">' + esc(d.m.smp) + '</td><td><b>' + esc(d.p) + '</b> ' + (d.i ? 'NIR' : 'WC') + '</td><td class="mono" style="color:var(--txt3);text-decoration:line-through">' + d.a + '</td><td class="mono" style="font-weight:700;color:var(--blue)">' + d.b + '</td></tr>').join('') +
+      '</tbody></table></div>';
+  }
   if (plan.noDate) h += '<div class="note warn" style="margin-bottom:10px">' + plan.noDate + ' แถวไม่มีวันที่ — ข้าม</div>';
   if (plan.add.length) h += '<div style="font-size:12px;color:var(--txt2);margin-bottom:8px">แถวใหม่อยู่ในเดือน: ' + addM.map(esc).join(', ') + '</div>';
-  if (plan.add.length || plan.fill.length) h += '<div class="row"><button class="btn primary" id="migSave">' + (canWrite() ? 'เพิ่มเข้าระบบ' : 'ดาวน์โหลด ZIP') + '</button></div>';
+  if (plan.add.length || plan.fill.length || plan.diffs.length) h += '<div class="row"><button class="btn primary" id="migSave">' + (canWrite() ? 'บันทึกเข้าระบบ' : 'ดาวน์โหลด ZIP') + '</button></div>';
   else h += '<div style="font-size:12px;color:var(--txt3)">ไม่มีอะไรต้องเพิ่ม — ข้อมูลในไฟล์มีในระบบครบแล้ว</div>';
   $('migOut').innerHTML = h;
+  if ($('dfAll')) $('dfAll').onchange = e => $('migOut').querySelectorAll('[data-df]').forEach(c => c.checked = e.target.checked);
   if (!$('migSave')) return;
   $('migSave').onclick = async () => {
     const backup = JSON.stringify(S.rows), months = new Set(), stamp = new Date().toISOString().slice(0, 16);
+    const pick = [...$('migOut').querySelectorAll('[data-df]:checked')].map(c => plan.diffs[+c.dataset.df]);
+    if (!plan.add.length && !plan.fill.length && !pick.length) { toast('ยังไม่ได้เลือกค่าที่จะอัปเดต'); return; }
+    const byRow = new Map();
+    pick.forEach(d => { if (!byRow.has(d.m)) byRow.set(d.m, {}); const v = byRow.get(d.m); v[d.p] = v[d.p] || (d.m.v[d.p] || [null, null]).slice(); v[d.p][d.i] = d.b; });
+    byRow.forEach((v, m) => { if (auditEdit(m, { v })) months.add(NIR.monthOf(m.d)); });
     let maxNo = S.rows.reduce((m, r) => Math.max(m, +r.no || 0), 0);
     plan.fill.forEach(([m, x]) => {
       Object.keys(x.v).forEach(p => { const o = m.v[p] || [null, null]; [0, 1].forEach(i => { if (x.v[p][i] !== null && (o[i] === null || o[i] === undefined)) o[i] = x.v[p][i]; }); m.v[p] = o; });
@@ -2918,8 +2935,8 @@ async function runMerge(jsons) {
     });
     S._learn = null; S._idx = null;
     try {
-      await saveMonths([...months], 'Merge data.json: +' + plan.add.length + ' new, fill ' + plan.fill.length);
-      $('migOut').innerHTML = '<div class="note ok">✅ เพิ่ม ' + plan.add.length + ' แถว · เติมค่า ' + plan.fill.length + ' แถว — ข้อมูลเดิมไม่ถูกแตะ</div>';
+      await saveMonths([...months], 'Merge data.json: +' + plan.add.length + ' new, fill ' + plan.fill.length + (pick.length ? ', update ' + pick.length + ' values from file' : ''));
+      $('migOut').innerHTML = '<div class="note ok">✅ เพิ่ม ' + plan.add.length + ' แถว · เติมค่า ' + plan.fill.length + ' แถว · อัปเดตตามไฟล์ ' + pick.length + ' ค่า (ค่าเดิมเก็บในประวัติ)</div>';
       refreshAll();
     } catch (e) { busy(false); S.rows = JSON.parse(backup); S._learn = null; S._idx = null; alert('ไม่สำเร็จ: ' + e.message); }
   };
