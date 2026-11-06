@@ -1554,7 +1554,7 @@ html.fb .nb-switch button { border-radius: 11px; }
 // ════════════════════════════════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════════════════════════════════
-const S = { sepDb: null, rows: [], index: null, loaded: false, table: null, mapping: [], preview: [], selPrd: null };
+const S = { sepDb: null, rows: [], index: null, loaded: false, migrated: undefined, table: null, mapping: [], preview: [], selPrd: null };
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -1614,6 +1614,10 @@ async function loadState() {
 }
 
 async function init() {
+  S.migrated = undefined; setLoadingUi(true);
+  try { await initLoad(); } finally { setLoadingUi(false); try { renderMigCard(); } catch (e) {} }
+}
+async function initLoad() {
   $('dDate').value = NIR.todayISO();
   const d = ls.get('nir_defaults', {});
   ['dPla', 'dTyp', 'dEqp', 'dSrc'].forEach(id => { if (d[id]) $(id).value = d[id]; });
@@ -1683,7 +1687,26 @@ function download(name, text, type) {
 }
 
 // files: { 'data/2026-10.json': text, 'sep.json': text }
+async function remoteHasData() {   // ถาม GitHub ตรง ๆ ว่ามี data/index.json แล้วหรือยัง (error = ถือว่ามี เพื่อความปลอดภัย)
+  try {
+    const gh = ghClient();
+    if (gh) return !!(await gh.getJSON('data/index.json'));
+    const res = await fetch(NIR.BASE_URL + 'data/index.json?_cb=' + Date.now(), { cache: 'no-store' });
+    if (res.status === 404) return false;
+    return true;
+  } catch (e) { return true; }
+}
+function setLoadingUi(on) {
+  ['btnMigFetch', 'migFiles'].forEach(id => { const el = $(id); if (el) el.disabled = on; });
+  const t = $('migTitle'); if (t && on) t.textContent = '⏳ กำลังโหลดข้อมูลในระบบ… (รอสักครู่ก่อนรวมข้อมูล)';
+}
+async function waitReady() {
+  if (S.migrated !== undefined) return;
+  busy(true, 'รอโหลดข้อมูลในระบบให้เสร็จก่อน …');
+  try { await S.ready; } finally { busy(false); }
+}
 async function writeFiles(files, message) {
+  if (S.migrated === undefined) throw new Error('ยังโหลดข้อมูลในระบบไม่เสร็จ — รอสักครู่แล้วลองใหม่');
   if (S.loadFailed) throw new Error('ข้อมูลในระบบโหลดไม่ครบ — กด Ctrl+F5 แล้วลองใหม่ (ปิดการบันทึกไว้เพื่อกันข้อมูลหาย)');
   const gh = ghClient();
   if (gh) {
@@ -1723,7 +1746,8 @@ function indexText() {
 }
 // เขียนเดือนที่เปลี่ยน + index (ถ้ามีเดือนใหม่/หายไป)
 async function saveMonths(months, message, extra) {
-  if (!S.migrated) {   // ครั้งแรก: เขียนข้อมูลเดิมทั้งหมด + ตาราง SEP ขึ้นรูปแบบใหม่ไปพร้อมกัน
+  if (S.migrated === false) {   // ครั้งแรก
+    if (await remoteHasData()) throw new Error('บน GitHub มีข้อมูลรูปแบบใหม่อยู่แล้ว — กด Ctrl+F5 แล้วลองใหม่ (ยกเลิกเพื่อไม่ให้เขียนทับ)');   // เขียนข้อมูลเดิมทั้งหมด + ตาราง SEP ขึ้นรูปแบบใหม่ไปพร้อมกัน
     months = uniq(S.rows.map(r => NIR.monthOf(r.d))).filter(m => /^\d{4}-\d{2}$/.test(m));
     extra = Object.assign({ 'sep.json': NIR.stringifySep(S.sepDb) }, extra || {});
     message = message + ' + migrate ' + S.rows.length + ' rows';
@@ -2805,7 +2829,8 @@ function mergePlan(slim) {
   return out;
 }
 async function runMigration(jsons) {
-  if (S.migrated) return runMerge(jsons);
+  await waitReady();
+  if (S.migrated !== false) return runMerge(jsons);
   let all = [];
   jsons.forEach(j => { if (j && j.rows) all = all.concat(j.rows); });
   if (!all.length) throw new Error('ไม่พบ rows ในไฟล์');
@@ -2900,6 +2925,7 @@ async function runMerge(jsons) {
   };
 }
 function renderMigCard() {
+  if (S.migrated === undefined) { setLoadingUi(true); return; }
   const merge = !!S.migrated;
   $('migTitle').textContent = merge ? 'รวมข้อมูลจาก data.json (Excel / Power Automate เดิม)' : 'ย้ายข้อมูลจาก Excel เดิม (ทำครั้งเดียว)';
   $('migMergeNote').style.display = merge ? '' : 'none';
@@ -2932,7 +2958,7 @@ document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
 });
 try { const t = sessionStorage.getItem('nir_tab'); if (t) document.querySelector('.tab[data-tab="' + t + '"]').click(); } catch (e) {}
 
-init();
+S.ready = init().catch(e => console.error(e));
 </script>
 <script src="nir_sidebar.js"></script>
 </body>
