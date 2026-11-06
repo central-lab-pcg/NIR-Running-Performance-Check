@@ -1639,7 +1639,14 @@ function showHist(key){
 
   // เก็บ _id และ _src ใน history ด้วย
   const rows=hist.map((h,hi)=>{
-    const dStr=h.date.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>`${d}/${m}/${y.slice(2)}`);
+    const recStr=h.date.replace(/(\d{4})-(\d{2})-(\d{2})/,(_,y,m,d)=>`${d}/${m}/${y.slice(2)}`);
+    // วันที่ = วันที่ Approve (ปรับที่เครื่องแล้ว) ของค่านี้ · ยังไม่ Approve → แสดงวันที่บันทึก + "รอ Approve"
+    const ap=BIAS_APPLIED[`${parts[0]}|${parts[1]}|${param}|${h.date}`];
+    const apDate=ap&&ap.appliedAt?ap.appliedAt.split(' ')[0]:'';
+    const apBy=ap&&ap.approvals&&ap.approvals.length?ap.approvals.map(a=>a.name).join(', '):'';
+    const dStr=apDate
+      ?`<span style="color:#2563eb;font-weight:700" title="Approve ${ap.appliedAt}${apBy?' · '+apBy:''}">✓ ${apDate}</span><div style="font-size:9px;color:#94a3b8;margin-top:1px">Record ${recStr}</div>`
+      :`<span style="color:#b45309;font-weight:700">รอ Approve</span><div style="font-size:9px;color:#94a3b8;margin-top:1px">Record ${recStr}</div>`;
     const dVal=h.delta!==null&&h.delta!==undefined?(h.delta>=0?'+':'')+h.delta.toFixed(3):'';
     const bStr=(h.bias>=0?'+':'')+h.bias.toFixed(3);
     const bCls=h.bias>0?'color:#16a34a':h.bias<0?'color:#dc2626':'color:#94a3b8';
@@ -1681,7 +1688,7 @@ function showHist(key){
       <table style="width:100%;border-collapse:collapse">
         <thead>
           <tr style="background:#f1f5f9">
-            <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">วันที่</th>
+            <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">วันที่ Approve</th>
             <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">Bias ประจำเดือน</th>
             <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">Bias ปัจจุบัน</th>
             <th style="padding:7px 12px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;text-align:left">ผู้บันทึก</th>
