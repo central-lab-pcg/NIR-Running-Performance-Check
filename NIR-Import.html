@@ -568,6 +568,7 @@ window.addEventListener('error', function (e) {
           smp, det: code + ' · ' + lab + ' #' + seq,
           d: NIR.parseDate(g('Sampling Date')) || NIR.parseDate(g('Recieved Date')) || NIR.parseDate(g('Order Date')),
           pla: cfg.pla, typ: /FINISH|FG|อาหารสำเร็จ/.test(st) ? 'FG' : cfg.typ, eqp: cfg.eqp, src: cfg.src, inst: 'SMARTILAB',
+          rem: String(g('Remarks') || g('Remark') || '').replace(/\s+/g, ' ').trim() || undefined,   // แสดงให้ดูตอนนำเข้า (ไม่บันทึก)
           v,
         });
       });
@@ -682,16 +683,27 @@ window.addEventListener('error', function (e) {
   };
 
   // เช็ค Worker: {ok, needKey, keyOk} หรือ null ถ้าเรียกไม่ได้
+  // เช็ก Worker: รอได้นานขึ้น (Worker ที่ไม่ได้ใช้นานตื่นช้า) + ลองซ้ำ 1 ครั้ง + เก็บสาเหตุไว้แสดง
   NIR.relayHealth = async function (relay, key) {
     if (!relay) return null;
-    try {
+    const once = async () => {
       const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      const t = ctl && setTimeout(() => ctl.abort(), 6000);
-      const res = await fetch(relay.replace(/\/+$/, '') + '/health', { headers: key ? { 'X-Import-Key': key } : {}, signal: ctl && ctl.signal });
-      t && clearTimeout(t);
-      if (!res.ok) return null;
-      return await res.json();
-    } catch (e) { return null; }
+      const t = ctl && setTimeout(() => ctl.abort(), 15000);
+      try {
+        const res = await fetch(relay.replace(/\/+$/, '') + '/health?_cb=' + Date.now(), { headers: key ? { 'X-Import-Key': key } : {}, signal: ctl && ctl.signal, cache: 'no-store' });
+        const txt = await res.text();
+        let j = null; try { j = JSON.parse(txt); } catch (e) { }
+        if (!j) return { ok: false, error: 'Worker ตอบกลับไม่ใช่ระบบ NIR (HTTP ' + res.status + ') — โค้ด Worker อาจถูกเปลี่ยน/ทับ' };
+        if (!res.ok || !j.ok) return Object.assign({}, j, { ok: false, error: j.error || ('HTTP ' + res.status) });
+        if (!j.folders) return { ok: false, error: 'Worker ไม่ใช่เวอร์ชันของระบบ NIR (ไม่มีข้อมูล folders)' };
+        return j;
+      } catch (e) {
+        return { ok: false, net: true, error: (e && e.name === 'AbortError') ? 'Worker ไม่ตอบภายใน 15 วินาที' : 'เรียก Worker ไม่ได้ (เครือข่าย/ถูกบล็อก)' };
+      } finally { t && clearTimeout(t); }
+    };
+    let r = await once();
+    if (!r.ok && r.net) r = await once();   // ลองซ้ำเมื่อเป็นปัญหาเครือข่าย/ตื่นช้า
+    return r;
   };
 
   // ตาราง SEP สำรอง (สร้างจาก data2.json วันที่ 27/10/2026) — ใช้เมื่อยังโหลดตาราง SEP จาก GitHub ไม่ได้
@@ -754,6 +766,9 @@ textarea{font-family:var(--mono);font-size:12px;min-height:140px;resize:vertical
 .ed-hist{font-size:11.5px;color:var(--txt2);background:var(--bg3);border-radius:var(--r);padding:8px 10px;margin-top:8px;max-height:160px;overflow:auto}
 .ed-hist div+div{margin-top:4px;padding-top:4px;border-top:1px dashed var(--border)}
 .edbtn{border:0;background:none;cursor:pointer;font-size:14px;padding:0 2px}
+.pvdate{font:11px var(--mono);padding:2px 4px;margin-top:3px;width:128px}
+.pvdate.chg{border-color:var(--amber);background:var(--amber-bg)}
+.pvrem{font-size:10.5px;color:var(--amber);margin-top:2px;white-space:normal;line-height:1.35}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .spacer{flex:1}
 .note{font-size:12px;color:var(--txt2);background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;line-height:1.6}
@@ -1430,6 +1445,7 @@ html.fb .nb-switch button { border-radius: 11px; }
     <div class="row" style="margin-bottom:10px;align-items:flex-start">
       <div class="note" style="flex:1;min-width:260px">ช่องตัวเลขแสดง <b>WC − NIR</b> เทียบกับ SEP ที่ระบบเลือกให้อัตโนมัติ (เปลี่ยนได้ในคอลัมน์ SEP) · <b>*</b> = ค่า WC เติมจาก Smart iLab · ถ้า product ว่าง ให้เลือกครั้งเดียว ระบบจะจำชื่อนั้นไว้</div>
       <label class="row" style="gap:6px;font-size:12px;color:var(--txt2);align-self:flex-end;padding-bottom:8px"><input type="checkbox" id="pvRaw" style="width:auto"> แสดงค่าดิบ WC | NIR</label>
+      <div class="f"><label>เปลี่ยนเดือนแถวที่เลือก (เฉพาะแถวใหม่)</label><div class="row" style="gap:6px;flex-wrap:nowrap"><input type="month" id="pvMonth" style="width:150px"><button class="btn" id="pvMonthBtn">ใช้</button></div></div>
       <div class="f" style="width:190px"><label>แสดง</label><select id="pvFilter"><option value="all">ทั้งหมด</option><option value="problem">เฉพาะที่ต้องดู</option><option value="new">ใหม่</option><option value="update">อัปเดตแถวเดิม</option><option value="dup">มีแล้ว</option><option value="on">ที่เลือกไว้</option></select></div>
     </div>
     <div id="pvMapWrap"><div class="lbl" style="margin-bottom:6px">จับคู่คอลัมน์ที่วาง (ระบบเดาจากหัวตาราง แก้ได้ และจะจำไว้)</div>
@@ -1573,6 +1589,18 @@ function ghClient() {
 }
 const canWrite = () => !!ghClient();
 const writeMode = () => token() ? 'token' : (canWrite() ? 'relay' : 'download');
+// วันหมดอายุ token จาก Worker เช่น "2027-11-17 14:20:00 +0700" → จำนวนวันที่เหลือ (null = ไม่ทราบ/ไม่มีวันหมดอายุ)
+function tokenDaysLeft() {
+  const e = S.relay && S.relay.tokenExpires; if (!e) return null;
+  const m = String(e).match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})\s*([+-]\d{2})(\d{2})?/);
+  const t = m ? Date.parse(m[1] + 'T' + m[2] + m[3] + ':' + (m[4] || '00')) : Date.parse(e);
+  return isNaN(t) ? null : Math.floor((t - Date.now()) / 864e5);
+}
+function tokenExpiryNote() {
+  const d = tokenDaysLeft(); if (d === null || d > 30) return '';
+  const day = String(S.relay.tokenExpires).slice(0, 10);
+  return '<div class="note ' + (d <= 7 ? 'err' : 'warn') + '" style="margin-bottom:12px">🔑 <b>GitHub token ของ Worker จะหมดอายุ ' + esc(day) + ' (อีก ' + Math.max(d, 0) + ' วัน)</b> — หลังจากนั้นจะบันทึกขึ้นระบบไม่ได้ · ให้ Admin สร้าง token ใหม่แล้วใส่ใน Cloudflare (Secret GH_TOKEN) ก่อนวันหมดอายุ</div>';
+}
 async function checkRelay() { S.relay = await NIR.relayHealth(relayUrl(), relayKey()); return S.relay; }
 const fmt = (x, dp = 2) => x === null || x === undefined || isNaN(x) ? '' : (+x).toFixed(dp);
 const DEC = { ASH: 2, Ca: 3, P: 3, Aw: 3 };
@@ -1622,6 +1650,8 @@ async function initLoad() {
   const d = ls.get('nir_defaults', {});
   ['dPla', 'dTyp', 'dEqp', 'dSrc'].forEach(id => { if (d[id]) $(id).value = d[id]; });
   await checkRelay(); renderRelay();
+  if (relayUrl() && !token() && S.relay && !S.relay.ok) $('globalNote').innerHTML = '<div class="note err" style="margin-bottom:12px">⚠️ <b>ต่อ Worker ไม่ได้ — ตอนนี้บันทึกขึ้นระบบไม่ได้</b> · สาเหตุ: ' + esc(S.relay.error || '') + '<br>ให้ Admin เปิด <span class="mono">' + esc(relayUrl().replace(/\/+$/, '')) + '/health</span> เพื่อตรวจ (ดูแท็บ ⚙️ ตั้งค่า)</div>';
+  if (S.relay && S.relay.ok) $('globalNote').innerHTML = tokenExpiryNote();
   try { await loadState(); S.migrated = true; S.loadFailed = false; }
   catch (e) {
     if (!e.noData) {
@@ -1717,6 +1747,13 @@ async function writeFiles(files, message) {
     }
     busy(false);
     return 'github';
+  }
+  // ตั้ง Worker ไว้แต่ใช้ไม่ได้ → เช็กซ้ำอีกครั้ง แล้วค่อยถาม (ไม่ดาวน์โหลดเงียบ ๆ)
+  if (relayUrl() && !token()) {
+    busy(true, 'เชื่อมต่อ Worker อีกครั้ง …'); await checkRelay(); busy(false); renderRelay();
+    if (ghClient()) return writeFiles(files, message);
+    const why = (S.relay && S.relay.error) || 'ไม่ทราบสาเหตุ';
+    if (!confirm('⚠️ บันทึกขึ้นระบบไม่ได้ — ต่อ Worker ไม่ได้\nสาเหตุ: ' + why + '\n\nกด OK = ดาวน์โหลดไฟล์ ZIP ไว้ก่อน (ต้องอัปโหลดขึ้น GitHub เอง)\nกด Cancel = ยกเลิก (แจ้ง Admin ให้แก้ Worker แล้วค่อยบันทึกใหม่)')) throw new Error('ยกเลิก — Worker ใช้ไม่ได้: ' + why);
   }
   const paths = Object.keys(files);
   if (paths.length === 1 && !paths[0].includes('/')) { download(paths[0], files[paths[0]]); }
@@ -1927,6 +1964,7 @@ function buildFilePreview() {
     const p = prev.get(r.k);
     if (p && p.userPrd) { r.prd = p.prd; r.userPrd = true; }
     if (p && p.userSep) { r.sep = p.sep; r.userSep = true; }
+    if (p && p.userDate) { r.d = p.d; r.userDate = true; }
     finalizeRow(r, p);
     return r;
   });
@@ -2065,6 +2103,7 @@ function buildPreview() {
     const prev = prevByIdx.get(i);
     if (prev && prev.userPrd) { r.prd = prev.prd; r.userPrd = true; }
     if (prev && prev.userSep) { r.sep = prev.sep; r.userSep = true; }
+    if (prev && prev.userDate) { r.d = prev.d; r.userDate = true; }
     finalizeRow(r, prev);
     return r;
   }).filter(r => r.smp || Object.keys(r.v).length);
@@ -2164,9 +2203,9 @@ function renderPreview(header) {
     const badges = (iss.length ? iss : [['g', 'ใหม่']]).map(([c, t]) => '<span class="badge ' + c + '">' + esc(t) + '</span>').join(' ');
     h += '<tr class="' + (r.on ? '' : 'off') + '"><td><input type="checkbox" data-on="' + k + '" style="width:auto"' + (r.on ? ' checked' : '') + '></td>' +
       '<td style="font-size:11px;color:var(--txt2)">' + esc(r.origin || '') + '</td>' +
-      '<td title="' + esc(r.smp + (r.det ? '\n' + r.det : '')) + '" style="max-width:250px;overflow:hidden;text-overflow:ellipsis">' + esc(r.smp) + (r.lab ? '<br><span class="mono" style="font-size:10px;color:var(--txt3)">' + esc(r.lab + (r.seq ? ' #' + r.seq : '')) + '</span>' : '') + '</td>' +
+      '<td title="' + esc(r.smp + (r.det ? '\n' + r.det : '')) + '" style="max-width:250px;overflow:hidden;text-overflow:ellipsis">' + esc(r.smp) + (r.lab ? '<br><span class="mono" style="font-size:10px;color:var(--txt3)">' + esc(r.lab + (r.seq ? ' #' + r.seq : '')) + '</span>' : '') + '' + (r.rem ? '<div class="pvrem" title="Remark จาก Smart iLab: ' + esc(r.rem) + '">📝 ' + esc(r.rem) + '</div>' : '') + '</td>' +
       '<td><input data-prd="' + k + '" list="dlPrd" value="' + esc(r.prd) + '" placeholder="' + esc(r.prdName || '') + '" title="' + esc((r.prdName || '') + (r.prdHint ? ' · ' + r.prdHint : '')) + '" style="min-width:120px' + (r.prd ? '' : ';border-color:var(--red)') + '"></td>' +
-      '<td style="font-size:11px;color:var(--txt2)">' + esc(r.pla) + ' · ' + esc(r.eqp) + ' · ' + esc(r.src) + ' · <b' + (r.typAuto ? ' title="Type ตาม Product (เครื่องตั้งไว้ ' + esc(r.instTyp) + ')" style="color:var(--blue)"' : '') + '>' + esc(r.typ) + '</b><br><span class="mono" style="color:var(--txt3)">' + esc(r.d) + '</span></td>' +
+      '<td style="font-size:11px;color:var(--txt2)">' + esc(r.pla) + ' · ' + esc(r.eqp) + ' · ' + esc(r.src) + ' · <b' + (r.typAuto ? ' title="Type ตาม Product (เครื่องตั้งไว้ ' + esc(r.instTyp) + ')" style="color:var(--blue)"' : '') + '>' + esc(r.typ) + '</b><br><input type="date" data-d="' + k + '" value="' + esc(r.d || '') + '" class="pvdate' + (r.userDate ? ' chg' : '') + '" title="' + (r.status === 'new' ? 'แก้วันที่ / เดือนได้ก่อนบันทึก' : 'แถวนี้มีในระบบแล้ว — แก้วันที่ด้วยปุ่ม ✏️ ในแท็บข้อมูลในระบบ') + '"' + (r.status === 'new' ? '' : ' disabled') + '></td>' +
       '<td><select data-sep="' + k + '" style="min-width:92px">' + sepOptions(r.prd, r.sep) + '</select></td>' +
       '<td style="white-space:normal;min-width:150px;max-width:260px">' + badges + '</td>' + pars.map(p => diffCell(r, p)).join('') + '</tr>';
   });
@@ -2180,6 +2219,12 @@ function renderPreview(header) {
     // ใช้กับทุกแถวที่มีชื่อสินค้าเดียวกันในไฟล์ (เช่น "BR,R" ทั้งหมด)
     S.preview.forEach(x => { if (x === r || (r.prdKey && x.prdKey === r.prdKey && !x.userPrd)) { x.prd = prd; x.userPrd = x === r || x.userPrd; x.userSep = false; finalizeRow(x, x); } });
     r.userPrd = true;
+    setTimeout(() => renderPreview(header), 0);
+  });
+  $('pvWrap').querySelectorAll('[data-d]').forEach(el => el.onchange = () => {
+    const r = S.preview[+el.dataset.d];
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(el.value)) { el.value = r.d || ''; return; }
+    r.d = el.value; r.userDate = true; finalizeRow(r, r);
     setTimeout(() => renderPreview(header), 0);
   });
   $('pvWrap').querySelectorAll('[data-sep]').forEach(el => el.onchange = () => {
@@ -2199,6 +2244,20 @@ function renderPreview(header) {
   S._lastHeader = header;
 }
 $('pvFilter').onchange = () => renderPreview(S._lastHeader);
+// เปลี่ยนเดือนทีละหลายแถว: คงวันที่เดิม (ถ้าเกินวันสุดท้ายของเดือนใหม่ → ใช้วันสุดท้าย)
+$('pvMonthBtn').onclick = () => {
+  const ym = $('pvMonth').value;
+  if (!/^\d{4}-\d{2}$/.test(ym)) { toast('เลือกเดือนก่อน'); return; }
+  const last = new Date(+ym.slice(0, 4), +ym.slice(5, 7), 0).getDate();
+  const rows = S.preview.filter(r => r.on && r.status === 'new');
+  if (!rows.length) { toast('ไม่มีแถวใหม่ที่เลือกไว้'); return; }
+  rows.forEach(r => {
+    const day = Math.min(+((r.d || '').slice(8, 10)) || 1, last);
+    r.d = ym + '-' + String(day).padStart(2, '0'); r.userDate = true; finalizeRow(r, r);
+  });
+  toast('เปลี่ยนเป็นเดือน ' + ym + ' แล้ว ' + rows.length + ' แถว');
+  renderPreview(S._lastHeader);
+};
 $('pvRaw').checked = showRaw();
 $('pvRaw').onchange = () => { ls.set('nir_show_raw', $('pvRaw').checked); renderPreview(S._lastHeader); renderData(); };
 
@@ -2740,10 +2799,10 @@ $('btnAlSave').onclick = () => saveConfig('al');
 function renderRelay() {
   const r = S.relay, box = $('relayBox'); if (!box) return;
   let h;
-  if (r && r.ok && r.keyOk) h = '<div class="note ok">✅ เชื่อมต่อ Worker แล้ว — กดบันทึกแล้วข้อมูลขึ้นระบบทันที' + (token() ? ' <small>(ตอนนี้เครื่องนี้ใช้ token ของตัวเองแทน)</small>' : '') + '</div>';
+  if (r && r.ok && r.keyOk) h = '<div class="note ok">✅ เชื่อมต่อ Worker แล้ว — กดบันทึกแล้วข้อมูลขึ้นระบบทันที' + (r.tokenExpires ? ' · token หมดอายุ ' + esc(String(r.tokenExpires).slice(0, 10)) : (r.tokenOk ? ' · token ไม่มีวันหมดอายุ' : '')) + (token() ? ' <small>(ตอนนี้เครื่องนี้ใช้ token ของตัวเองแทน)</small>' : '') + '</div>';
   else if (r && r.ok && !r.keyOk) h = '<div class="note warn" style="margin-bottom:8px">🔑 Worker ตั้งรหัสนำเข้าไว้ — ใส่รหัสครั้งเดียวต่อเครื่อง (ขอจาก Admin)</div>' +
     '<div class="row"><input id="impKey" type="password" placeholder="รหัสนำเข้า" style="max-width:260px"><button class="btn primary" id="btnImpKey">บันทึกรหัส</button></div>';
-  else h = '<div class="note err">❌ ต่อ Worker ไม่ได้ <span class="mono" style="font-size:11px">' + esc(relayUrl() || '(ยังไม่ได้ตั้ง URL)') + '</span> — ตรวจว่า deploy Worker และตั้ง GH_TOKEN แล้ว หรือใช้ token ด้านล่างแทน</div>';
+  else h = '<div class="note err">❌ ต่อ Worker ไม่ได้ <span class="mono" style="font-size:11px">' + esc(relayUrl() || '(ยังไม่ได้ตั้ง URL)') + '</span>' + (r && r.error ? '<br><b>สาเหตุ: ' + esc(r.error) + '</b>' : '') + '<br> — ตรวจว่า deploy Worker และตั้ง GH_TOKEN แล้ว หรือใช้ token ด้านล่างแทน</div>';
   h += '<details style="margin-top:8px;font-size:12px;color:var(--txt2)"><summary>เปลี่ยน URL ของ Worker</summary><div class="row" style="margin-top:6px">' +
     '<input id="relayUrlIn" value="' + esc(relayUrl()) + '" style="max-width:420px"><button class="btn" id="btnRelayUrl">ทดสอบ & ใช้</button></div></details>';
   box.innerHTML = h;
