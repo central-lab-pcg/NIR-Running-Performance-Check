@@ -1,0 +1,148 @@
+{
+ "version": 1,
+ "month": "2026-11",
+ "rows": [
+  {
+   "id": "mwoguo6o0uxx",
+   "src": "report",
+   "at": "2026-11-20T04:15:37.506Z",
+   "savedBy": "Gavin",
+   "d": "2026-11-19",
+   "lab": "02-QCR260010788004",
+   "smp": "SBH",
+   "pars": [
+    "M",
+    "CP",
+    "FIB"
+   ],
+   "by": "กวิณ",
+   "vals": {
+    "M": [
+     10.7,
+     10.7
+    ],
+    "CP": [
+     10.1,
+     10.1
+    ],
+    "FIB": [
+     36,
+     35.9
+    ]
+   },
+   "mode": "rpd",
+   "type": "other",
+   "diff": {
+    "M": 0.09,
+    "CP": 0,
+    "FIB": 0.28
+   },
+   "res": {
+    "M": {
+     "v": 0.09,
+     "ok": true,
+     "crit": "NIR ≤ 20 → %RPD ≤ 10"
+    },
+    "CP": {
+     "v": 0,
+     "ok": true,
+     "crit": "NIR ≤ 20 → %RPD ≤ 10"
+    },
+    "FIB": {
+     "v": 0.28,
+     "ok": true,
+     "crit": "NIR > 20 → %RPD < 5"
+    }
+   },
+   "result": "pass"
+  },
+  {
+   "id": "mwoguo6ow6nj",
+   "src": "report",
+   "at": "2026-11-20T04:15:37.506Z",
+   "savedBy": "Gavin",
+   "d": "2026-11-19",
+   "lab": "02-QCR260010788008",
+   "smp": "PCTM",
+   "pars": [
+    "M",
+    "CP",
+    "EE",
+    "ASH",
+    "TVBN",
+    "BHT"
+   ],
+   "by": "กวิณ",
+   "vals": {
+    "M": [
+     4.47,
+     4.46
+    ],
+    "CP": [
+     61.7,
+     61.8
+    ],
+    "EE": [
+     8.96,
+     8.87
+    ],
+    "ASH": [
+     22.7,
+     22.9
+    ],
+    "TVBN": [
+     59.8,
+     59.1
+    ],
+    "BHT": [
+     316,
+     316
+    ]
+   },
+   "mode": "rpd",
+   "type": "other",
+   "diff": {
+    "M": 0.22,
+    "CP": 0.06,
+    "EE": 0.94,
+    "ASH": 0.88,
+    "TVBN": 1.06,
+    "BHT": 0.02
+   },
+   "res": {
+    "M": {
+     "v": 0.22,
+     "ok": true,
+     "crit": "NIR ≤ 20 → %RPD ≤ 10"
+    },
+    "CP": {
+     "v": 0.06,
+     "ok": true,
+     "crit": "NIR > 20 → %RPD < 5"
+    },
+    "EE": {
+     "v": 0.94,
+     "ok": true,
+     "crit": "NIR ≤ 20 → %RPD ≤ 10"
+    },
+    "ASH": {
+     "v": 0.88,
+     "ok": true,
+     "crit": "NIR > 20 → %RPD < 5"
+    },
+    "TVBN": {
+     "v": 1.06,
+     "ok": true,
+     "crit": "NIR > 20 → %RPD < 5"
+    },
+    "BHT": {
+     "v": 0.02,
+     "ok": true,
+     "crit": "NIR > 20 → %RPD < 5"
+    }
+   },
+   "result": "pass"
+  }
+ ],
+ "deleted": []
+}
