@@ -142,6 +142,93 @@
     }
    },
    "result": "pass"
+  },
+  {
+   "id": "mwoh138bcjab",
+   "src": "report",
+   "at": "2026-11-20T04:20:37.005Z",
+   "savedBy": "Gavin",
+   "d": "2026-11-20",
+   "lab": "02-QCR260010812001",
+   "smp": "FM-SKJ",
+   "pars": [
+    "M",
+    "CP",
+    "EE",
+    "ASH",
+    "TVBN",
+    "BHT"
+   ],
+   "by": "กวิณ",
+   "vals": {
+    "M": [
+     7.76,
+     7.69
+    ],
+    "CP": [
+     61.4,
+     61.5
+    ],
+    "EE": [
+     8.52,
+     8.51
+    ],
+    "ASH": [
+     20.4,
+     20.2
+    ],
+    "TVBN": [
+     87.9,
+     91.8
+    ],
+    "BHT": [
+     463,
+     463
+    ]
+   },
+   "mode": "rpd",
+   "type": "other",
+   "diff": {
+    "M": 0.91,
+    "CP": 0.23,
+    "EE": 0.11,
+    "ASH": 0.99,
+    "TVBN": 4.38,
+    "BHT": 0.06
+   },
+   "res": {
+    "M": {
+     "v": 0.91,
+     "ok": true,
+     "crit": "NIR ≤ 20 → %RPD ≤ 10"
+    },
+    "CP": {
+     "v": 0.23,
+     "ok": true,
+     "crit": "NIR > 20 → %RPD < 5"
+    },
+    "EE": {
+     "v": 0.11,
+     "ok": true,
+     "crit": "NIR ≤ 20 → %RPD ≤ 10"
+    },
+    "ASH": {
+     "v": 0.99,
+     "ok": true,
+     "crit": "NIR > 20 → %RPD < 5"
+    },
+    "TVBN": {
+     "v": 4.38,
+     "ok": true,
+     "crit": "NIR > 20 → %RPD < 5"
+    },
+    "BHT": {
+     "v": 0.06,
+     "ok": true,
+     "crit": "NIR > 20 → %RPD < 5"
+    }
+   },
+   "result": "pass"
   }
  ],
  "deleted": []
