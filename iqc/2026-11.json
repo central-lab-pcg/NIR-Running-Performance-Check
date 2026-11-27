@@ -403,6 +403,71 @@
     }
    },
    "result": "pass"
+  },
+  {
+   "id": "mwycqs4ntin2",
+   "src": "report",
+   "at": "2026-11-27T02:18:19.367Z",
+   "savedBy": "Gavin",
+   "d": "2026-11-27",
+   "lab": "02-QCR260011083010",
+   "smp": "SBM",
+   "pars": [
+    "M",
+    "CP",
+    "EE",
+    "FIB"
+   ],
+   "by": "",
+   "vals": {
+    "M": [
+     11.2,
+     11.1
+    ],
+    "CP": [
+     47,
+     47.1
+    ],
+    "EE": [
+     1.18,
+     1.18
+    ],
+    "FIB": [
+     4.03,
+     4.13
+    ]
+   },
+   "mode": "rpd",
+   "type": "other",
+   "diff": {
+    "M": 0.63,
+    "CP": 0.08,
+    "EE": 0.09,
+    "FIB": 2.45
+   },
+   "res": {
+    "M": {
+     "v": 0.63,
+     "ok": true,
+     "crit": "NIR ≤ 20 → %RPD ≤ 10"
+    },
+    "CP": {
+     "v": 0.08,
+     "ok": true,
+     "crit": "NIR > 20 → %RPD < 5"
+    },
+    "EE": {
+     "v": 0.09,
+     "ok": true,
+     "crit": "NIR ≤ 20 → %RPD ≤ 10"
+    },
+    "FIB": {
+     "v": 2.45,
+     "ok": true,
+     "crit": "NIR ≤ 20 → %RPD ≤ 10"
+    }
+   },
+   "result": "pass"
   }
  ],
  "deleted": []
